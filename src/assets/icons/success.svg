@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 外圈圆（状态符号：圈内对勾） -->
+  <circle cx="24" cy="24" r="16.5"/>
+  <!-- 对勾：短降长升两段折线，各约 45°，小尺寸清晰 -->
+  <path d="M15 24.5 L21.5 31 L33 19"/>
+</svg>

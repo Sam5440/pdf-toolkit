@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 竖版 PDF 页面母题（rx=3 圆角），右下角断开：笔从缺口处压在纸面上 -->
+  <path d="M30 22 L30 11 Q30 8 27 8 L11 8 Q8 8 8 11 L8 33 Q8 36 11 36 L27 36"/>
+  <!-- 页面已有内容：两行抽象内容线 -->
+  <path d="M13 15 L21.5 15"/>
+  <path d="M13 20 L19 20"/>
+  <!-- 铅笔轮廓：笔尖斜落纸面（在页内 25.5,25.5），笔身 45° 伸出页角 -->
+  <path d="M25.5 25.5 L30.88 27.2 L40.07 36.39 L36.39 40.07 L27.2 30.88 Z"/>
+  <!-- 笔尖与笔杆分界线 -->
+  <path d="M30.88 27.2 L27.2 30.88"/>
+</svg>

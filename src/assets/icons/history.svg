@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 表盘：圆环留出左上 90° 缺口（缺口即回拨路径），非页面母题 -->
+  <path d="M8 25 A16 16 0 1 0 24 9"/>
+  <!-- 时钟指针：分针指 12，时针指向约 4 点半 -->
+  <path d="M24 16 V25 L30.5 29.3"/>
+  <!-- 逆时针回拨箭头：雪佛龙骑在缺口圆周上，尖端指向左下（沿缺口从 12 点回拨向 9 点） -->
+  <path d="M14.3 6.9 L12.7 13.7 L19.5 12.1"/>
+</svg>

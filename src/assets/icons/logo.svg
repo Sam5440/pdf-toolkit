@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 竖版 PDF 页面母题（rx=3）：右下角留出缺口，作为"魔法工具"的落位 -->
+  <path d="M31 22.5 V11 Q31 8 28 8 H12 Q9 8 9 11 V33 Q9 36 12 36 H24.5"/>
+  <!-- 页面内容线：抽象文档内容 -->
+  <path d="M14 15 H25.5"/>
+  <path d="M14 20.5 H21.5"/>
+  <!-- 四角闪光（sparkle）：嵌在页面右下缺口的"魔法工具箱"记号 -->
+  <path d="M33 25.5 Q34 32 40.5 33 Q34 34 33 40.5 Q32 34 25.5 33 Q32 32 33 25.5 Z"/>
+  <!-- 小实心闪光点缀：右上角呼应，构成"多点魔法"的品牌节奏 -->
+  <path d="M36.5 9 Q37 12 40 12.5 Q37 13 36.5 16 Q36 13 33 12.5 Q36 12 36.5 9 Z" fill="currentColor" stroke="none"/>
+</svg>

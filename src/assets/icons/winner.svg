@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 杯体：顶部封口、圆底 U 形杯（非页面母题） -->
+  <path d="M15 10 H33 V19 C33 25 29.5 29 24 29 C18.5 29 15 25 15 19 Z"/>
+  <!-- 双耳：左右对称外凸弧线，两端搭在杯壁上 -->
+  <path d="M15 12 C10.4 12 7.5 14.3 7.5 17.4 C7.5 20.1 10.3 22 15.3 21.2 M33 12 C37.6 12 40.5 14.3 40.5 17.4 C40.5 20.1 37.7 22 32.7 21.2"/>
+  <!-- 杯颈 + 底座横线：T 形支承收底 -->
+  <path d="M24 29 V37 M16 37 H32"/>
+</svg>

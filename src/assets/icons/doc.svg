@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 竖版页面母题（24×32, rx=3）：右上带折角的通用文档页 -->
+  <path d="M15 8 H30 L36 14 V37 A3 3 0 0 1 33 40 H15 A3 3 0 0 1 12 37 V11 A3 3 0 0 1 15 8 Z"/>
+  <!-- 折角翻页：右上角向内折入，表达"文件"而非"窗口/画板" -->
+  <path d="M30 8 V11 A3 3 0 0 0 33 14 H36"/>
+  <!-- 三条内容行：长短错落的抽象正文（长-中-短，全在页内不出界） -->
+  <path d="M17 20 H31 M17 25.5 H26 M17 31 H22"/>
+</svg>

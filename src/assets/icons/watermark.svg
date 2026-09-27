@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 竖版 PDF 页面母题（24×32, rx=3） -->
+  <rect x="12" y="8" width="24" height="32" rx="3"/>
+  <!-- 斜 45° 穿过页面的水印：中央长笔画 + 两侧平行短笔画，暗示半透明斜排文字带 -->
+  <path d="M16 32 L32 16"/>
+  <path d="M18 23 L23 18"/>
+  <path d="M25 30 L30 25"/>
+</svg>

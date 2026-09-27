@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 被压扁的竖版 PDF 页面：高度收窄，两行内容线向中部聚拢 -->
+  <rect x="15" y="13" width="18" height="22" rx="3"/>
+  <path d="M19.5 20 H28.5"/>
+  <path d="M19.5 25 H25.5"/>
+  <!-- 上方箭头垂直向下压向页面顶边 -->
+  <path d="M24 6.5 V12.5 M20.5 9 L24 12.5 L27.5 9"/>
+  <!-- 下方箭头垂直向上顶向页面底边 -->
+  <path d="M24 41.5 V35.5 M20.5 39 L24 35.5 L27.5 39"/>
+</svg>

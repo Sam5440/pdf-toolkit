@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- U 形托盘：开口向上的放置区，象征"把文件放进来"的托底 -->
+  <path d="M9.5 28.5 V33.5 A4.5 4.5 0 0 0 14 38 H34 A4.5 4.5 0 0 0 38.5 33.5 V28.5"/>
+  <!-- 单支向上箭头：从托盘开口内升起，表示文件上传/添加 -->
+  <path d="M24 30.5 V11 M16.5 18.5 L24 11 L31.5 18.5"/>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 竖版 PDF 页面母题（24×32, rx=3）：待保护的文档 -->
+  <rect x="12" y="8" width="24" height="32" rx="3"/>
+  <!-- 页面上部的抽象内容线：表示这是一份有内容的文档 -->
+  <path d="M17 14 H31"/>
+  <path d="M17 18.5 H26.5"/>
+  <!-- 挂锁锁梁：弧线扣在页面下半部 -->
+  <path d="M20.5 27.5 V25 A3.5 3.5 0 0 1 27.5 25 V27.5"/>
+  <!-- 挂锁锁体：圆角矩形，居于页面下半部正中 -->
+  <rect x="18" y="27.5" width="12" height="9" rx="2.5"/>
+  <!-- 锁孔：唯一实心点缀 -->
+  <circle cx="24" cy="31.8" r="1.6" fill="currentColor" stroke="none"/>
+</svg>

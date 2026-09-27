@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 竖版 PDF 页面母题（24×32, rx=3）：待识别的扫描文档 -->
+  <rect x="12" y="8" width="24" height="32" rx="3"/>
+  <!-- 取景框四角括号：表示"正在框选/扫描识别页面内容" -->
+  <path d="M17 19 V14 H22 M26 14 H31 V19 M31 25 V30 H26 M22 30 H17 V25"/>
+  <!-- 框内抽象内容线：待识别的图像文字（非真实文字） -->
+  <path d="M20 19.5 H28 M20 23 H25"/>
+  <!-- 扫描光束：横贯页面、穿过取景框两侧竖臂 -->
+  <path d="M15 27 H33"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 源：多份错位叠放的 PDF 页面 -->
+  <rect x="7.5" y="9" width="12" height="16" rx="3"/>
+  <rect x="11" y="23" width="12" height="16" rx="3"/>
+  <!-- 两页各引出一条支流，向右收拢于一点（多 → 一） -->
+  <path d="M19.5 16 L29 24 L23 31"/>
+  <!-- 合流后的单一文档流 + 箭头（合并为一个文件） -->
+  <path d="M29 24 H40 M36.5 20.5 L40 24 L36.5 27.5"/>
+</svg>

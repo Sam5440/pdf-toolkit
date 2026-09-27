@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 源：一个 PDF 页面 -->
+  <rect x="18" y="6" width="12" height="16" rx="3"/>
+  <!-- 产物：拆分出的多个小页面 -->
+  <rect x="8.5" y="28.5" width="10" height="13.5" rx="3"/>
+  <rect x="29.5" y="28.5" width="10" height="13.5" rx="3"/>
+  <!-- 一 → 多 的分流箭头 -->
+  <path d="M22.5 22.5 L15 26 M18.5 26.2 L15 26 L17.1 23.2"/>
+  <path d="M25.5 22.5 L33 26 M29.5 26.2 L33 26 L30.9 23.2"/>
+</svg>
