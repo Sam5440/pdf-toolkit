@@ -1,0 +1,26 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+.offline-test/
+
+# ZCode 工作区（会话/计划/代理产物）
+.zcode/
+
+# 测试产物与缓存
+.pytest_cache/
+test-results*/
+playwright-report/
+tests/e2e/.artifacts/
+tests/e2e/.report/
+tests/fixtures/out/
+__pycache__/
+*.pyc
+
+# 资产下载缓存（scripts/fetch_assets.py 可重建 public/ 下资产）
+*.part
+
+# 系统文件
+.DS_Store
+*.log

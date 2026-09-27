@@ -1,0 +1,34 @@
+{
+  "name": "pdf-toolkit",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "PDF 万能工具箱 — 全浏览器端 WASM 处理，文件不出浏览器",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "serve": "python3 scripts/serve.py dist"
+  },
+  "dependencies": {
+    "@jspawn/qpdf-wasm": "0.0.2",
+    "@pdf-lib/fontkit": "1.1.1",
+    "diff": "9.0.0",
+    "docx-preview": "0.4.1",
+    "fflate": "0.8.3",
+    "mammoth": "1.13.0",
+    "mupdf": "1.28.1",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "6.3.289",
+    "pptx-preview": "1.0.7",
+    "qpdf-wasm": "0.1.0",
+    "tesseract.js": "7.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}
