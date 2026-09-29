@@ -3,30 +3,35 @@ import { iconSvg } from '../components/icons.js';
 import { registerTool } from './core.js';
 import { run } from '../core/engine.js';
 import { inputPanel } from '../components/input.js';
+import { addDocument } from '../core/files.js';
 import { progressCard, warningsBox, toast, field, textInput, button } from '../components/ui.js';
 import { fmtBytes } from '../core/format.js';
 import { addHistory } from '../core/history.js';
 import { downloadArtifact } from '../core/download.js';
 
+const IMG_EXT = /\.(jpe?g|png|webp)$/i;
+const EXT_MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+
 registerTool({
   id: 'merge',
   name: '合并 PDF',
   group: 'pages',
-  desc: '多个 PDF 按顺序合并为一个文件，可各自选择页范围',
+  desc: '多个 PDF 与图片混合按顺序合并为一个文件，PDF 可各自选择页范围',
   accepts: 'pdf',
   multiple: true,
   render(container) {
     const panel = inputPanel({
       multiple: true,
-      accept: 'application/pdf,.pdf',
-      acceptHint: '支持多个 PDF，处理全程在本地浏览器完成',
+      accept: 'application/pdf,.pdf,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp',
+      acceptTest: /\.(pdf|jpe?g|png|webp)$/i,
+      acceptHint: '支持多个 PDF 与图片（JPG/PNG/WebP）混合，处理全程在本地浏览器完成',
     });
     const controls = document.createElement('div');
     controls.className = 'card';
     controls.style.marginTop = '14px';
     const body = document.createElement('div');
     body.className = 'card-body';
-    const rangeField = field('页范围（可选，每行对应一个文件，留空=全部页）',
+    const rangeField = field('页范围（可选，每行对应一个文件，留空=全部页；图片项恒为整页）',
       textInput('', '如 1-3,5（多个文件用逗号分隔对应，或留空）'),
       '示例：第一个文件取 1-3 页、第二个文件全部页 → 填 "1-3,"');
     const goBtn = button('开始合并', 'btn-primary', () => doMerge());
@@ -39,17 +44,38 @@ registerTool({
     container.append(panel.el, controls, resultBox);
 
     async function doMerge() {
-      const docs = panel.docs();
+      let docs = panel.docs();
       resultBox.innerHTML = '';
-      if (!docs.length) { toast('请先选择 PDF 文件', 'error'); return; }
-      const ranges = rangeField.querySelector('input').value.trim();
-      const rangeList = ranges ? ranges.split(',').map((s) => s.trim()) : [];
-      const items = docs.map((d, i) => ({ docId: d.id, pages: rangeList[i] || 'all' }));
+      if (!docs.length) { toast('请先选择 PDF 或图片文件', 'error'); return; }
       const pc = progressCard();
       resultBox.appendChild(pc.el);
-      pc.set(30, '合并中…');
       const t0 = Date.now();
       try {
+        const isImg = (d) => IMG_EXT.test(d.name) || (d.type || '').startsWith('image/');
+        const imgSlots = new Set(); // 原始列表里图片项的位置（转页后仍占用原槽位，不消耗页范围）
+        docs.forEach((d, i) => { if (isImg(d)) imgSlots.add(i); });
+        // 图片项先转为"图片即一页"的单页 PDF 文档，再按添加顺序参与合并
+        const imgDocs = docs.filter(isImg);
+        if (imgDocs.length) {
+          let done = 0;
+          for (const d of imgDocs) {
+            const bytes = new Uint8Array(await d.file.arrayBuffer());
+            const m = /\.([a-z0-9]+)$/i.exec(d.name);
+            const res = await run('images.toPdf', {
+              images: [{ name: d.name, bytes, mime: d.type || (m ? EXT_MIME[m[1].toLowerCase()] : '') || '' }],
+              paper: 'auto', fit: 'contain',
+            }, {}, new Map());
+            const f = new File([res.artifacts[0].bytes], `${d.name.replace(IMG_EXT, '')}.pdf`, { type: 'application/pdf' });
+            const nd = addDocument(f);
+            docs = docs.map((x) => (x.id === d.id ? nd : x));
+            done += 1;
+            pc.set(Math.round((done / imgDocs.length) * 40), `图片转页 ${done}/${imgDocs.length}`);
+          }
+        }
+        pc.set(60, '合并中…');
+        const ranges = rangeField.querySelector('input').value.trim();
+        const rangeList = ranges ? ranges.split(',').map((s) => s.trim()) : [];
+        const items = docs.map((d, i) => ({ docId: d.id, pages: imgSlots.has(i) ? 'all' : (rangeList[i] || 'all') }));
         const docsMap = new Map(docs.map((d) => [d.id, d]));
         const res = await run('pages.merge', { items }, {}, docsMap);
         pc.done();
