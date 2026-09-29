@@ -23,10 +23,10 @@ export async function openTool(page, toolId) {
   await page.waitForTimeout(250);
 }
 
-/** 真实文件上传（走 filechooser，禁止 DOM 注入） */
-export async function upload(page, files, multiple = true) {
+/** 真实文件上传（走 filechooser，禁止 DOM 注入）；zone 指定第几个 dropzone（多面板工具用） */
+export async function upload(page, files, multiple = true, zone = 0) {
   const chooserP = page.waitForEvent('filechooser');
-  await page.locator('.dropzone').click();
+  await page.locator('.dropzone').nth(zone).click();
   const chooser = await chooserP;
   await chooser.setFiles(files.map((f) => (path.isAbsolute(f) ? f : path.join(FIXTURES, f))));
   await page.waitForTimeout(400);
