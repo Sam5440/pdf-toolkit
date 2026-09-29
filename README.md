@@ -45,9 +45,10 @@
 
 ## 界面图标
 
-全部 27 个界面图标（15 个工具 + 品牌/主题/历史/设置/上传 + 状态符号）均为按统一规范
-手工绘制的单色线描 SVG（`src/assets/icons/`，viewBox 48、2.5 线宽、currentColor 随主题），
-无任何 emoji。规范见 [docs/ICON-GUIDELINES.md](docs/ICON-GUIDELINES.md)。
+界面图标默认使用 27 个按统一规范手工绘制的单色线描 SVG（`src/assets/icons/`，
+viewBox 48、2.5 线宽、currentColor 随主题）。设置页提供「图标方案」切换：
+**手绘线描 SVG（默认）** / **原版 emoji**，偏好保存在本机浏览器。
+规范见 [docs/ICON-GUIDELINES.md](docs/ICON-GUIDELINES.md)。
 
 ## 快速开始
 
