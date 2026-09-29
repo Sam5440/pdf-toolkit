@@ -33,6 +33,8 @@
 /* ---- SVG 图标通用样式（src/components/icons.js 生成 .icon-svg 节点） ---- */
 .icon-svg { display: inline-flex; align-items: center; justify-content: center; width: 1.15em; height: 1.15em; flex-shrink: 0; vertical-align: -0.2em; }
 .icon-svg svg { width: 100%; height: 100%; display: block; }
+/* emoji 方案（设置页可切换）：与 icon-svg 同尺寸语义，靠字体自然渲染 */
+.icon-emoji { display: inline-block; font-size: 1.05em; line-height: 1; flex-shrink: 0; font-family: var(--emoji-font, 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif); }
 /* 容器内由容器定尺寸：侧边栏 17px、首页卡片 36px 内 */
 .side-link .ico .icon-svg { width: 17px; height: 17px; vertical-align: 0; }
 .tb-title .tb-ico { margin-right: 7px; }

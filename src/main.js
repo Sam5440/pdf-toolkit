@@ -223,6 +223,13 @@ function openSettings() {
       sel.onchange = () => { setSetting('theme', sel.value); applyTheme(); };
       return sel;
     })()),
+    field('图标方案', (() => {
+      const sel = document.createElement('select');
+      sel.innerHTML = '<option value="svg">手绘线描 SVG（默认）</option><option value="emoji">原版 emoji</option>';
+      sel.value = s.iconSet || 'svg';
+      sel.onchange = () => { setSetting('iconSet', sel.value); navigate(); };
+      return sel;
+    })()),
     field('单文件大小上限（MB）', (() => { const i = document.createElement('input'); i.type = 'number'; i.value = s.maxUploadMB; i.min = 1; i.max = 2048; i.onchange = () => setSetting('maxUploadMB', +i.value || 500); return i; })()),
     field('历史保留配额（MB）', (() => { const i = document.createElement('input'); i.type = 'number'; i.value = s.historyQuotaMB; i.min = 50; i.max = 10240; i.onchange = () => setSetting('historyQuotaMB', +i.value || 500); return i; })()),
     field('OCR 识别 DPI', (() => { const i = document.createElement('input'); i.type = 'number'; i.value = s.ocrDpi; i.min = 96; i.max = 300; i.step = 8; i.onchange = () => setSetting('ocrDpi', +i.value || 200); return i; })(), '越高识别越准、越慢'),

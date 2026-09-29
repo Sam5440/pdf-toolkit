@@ -3,6 +3,7 @@ const KEY = 'pdftoolkit.settings.v1';
 
 const DEFAULTS = {
   theme: 'light',                 // light | dark | auto
+  iconSet: 'svg',                 // svg（手绘线描，默认）| emoji（原版 emoji）
   maxUploadMB: 500,               // 单文件上限
   warnUploadMB: 100,              // 提示阈值
   maxRenderDpi: 600,              // 渲染 DPI 上限
