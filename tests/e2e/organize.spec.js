@@ -24,7 +24,7 @@ test.describe('页面整理工具', () => {
 
     // 点缩略图选中第 1 页后删除
     await cards.first().click();
-    await tb.getByRole('button', { name: '🗑 删除所选' }).click();
+    await tb.getByRole('button', { name: /删除所选/ }).click();
     await expect(cards).toHaveCount(7);
     await expect(cards.first().locator('.page-no')).toContainText('P2');
 
@@ -35,7 +35,7 @@ test.describe('页面整理工具', () => {
 
     // 再次删除第 1 页
     await cards.first().click();
-    await tb.getByRole('button', { name: '🗑 删除所选' }).click();
+    await tb.getByRole('button', { name: /删除所选/ }).click();
     await expect(cards).toHaveCount(7);
 
     // HTML5 拖拽：第 2 张拖到第 1 张上 → 交换
@@ -60,7 +60,7 @@ test.describe('页面整理工具', () => {
 
     const tb = page.locator('[data-organize-toolbar]');
     await tb.getByRole('button', { name: '全选' }).click();
-    await tb.getByRole('button', { name: '🗑 删除所选' }).click();
+    await tb.getByRole('button', { name: /删除所选/ }).click();
     await expect(page.locator('.page-card')).toHaveCount(0);
     await expect(go).toBeDisabled();
   });
