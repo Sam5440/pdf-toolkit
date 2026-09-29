@@ -148,12 +148,12 @@ registerTool({
     body.className = 'card-body';
 
     const paperSel = select([
-      { value: 'auto', label: '自动（按图片尺寸）' },
+      { value: 'auto', label: '图片即一页（页面=图片尺寸，无留白）' },
       { value: 'a4', label: 'A4' },
       { value: 'letter', label: 'Letter' },
       { value: 'a5', label: 'A5' },
       { value: 'a3', label: 'A3' },
-    ], 'a4');
+    ], 'auto');
     const oriSel = select([
       { value: 'auto', label: '自动' },
       { value: 'portrait', label: '纵向' },
@@ -161,8 +161,8 @@ registerTool({
     ], 'auto');
     const marginInp = numberInput(24, { min: 0, max: 300, step: 1 });
     const fitSel = select([
-      { value: 'contain', label: '适应页面（contain 留白）' },
-      { value: 'cover', label: '填充裁切（cover）' },
+      { value: 'contain', label: '适应页面（contain 可能留白）' },
+      { value: 'cover', label: '填充裁切（cover 无留白，超出裁掉）' },
     ], 'contain');
     const bgInp = textInput('', '如 #ffffff（留空 = 不加背景）');
 

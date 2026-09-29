@@ -581,7 +581,6 @@ handlers['pages.split'] = async ({ docId, mode, baseName = '拆分' }) => {
 handlers['pages.organize'] = async ({ docId, plan }) => {
   if (!plan?.length) throw toolkitError('ERR_BAD_ARGS', '页面计划为空');
   const out = await pdfLib.PDFDocument.create();
-  const cache = new Map(); // docId → {entry, copiedRefs}
   for (let i = 0; i < plan.length; i++) {
     checkAbort();
     const item = plan[i];
@@ -591,15 +590,13 @@ handlers['pages.organize'] = async ({ docId, plan }) => {
       continue;
     }
     const srcEntry = getDoc(item.srcDocId || docId);
-    if (!cache.has(srcEntry.docId)) {
-      const range = parsePageRange(item.pages ?? 'all', srcEntry.pages.length);
-      const idx = range.ok ? range.pages : srcEntry.pages.map((_, k) => k);
-      const copied = await out.copyPages(srcEntry.pdfLibDoc, idx);
-      cache.set(srcEntry.docId, { map: new Map(idx.map((p, k) => [p, copied[k]])) });
+    // 同一源页在计划中出现多次（复制页）时，每次都必须独立复制：
+    // 一个 Page 对象不能出现在页面树两处（/Parent 唯一），且旋转/裁剪各自独立
+    const srcPage = item.srcPage;
+    if (srcPage == null || srcPage < 0 || srcPage >= srcEntry.pages.length) {
+      throw toolkitError('ERR_RANGE', `计划第 ${i + 1} 项页码无效`);
     }
-    const c = cache.get(srcEntry.docId);
-    const page = c.map.get(item.srcPage);
-    if (!page) throw toolkitError('ERR_RANGE', `计划第 ${i + 1} 项页码无效`);
+    const [page] = await out.copyPages(srcEntry.pdfLibDoc, [srcPage]);
     if (item.rotation != null) {
       const r = geometry.normalizeRotationStep(item.rotation);
       page.setRotation(pdfLib.degrees(r));
@@ -966,9 +963,11 @@ handlers['images.toPdf'] = async ({ images, paper = 'auto', orientation = 'auto'
     const im = images[i];
     const bmp = await decodeImage(im.bytes, im.mime, im.name);
     const pxW = bmp.width, pxH = bmp.height;
+    const imgW = pxW * 72 / 96, imgH = pxH * 72 / 96; // 图片按 96 DPI 换算的自然尺寸（pt）
     let pw, ph;
     if (paper === 'auto') {
-      pw = pxW * 72 / 96; ph = pxH * 72 / 96;
+      // 页面 = 图片尺寸：整页正好一张图，零留白
+      pw = imgW; ph = imgH;
       if (orientation === 'landscape' && ph > pw) [pw, ph] = [ph, pw];
       if (orientation === 'portrait' && pw > ph) [pw, ph] = [ph, pw];
     } else {
@@ -979,17 +978,18 @@ handlers['images.toPdf'] = async ({ images, paper = 'auto', orientation = 'auto'
       pw = w0; ph = h0;
     }
     const page = doc.addPage([pw, ph]);
-    const availW = paper === 'auto' ? pw : pw - margin * 2;
-    const availH = paper === 'auto' ? ph : ph - margin * 2;
+    const availW = paper === 'auto' ? pw : Math.max(1, pw - margin * 2);
+    const availH = paper === 'auto' ? ph : Math.max(1, ph - margin * 2);
     const img = await embedImageAny(doc, im.bytes, im.mime);
-    let drawW = availW, drawH = availH;
-    if (fit === 'contain' || paper !== 'auto') {
-      const s = Math.min(availW / pxW * 72 / 96 * 96 / 72, availH / pxH * 72 / 96 * 96 / 72);
-      drawW = pxW * 72 / 96 * s; drawH = pxH * 72 / 96 * s;
+    let drawW, drawH;
+    if (fit === 'cover') {
+      // 填充裁切：等比缩放到完全覆盖可用区，居中放置，超出页面部分被裁掉（无留白）
+      const s = Math.max(availW / imgW, availH / imgH);
+      drawW = imgW * s; drawH = imgH * s;
     } else {
-      // auto paper + cover：整页填充
-      const s = Math.max(pw / pxW * 72 / 96 * 96 / 72, ph / pxH * 72 / 96 * 96 / 72);
-      drawW = pxW * 72 / 96 * s; drawH = pxH * 72 / 96 * s;
+      // 适应页面（contain）：等比缩放到完全放入可用区，可能留白
+      const s = Math.min(availW / imgW, availH / imgH);
+      drawW = imgW * s; drawH = imgH * s;
     }
     if (bg) page.drawRectangle({ x: 0, y: 0, width: pw, height: ph, color: pdfLib.rgb(...hexParts(bg)) });
     page.drawImage(img, {
