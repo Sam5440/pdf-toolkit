@@ -3,6 +3,8 @@
 一个**纯前端**的 PDF 万能工具箱：15 个工具，所有文件处理都在你的浏览器内通过 WebAssembly/JS 完成，
 **文件字节绝不发送到任何服务器**。部署方只需提供静态资源服务，服务器上不留任何用户文件。
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FSam5440%2Fpdf-toolkit&project-name=pdf-toolkit)
+
 ![主界面（浅色）](docs/screenshots/home-light.png)
 
 ![主界面（深色）](docs/screenshots/home-dark.png)
@@ -70,6 +72,15 @@ bash scripts/build_fonts.sh   # 可选：从 Google Fonts 可变字体生成中�
 ```
 
 ## 部署（任意静态托管）
+
+### Vercel 一键部署
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FSam5440%2Fpdf-toolkit&project-name=pdf-toolkit)
+
+点击按钮 → 用 GitHub 账号授权 → 确认即可。Vercel 会自动识别 Vite 项目（`npm run build` → `dist/`），
+无需配置任何环境变量；`.wasm` / `.ttf` 等静态资源自带正确 MIME。
+
+### 其他托管
 
 `dist/` 是纯静态站点，支持子目录部署（相对路径 base）。注意为以下类型配置正确 MIME：
 
@@ -148,3 +159,7 @@ bash scripts/run_tests.sh
 `pdf_optimizer.py`（Python 版 PDF 体积寻优）保留可用：
 `python3 pdf_optimizer.py --cli 文件.pdf --target 20`（详见 `python3 pdf_optimizer.py --help`）。
 新版浏览器工具箱与其互相独立。
+
+## 许可证
+
+[MIT](LICENSE)
