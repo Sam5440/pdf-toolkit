@@ -1,6 +1,6 @@
 # PDF 万能工具箱（纯浏览器端 PDF 工具）
 
-一个**纯前端**的 PDF 万能工具箱：15 个工具，所有文件处理都在你的浏览器内通过 WebAssembly/JS 完成，
+一个**纯前端**的 PDF 万能工具箱：15 个核心工具 + 48 个「更多」工具，所有文件处理都在你的浏览器内通过 WebAssembly/JS 完成，
 **文件字节绝不发送到任何服务器**。部署方只需提供静态资源服务，服务器上不留任何用户文件。
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FSam5440%2Fpdf-toolkit&project-name=pdf-toolkit)
@@ -21,7 +21,7 @@
 - **断网可用**：除首次加载页面资源外，处理过程不需要网络（OCR 语言包、中文字体均随站点本地分发）。
   已通过严格断网 e2e（拦截全部网络请求）验证：SPA 内导航与真实文件处理零请求。
 
-## 功能总览（15 个工具）
+## 功能总览（15 个核心工具）
 
 | 分组 | 工具 | 说明 |
 |---|---|---|
@@ -44,6 +44,21 @@
 ### 水印工具页一览
 
 ![水印工具页](docs/screenshots/tool-watermark-light.png)
+
+## 更多工具（48 个，对齐 PDF24）
+
+在 15 个核心工具之外，另有一组「更多」工具（默认**不在主页显示**：主页底部「更多工具」可展开，
+侧边栏「更多」分组常驻可达）。与 PDF24（tools.pdf24.org/zh）的完整功能对照见
+[docs/pdf24-comparison.md](docs/pdf24-comparison.md)。
+
+| 分类 | 工具 |
+|---|---|
+| 页面 | 旋转 PDF · 删除 PDF 页面 · 提取 PDF 页面 · 每页页面数（2/4/6/9/16 合 1）· 页面切半 · 裁剪 PDF · 更改页面大小 · 添加页码 · 添加书签 |
+| 信息与安全 | 修改文档信息 · 移除元数据 · 查看器偏好 · PDF 涂黑（真删除文字）· PDF 签署 · 填写 PDF 表单 · 创建可填写表单 · 密码生成器 |
+| 优化与修复 | 扁平化 PDF（表单/栅格双模式）· 栅格化 PDF · 修复 PDF |
+| 查看与检查 | PDF 查看器 · PDF 搜索 |
+| 创建与转换 | 生成 PDF · 文本/Markdown/RTF/EPUB/ODF/Excel/SVG/TIFF/HEIC 转 PDF · 网页转 PDF · 扫描件转 PDF · 发票生成 |
+| 图像与导出 | WebP/HEIC 转 JPG/PNG · 生成二维码 · PDF 转 Word/PPT/Excel/HTML/Markdown/RTF/EPUB/ODF/TIFF/SVG |
 
 ## 界面图标
 
