@@ -21,8 +21,12 @@ def page_texts(path):
 
 
 def test_merge_pdf():
-    """合并产物：可打开、页数与顺序正确（multi3 的 '第 N 页' 递增）。"""
-    p = find_artifact("*merge*.pdf")
+    """合并产物：可打开、页数与顺序正确（multi3 的 '第 N 页' 递增）。
+
+    glob 用 merge- 前缀锚定（合并工具产物 merge-offline.pdf），
+    避免命中 matrix-merge-*.pdf（合并工具的图片混合/范围变体，无该文字）。
+    """
+    p = find_artifact("merge-*.pdf")
     n, texts = page_texts(p)
     assert n >= 2, f"合并后应≥2页，实际 {n}"
     joined = "\n".join(texts)

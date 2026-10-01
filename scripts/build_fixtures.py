@@ -184,6 +184,369 @@ def truncated_pdf():
     return pdf_bytes(2)[: 4096 // 2] + b"%%EOF"
 
 
+# ---------------------------------------------------------------------------
+# 「更多 / 创建 PDF」簇夹具（txt/md/csv/rtf/epub/odf/xlsx/html/svg/webp/tiff/heic）
+# ---------------------------------------------------------------------------
+
+def text_file_bytes():
+    """多行 txt：中英文混合 + 制表符（文本转 PDF 用）"""
+    lines = [
+        "PDF 工具箱示例文本 Fixture",
+        "The quick brown fox jumps over the lazy dog.",
+        "",
+        "第二段：全部处理在浏览器内完成，文件不会上传服务器。",
+        "缩进\t制表符\t测试",
+        "END OF LINE 0123456789",
+    ]
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def log_file_bytes():
+    """多行 log（文本转 PDF 用）"""
+    lines = [
+        "2026-01-01 09:00:00 INFO  service started",
+        "2026-01-01 09:00:01 INFO  加载配置完成",
+        "2026-01-01 09:00:05 WARN  磁盘余量不足 10%",
+        "2026-01-01 09:01:00 ERROR sample log fixture line",
+        "2026-01-01 09:02:00 INFO  shutdown",
+    ]
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def csv_file_bytes():
+    """带引号转义的 CSV（表格块解析用）"""
+    rows = [
+        "名称,数量,单价,备注",
+        '"键盘, 机械",2,"199.00","带""质检""标签"',
+        "鼠标,3,49.5,无线 2.4G",
+        "显示器,1,1299.00,27 英寸",
+    ]
+    return ("\n".join(rows) + "\n").encode("utf-8")
+
+
+def md_file_bytes():
+    """Markdown 子集：标题/列表/粗体/表格/代码/引用/分隔线"""
+    text = """# 项目说明
+
+这是一个 **Markdown** 测试文档，包含 `inline code` 与 [链接](https://example.com)。
+
+## 功能列表
+
+- 标题与段落
+- **粗体** 与 *斜体*
+- 表格与代码块
+
+1. 第一项
+2. 第二项
+
+> 引用：全部处理在本地浏览器完成，隐私安全。
+
+| 工具 | 状态 |
+| --- | --- |
+| 合并 | 可用 |
+| 拆分 | 可用 |
+
+---
+
+```js
+console.log("hello fixture");
+```
+
+### 结尾
+文档到此结束。
+"""
+    return text.encode("utf-8")
+
+
+def rtf_file_bytes():
+    """RTF 子集：\\uN 中文、\\'hh 字节、\\par 分段、fonttbl 目的组"""
+    return (
+        "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Helvetica;}}\n"
+        "\\f0\\fs24 \\u26379?\\u21451?\\'20rtf fixture\\par\n"
+        "Hello \\'41\\'42\\'43 123\\par\n"
+        "\\u20013?\\u22269?\\u25991? test line\\par\n"
+        "}\n"
+    ).encode("utf-8")
+
+
+def _zip_files(entries):
+    """entries: {path: bytes|str} → zip 字节（mimetype 若存在则首位无压缩存储）"""
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        if "mimetype" in entries:
+            z.writestr(
+                zipfile.ZipInfo("mimetype"), entries["mimetype"],
+                compress_type=zipfile.ZIP_STORED,
+            )
+        for p, data in entries.items():
+            if p == "mimetype":
+                continue
+            z.writestr(p, data)
+    return buf.getvalue()
+
+
+def epub_bytes():
+    """最小 EPUB（container.xml + OPF + 两个 XHTML 章节）"""
+    container = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">\n'
+        '  <rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>\n'
+        "</container>\n"
+    )
+    opf = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="bookid">\n'
+        '  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">\n'
+        "    <dc:title>测试电子书 Fixture</dc:title>\n"
+        "    <dc:creator>PDF Toolkit</dc:creator>\n"
+        "  </metadata>\n"
+        "  <manifest>\n"
+        '    <item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>\n'
+        '    <item id="ch2" href="ch2.xhtml" media-type="application/xhtml+xml"/>\n'
+        "  </manifest>\n"
+        "  <spine>\n"
+        '    <itemref idref="ch1"/>\n'
+        '    <itemref idref="ch2"/>\n'
+        "  </spine>\n"
+        "</package>\n"
+    )
+
+    def chapter(no, title):
+        paras = "".join(
+            f"<p>第{no}章段落 {i}：EPUB fixture 中文与 English mixed text。</p>"
+            for i in range(1, 4)
+        )
+        return (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<html xmlns="http://www.w3.org/1999/xhtml">\n'
+            f"<head><title>{title}</title></head>\n"
+            f"<body><h1>{title}</h1>{paras}</body>\n"
+            "</html>\n"
+        )
+
+    return _zip_files({
+        "mimetype": "application/epub+zip",
+        "META-INF/container.xml": container,
+        "OEBPS/content.opf": opf,
+        "OEBPS/ch1.xhtml": chapter(1, "第一章 起点"),
+        "OEBPS/ch2.xhtml": chapter(2, "第二章 终点"),
+    })
+
+
+_ODF_NS = (
+    'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+    'xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" '
+    'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" '
+    'xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" '
+    'xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0" '
+    'xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"'
+)
+
+
+def _odf_office(inner):
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        f'<office:document-content {_ODF_NS} office:version="1.2">\n'
+        f"<office:body>{inner}</office:body>\n"
+        "</office:document-content>\n"
+    )
+
+
+def odt_bytes():
+    """最小 ODT：标题 + 两段正文"""
+    inner = (
+        "<office:text>"
+        '<text:h text:outline-level="1">ODT 测试标题</text:h>'
+        "<text:p>这是 ODT fixture 的第一段，包含中英文 Mixed Text。</text:p>"
+        "<text:p>第二段落：全部处理在本地浏览器完成。</text:p>"
+        "</office:text>"
+    )
+    return _zip_files({
+        "mimetype": "application/vnd.oasis.opendocument.text",
+        "META-INF/manifest.xml": '<?xml version="1.0"?><manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"/>',
+        "content.xml": _odf_office(inner),
+    })
+
+
+def ods_bytes():
+    """最小 ODS：一张表 2×3（表头 + 两行数据）"""
+    cell = '<table:table-cell office:value-type="string"><text:p>{}</text:p></table:table-cell>'
+    row = "<table:table-row>" + cell.format("名称") + cell.format("数量") + cell.format("单价") + "</table:table-row>"
+    row2 = (
+        "<table:table-row>"
+        + cell.format("机械键盘")
+        + cell.format("2")
+        + cell.format("199.5")
+        + "</table:table-row>"
+    )
+    inner = (
+        "<office:spreadsheet>"
+        '<table:table table:name="数据">'
+        + row + row2 +
+        "</table:table>"
+        "</office:spreadsheet>"
+    )
+    return _zip_files({
+        "mimetype": "application/vnd.oasis.opendocument.spreadsheet",
+        "content.xml": _odf_office(inner),
+    })
+
+
+def odp_bytes():
+    """最小 ODP：两页，每页一个标题文本框"""
+    def page(title, body):
+        return (
+            "<draw:page draw:name=\"p\">"
+            "<draw:frame draw:layer=\"layout\" svg:x=\"2cm\" svg:y=\"2cm\" svg:width=\"20cm\" svg:height=\"4cm\">"
+            f"<text:p>{title}</text:p>"
+            "</draw:frame>"
+            "<draw:frame draw:layer=\"layout\" svg:x=\"2cm\" svg:y=\"7cm\" svg:width=\"20cm\" svg:height=\"8cm\">"
+            f"<text:p>{body}</text:p>"
+            "</draw:frame>"
+            "</draw:page>"
+        )
+
+    inner = (
+        "<office:presentation>"
+        + page("ODP 演示第一页", "要点：ODP fixture 内容甲")
+        + page("ODP 演示第二页", "要点：ODP fixture 内容乙")
+        + "</office:presentation>"
+    )
+    return _zip_files({
+        "mimetype": "application/vnd.oasis.opendocument.presentation",
+        "content.xml": _odf_office(inner),
+    })
+
+
+def xlsx_bytes():
+    """最小 XLSX（zipfile + 手写 XML）：sharedStrings + sheet1，2 行 × 3 列"""
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">\n'
+        '  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>\n'
+        '  <Default Extension="xml" ContentType="application/xml"/>\n'
+        '  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>\n'
+        '  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>\n'
+        '  <Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>\n'
+        "</Types>\n"
+    )
+    rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">\n'
+        '  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>\n'
+        "</Relationships>\n"
+    )
+    workbook = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">\n'
+        '  <sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>\n'
+        "</workbook>\n"
+    )
+    wb_rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">\n'
+        '  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>\n'
+        '  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>\n'
+        "</Relationships>\n"
+    )
+    strings = ["名称", "数量", "单价", "机械键盘", "无线鼠标"]
+    shared = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="%d" uniqueCount="%d">\n'
+        % (len(strings), len(strings))
+        + "".join(f"<si><t>{s}</t></si>" for s in strings)
+        + "</sst>\n"
+    )
+    sheet = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">\n'
+        "<sheetData>\n"
+        '<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>\n'
+        '<row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2"><v>2</v></c><c r="C2"><v>199.5</v></c></row>\n'
+        '<row r="3"><c r="A3" t="s"><v>4</v></c><c r="B3"><v>3</v></c><c r="C3"><v>49.9</v></c></row>\n'
+        "</sheetData>\n"
+        "</worksheet>\n"
+    )
+    return _zip_files({
+        "[Content_Types].xml": content_types,
+        "_rels/.rels": rels,
+        "xl/workbook.xml": workbook,
+        "xl/_rels/workbook.xml.rels": wb_rels,
+        "xl/sharedStrings.xml": shared,
+        "xl/worksheets/sheet1.xml": sheet,
+    })
+
+
+def html_file_bytes():
+    """HTML：标题/段落/列表/表格/引用 + 应被剔除的 script/style"""
+    html = """<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>测试网页 Fixture</title>
+<style>body { color: #222; }</style>
+</head>
+<body>
+<h1>测试网页标题</h1>
+<p>这是 HTML fixture 的段落，包含中英文 Mixed Text。</p>
+<ul><li>要点甲</li><li>要点乙</li><li>要点丙</li></ul>
+<table>
+  <tr><th>列A</th><th>列B</th></tr>
+  <tr><td>1</td><td>2</td></tr>
+</table>
+<blockquote>引用：隐私模型不允许经服务器抓取网页。</blockquote>
+<script>console.log("should be removed");</script>
+</body>
+</html>
+"""
+    return html.encode("utf-8")
+
+
+def svg_file_bytes():
+    """简单 SVG（显式 width/height，供浏览器光栅化）"""
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">\n'
+        '  <rect x="0" y="0" width="320" height="200" fill="#eef4ff"/>\n'
+        '  <circle cx="90" cy="96" r="56" fill="#2b6cb0"/>\n'
+        '  <rect x="170" y="44" width="110" height="104" rx="10" fill="#48bb78"/>\n'
+        '  <polygon points="160,10 176,44 144,44" fill="#ed8936"/>\n'
+        "</svg>\n"
+    )
+    return svg.encode("utf-8")
+
+
+def webp_bytes(size=(640, 480)):
+    """PIL 生成的 WebP（格式转换用）"""
+    from PIL import Image, ImageDraw
+
+    im = Image.new("RGB", size, (36, 82, 160))
+    d = ImageDraw.Draw(im)
+    d.ellipse((60, 60, size[0] - 60, size[1] - 60), fill=(240, 180, 40))
+    d.rectangle((size[0] // 2 - 20, 20, size[0] // 2 + 20, size[1] - 20), fill=(20, 20, 20))
+    buf = io.BytesIO()
+    im.save(buf, "WEBP", quality=88)
+    return buf.getvalue()
+
+
+def multipage_tiff_bytes():
+    """两页 TIFF（PIL save_all，TIFF 转 PDF 用）"""
+    from PIL import Image
+
+    im1 = Image.new("RGB", (240, 160), (200, 60, 50))
+    im2 = Image.new("RGB", (240, 160), (50, 90, 200))
+    buf = io.BytesIO()
+    im1.save(buf, format="TIFF", save_all=True, append_images=[im2])
+    return buf.getvalue()
+
+
+def fake_heic_bytes():
+    """非法字节的假 .heic（HEIC 工具失败链路用；Chromium 无法解码）"""
+    return b"NOT-A-REAL-HEIC-FILE \x00\x01\x02 invalid payload for failure tests"
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     files = {
@@ -199,6 +562,22 @@ def main():
         "doc.docx": docx_bytes(),
         "slides.pptx": pptx_bytes(),
         "corrupted.pdf": truncated_pdf(),
+        # 「更多 / 创建 PDF」簇
+        "sample.txt": text_file_bytes(),
+        "sample.log": log_file_bytes(),
+        "sample.csv": csv_file_bytes(),
+        "sample.md": md_file_bytes(),
+        "sample.rtf": rtf_file_bytes(),
+        "sample.epub": epub_bytes(),
+        "sample.odt": odt_bytes(),
+        "sample.ods": ods_bytes(),
+        "sample.odp": odp_bytes(),
+        "sample.xlsx": xlsx_bytes(),
+        "sample.html": html_file_bytes(),
+        "diagram.svg": svg_file_bytes(),
+        "photo.webp": webp_bytes(),
+        "multi2.tiff": multipage_tiff_bytes(),
+        "fake.heic": fake_heic_bytes(),
     }
     for name, data in files.items():
         (OUT / name).write_bytes(data)

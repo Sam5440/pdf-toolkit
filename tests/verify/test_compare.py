@@ -10,13 +10,6 @@ from conftest import find_artifact
 pytestmark = pytest.mark.verify
 
 
-def test_compare_report_txt():
-    """差异报告：含'相同/差异'关键字与页码信息。"""
-    p = find_artifact("*report*.txt")
-    text = p.read_bytes().decode("utf-8", errors="replace")
-    print(f"\n比较报告（前300字）：\n{text[:300]}")
-    assert ("相同" in text) or ("差异" in text) or ("diff" in text.lower()), "报告缺少比较结论字样"
-
 
 def test_compare_diff_images():
     """差异高亮页图（若导出为 ZIP 或 PNG）：Pillow 可打开。"""

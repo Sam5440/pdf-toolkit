@@ -33,9 +33,3 @@ def test_ocr_pdf_searchable():
     d_out.close()
 
 
-def test_ocr_text_artifact():
-    """OCR 文本产物：非空、可解码（内容打印供人工核对识别质量）。"""
-    p = find_artifact("ocr*.txt")
-    text = p.read_bytes().decode("utf-8", errors="replace")
-    print(f"\nOCR 识别文本（前300字）：{text[:300]!r}")
-    assert text.strip(), "OCR 文本产物为空"

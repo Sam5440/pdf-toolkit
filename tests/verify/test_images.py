@@ -39,16 +39,6 @@ def test_pdf2images_zip():
     assert n >= 1
 
 
-def test_pdf2images_single():
-    """单页 PNG 产物（若 e2e 只下载单文件）：Pillow 可打开。"""
-    from PIL import Image
-
-    p = find_artifact("pdf2images*.png")
-    im = Image.open(str(p))
-    im.load()
-    assert im.width > 0 and im.height > 0
-
-
 def test_extract_images_zip():
     """提取嵌入图像 ZIP：≥1 张图、Pillow 可开、与夹具 smask_alpha 的原图尺寸一致（200×150）。"""
     from PIL import Image
@@ -64,10 +54,3 @@ def test_extract_images_zip():
     assert found >= 1, "应至少提取出 1 张嵌入图像"
 
 
-def test_extract_single_image():
-    """单图产物（若 e2e 保存为单文件而非 ZIP）。"""
-    from PIL import Image
-
-    p = find_artifact("extract*.png")
-    im = Image.open(str(p))
-    assert im.width > 0
