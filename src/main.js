@@ -130,18 +130,69 @@ function renderHome(content) {
   content.appendChild(hero);
   const grid = document.createElement('div');
   grid.className = 'tool-grid';
-  for (const t of TOOLS) {
-    const c = document.createElement('a');
-    c.className = 'tool-card';
-    c.href = `#/tool/${t.id}`;
-    c.innerHTML = `
-      <div class="tc-ico"></div>
-      <div class="tc-name">${esc(t.name)}</div>
-      <div class="tc-desc">${esc(t.desc)}</div>`;
-    c.querySelector('.tc-ico').appendChild(iconNode(t.id));
-    grid.appendChild(c);
-  }
+  // 「更多」分组工具默认不在主页显示，点击按钮展开
+  const mainTools = TOOLS.filter((t) => {
+    const g = GROUPS.find((x) => x.id === t.group);
+    return !(g && g.hiddenOnHome);
+  });
+  const moreTools = TOOLS.filter((t) => {
+    const g = GROUPS.find((x) => x.id === t.group);
+    return g && g.hiddenOnHome;
+  });
+  const addCards = (list) => {
+    for (const t of list) {
+      const c = document.createElement('a');
+      c.className = 'tool-card';
+      c.href = `#/tool/${t.id}`;
+      c.innerHTML = `
+        <div class="tc-ico"></div>
+        <div class="tc-name">${esc(t.name)}</div>
+        <div class="tc-desc">${esc(t.desc)}</div>`;
+      c.querySelector('.tc-ico').appendChild(iconNode(t.id));
+      grid.appendChild(c);
+    }
+  };
+  addCards(mainTools);
   content.appendChild(grid);
+  if (moreTools.length) {
+    const moreWrap = document.createElement('div');
+    moreWrap.style.marginTop = '14px';
+    const toggle = button(`更多工具（${moreTools.length}）`, 'btn-outline btn-sm', () => {
+      const expanded = moreWrap.getAttribute('data-open') === '1';
+      if (expanded) {
+        moreWrap.setAttribute('data-open', '0');
+        moreGrid.replaceChildren();
+        divider.style.display = 'none';
+        toggle.textContent = `更多工具（${moreTools.length}）`;
+      } else {
+        moreWrap.setAttribute('data-open', '1');
+        if (!moreGrid.children.length) {
+          for (const t of moreTools) {
+            const c = document.createElement('a');
+            c.className = 'tool-card';
+            c.href = `#/tool/${t.id}`;
+            c.innerHTML = `
+              <div class="tc-ico"></div>
+              <div class="tc-name">${esc(t.name)}</div>
+              <div class="tc-desc">${esc(t.desc)}</div>`;
+            c.querySelector('.tc-ico').appendChild(iconNode(t.id));
+            moreGrid.appendChild(c);
+          }
+        }
+        divider.style.display = '';
+        toggle.textContent = '收起更多工具';
+      }
+    });
+    toggle.setAttribute('data-more-toggle', '1');
+    const divider = document.createElement('div');
+    divider.className = 'note';
+    divider.style.cssText = 'display:none;margin:10px 0 8px;font-weight:600';
+    divider.textContent = '—— 更多工具 ——';
+    const moreGrid = document.createElement('div');
+    moreGrid.className = 'tool-grid';
+    moreWrap.append(toggle, divider, moreGrid);
+    content.appendChild(moreWrap);
+  }
 }
 
 async function renderHistory(content) {

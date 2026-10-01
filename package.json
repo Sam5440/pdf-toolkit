@@ -25,6 +25,7 @@
     "pdfjs-dist": "6.3.289",
     "pptx-preview": "1.0.7",
     "qpdf-wasm": "0.1.0",
+    "qrcode-generator": "^1.5.0",
     "tesseract.js": "7.0.0"
   },
   "devDependencies": {

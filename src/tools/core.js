@@ -8,6 +8,8 @@ export const GROUPS = [
   { id: 'convert', name: '转换' },
   { id: 'security', name: '安全' },
   { id: 'check', name: '检查' },
+  // 「更多」分组：对齐 PDF24 的新增工具，默认不在主页显示（侧边栏可见，主页可展开）
+  { id: 'more', name: '更多', hiddenOnHome: true },
 ];
 
 export function registerTool(tool) {

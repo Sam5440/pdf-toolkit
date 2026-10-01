@@ -114,6 +114,7 @@ class EnginePool {
 
 let pool = null;
 const inflightOpens = new Map(); // docKey → Promise
+const openedDocs = new Map(); // docId → { key, info }（已装载记忆化：避免后续 run 重发 doc.open 覆盖 worker 内已变更的文档）
 
 function getPool() {
   if (!pool) {
@@ -138,20 +139,26 @@ function limitsArg(args) {
 }
 
 /**
- * 确保文档已在引擎内打开（发送字节，worker 缓存解析结果）
+ * 确保文档已在引擎内打开（发送字节，worker 缓存解析结果）。
+ * 记忆化：同一 docId 已成功装载且 file 未变时跳过重发（否则两步 op 链会拿到未变更副本）。
  * @param {{id,name,size,file}} doc documents.addDocument 的结果
+ * @param {{force?:boolean}} opts 强制重装（引擎驱逐重试时用）
  */
-export async function ensureDoc(doc) {
+export async function ensureDoc(doc, opts = {}) {
   const key = `${doc.id}:${doc.size}`;
-  if (inflightOpens.has(key)) return inflightOpens.get(key);
+  const memo = openedDocs.get(doc.id);
+  if (!opts.force && memo && memo.key === key) return memo.info;
+  if (!opts.force && inflightOpens.has(key)) return inflightOpens.get(key);
   const p = (async () => {
     const bytes = await doc.file.arrayBuffer();
     return getPool().run('doc.open', limitsArg({
       docId: doc.id, name: doc.name, bytes,
       limits: {},
     }), { transfer: [bytes], priority: true });
-  })().finally(() => inflightOpens.delete(key));
-  inflightOpens.set(key, p);
+  })()
+    .then((info) => { openedDocs.set(doc.id, { key, info }); return info; })
+    .finally(() => inflightOpens.delete(key));
+  if (!opts.force) inflightOpens.set(key, p);
   return p;
 }
 
@@ -182,10 +189,10 @@ export async function run(op, args = {}, opts = {}, docs = new Map()) {
     return result;
   } catch (e) {
     if (e.code === 'ERR_NO_INPUT' && /引擎/.test(e.message)) {
-      // worker 内存驱逐：重装所有文档后重试一次
+      // worker 内存驱逐：强制重装所有文档后重试一次
       for (const id of ids) {
         const d = docs.get(id);
-        if (d) await ensureDoc(d);
+        if (d) await ensureDoc(d, { force: true });
       }
       const result = await exec();
       result._opId = jobId;

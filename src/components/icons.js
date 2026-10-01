@@ -18,7 +18,28 @@ export const EMOJI = {
   'theme-moon': '🌙', 'theme-sun': '☀️',
   history: '🕘', settings: '⚙️', upload: '📄', success: '✅', winner: '🏆',
   doc: '📄', trash: '🗑', warn: '⚠️', image: '🖼',
+  // 「更多」分组
+  rotate: '🔄', removepages: '➖', extractpages: '📤', nup: '🔲', halve: '➗',
+  crop: '⬜', pagenumbers: '#️⃣', bookmarks: '🔖', docinfo: 'ℹ️', metaclean: '🧹',
+  viewerpref: '👁', redact: '⬛', sign: '✍️', formfill: '📋', formcreate: '🗃',
+  flatten: '🥞', rasterize: '🧱', repair: '🛠', viewer: '👓', search: '🔎',
+  passgen: '🔑', qrcode: '📱', scan: '📷', webpage: '🌐', invoice: '🧾',
+  createpdf: '📝', txtpdf: '📃', md2pdf: '⬇️', rtf2pdf: '📃', epub2pdf: '📖',
+  odf2pdf: '⭕', excelpdf: '📊', svgpdf: '📈', tiffpdf: '🗞', heicpdf: '📸',
+  imgconvert: '🔀', pdf2word: '📘', pdf2ppt: '📕', pdf2excel: '📗', pdf2html: '🕸',
+  pdf2md: '📉', pdf2rtf: '📃', pdf2epub: '📚', pdf2odf: '🌏', pdf2tiff: '🗞',
+  pdf2svg: '🖋', webpconvert: '🔀', heicconvert: '🔀',
 };
+
+// 图标别名：某工具无专属 SVG 时复用语义最近的图标
+const ICON_ALIAS = {
+  webpconvert: 'imgconvert',
+  heicconvert: 'imgconvert',
+};
+
+function resolveIcon(id) {
+  return ICONS[id] || (ICON_ALIAS[id] ? ICONS[ICON_ALIAS[id]] : null) || FALLBACK;
+}
 
 // 兜底：通用文档图标（仅当某图标缺失时使用）
 export const FALLBACK = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6h14l8 8v26a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><path d="M28 6v8h8"/></svg>';
@@ -41,7 +62,7 @@ export function iconNode(id, className = '') {
     return span;
   }
   span.className = `icon-svg${className ? ` ${className}` : ''}`;
-  span.innerHTML = ICONS[id] || FALLBACK;
+  span.innerHTML = resolveIcon(id);
   return span;
 }
 
@@ -50,5 +71,5 @@ export function iconSvg(id, className = '') {
   if (useEmoji() && EMOJI[id]) {
     return `<span class="icon-emoji${className ? ` ${className}` : ''}">${EMOJI[id]}</span>`;
   }
-  return `<span class="icon-svg${className ? ` ${className}` : ''}">${ICONS[id] || FALLBACK}</span>`;
+  return `<span class="icon-svg${className ? ` ${className}` : ''}">${resolveIcon(id)}</span>`;
 }

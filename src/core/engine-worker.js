@@ -16,6 +16,7 @@ import { pageTextDiffs } from './textdiff.js';
 import { planCandidates, refineCandidates, candidateId, pickBest } from './compress-planner.js';
 import { toolkitError, ERR } from './errors.js';
 import { fmtMB } from './format.js';
+import { handlers as moreHandlers } from './engine-more.js';
 
 const BASE = import.meta.env.BASE_URL || '/';
 let ASSET_BASE = null; // 主线程通过 limits.assetBase 传入（worker 内相对路径会相对 /assets/ 解析，不可靠）
@@ -49,7 +50,7 @@ async function getMupdf() {
 // ---------------------------------------------------------------------------
 
 const docs = new Map(); // docId → entry
-let LIMITS = { maxDocsBytes: 1.2e9 };
+export let LIMITS = { maxDocsBytes: 1.2e9 };
 let docLru = [];
 
 function touchLru(id) {
@@ -72,14 +73,14 @@ function evictDocs() {
   }
 }
 
-function getDoc(docId) {
+export function getDoc(docId) {
   const e = docs.get(docId);
   if (!e) throw toolkitError('ERR_NO_INPUT', '文档未加载或已被释放（引擎内）');
   touchLru(docId);
   return e;
 }
 
-function pdfLibLoad(bytes) {
+export function pdfLibLoad(bytes) {
   return pdfLib.PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false, throwOnInvalidObject: false });
 }
 
@@ -135,7 +136,7 @@ async function openDocEntry(docId, name, bytes) {
   return entry;
 }
 
-function pageMeta(_lib, p, i) {
+export function pageMeta(_lib, p, i) {
   const size = p.getSize();
   const rot = ((p.getRotation().angle % 360) + 360) % 360;
   // 盒形状必须为 {x,y,width,height}：geometry.normBox 只认该形状或 {x0,y0,x1,y1}，
@@ -158,14 +159,14 @@ function pageMeta(_lib, p, i) {
   return { index: i, w: size.width, h: size.height, media, rot, crop, visualW: vis.w, visualH: vis.h };
 }
 
-function pageMetaOf(entry, pageNo) {
+export function pageMetaOf(entry, pageNo) {
   const pages = entry.pdfLibDoc.getPages();
   if (pageNo < 0 || pageNo >= pages.length) throw toolkitError('ERR_RANGE', `页 ${pageNo + 1} 不存在`);
   return pageMeta(entry.pdfLibDoc, pages[pageNo], pageNo);
 }
 
 /** pdf.js 打开（渲染/文本用） */
-async function pdfjsOpen(entry) {
+export async function pdfjsOpen(entry) {
   if (entry.pdfjsDoc) { touchLru(entry.docId); return entry.pdfjsDoc; }
   if (entry.needsPassword) throw toolkitError('ERR_ENCRYPTED');
   const pjs = await getPdfjs();
@@ -179,7 +180,7 @@ async function pdfjsOpen(entry) {
 // 渲染（pdf.js + OffscreenCanvas → ImageBitmap）
 // ---------------------------------------------------------------------------
 
-async function renderPageBitmap(entry, pageNo, { dpi = 110, gray = false, bg = null, maxPixels = 4096 * 4096 } = {}) {
+export async function renderPageBitmap(entry, pageNo, { dpi = 110, gray = false, bg = null, maxPixels = 4096 * 4096 } = {}) {
   const pjs = await getPdfjs();
   const doc = await pdfjsOpen(entry);
   const page = await doc.getPage(pageNo + 1);
@@ -292,7 +293,7 @@ const W_RASTER_SCALE = 3;
 let workerCjkFontPromise = null;
 const wRasterCache = new Map(); // key → { bytes, wPt, hPt }
 
-async function ensureWorkerCJKFont() {
+export async function ensureWorkerCJKFont() {
   if (!workerCjkFontPromise) {
     workerCjkFontPromise = (async () => {
       try {
@@ -309,7 +310,7 @@ async function ensureWorkerCJKFont() {
   return workerCjkFontPromise;
 }
 
-function workerFontSpec(fontSizePt, bold) {
+export function workerFontSpec(fontSizePt, bold) {
   return `${bold ? 700 : 400} ${fontSizePt * W_RASTER_SCALE}px 'pdftoolkit-cjk', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif`;
 }
 
@@ -339,7 +340,7 @@ async function workerRasterLinePng(text, { fontSize, bold, color01 }) {
   return entry;
 }
 
-async function drawTextRaster(page, doc, lines, { cx, cy, fontSize, color01, opacity, angleUser, align }) {
+export async function drawTextRaster(page, doc, lines, { cx, cy, fontSize, color01, opacity, angleUser, align }) {
   const widthOf = async (s) => {
     const e = await workerRasterLinePng(s, { fontSize, bold: false, color01 });
     return e.wPt;
@@ -494,6 +495,7 @@ function node_Contents(page) {
 // ---------------------------------------------------------------------------
 
 const handlers = {};
+Object.assign(handlers, moreHandlers);
 
 handlers['doc.open'] = async ({ docId, name, bytes }) => {
   const e = await openDocEntry(docId, name, bytes);
@@ -621,7 +623,7 @@ handlers['pages.organize'] = async ({ docId, plan }) => {
 };
 
 // 产物命名：原名_suffix.pdf
-function withSuffix(name, suffix) {
+export function withSuffix(name, suffix) {
   const base = String(name || '文档').replace(/\.pdf$/i, '');
   return `${base}_${suffix}.pdf`;
 }
@@ -630,6 +632,15 @@ function withSuffix(name, suffix) {
 function replaceExt(name, tail) {
   const base = String(name || '文档').replace(/\.pdf$/i, '');
   return `${base}_${tail}`;
+}
+
+
+/** 原位修改型 op 保存后：把新字节同步回 worker 条目（供 addContent 等使用） */
+function syncEntryBytesOf(e, doc, bytes) {
+  e.bytes = bytes;
+  try { e.pdfjsDoc?.destroy?.(); } catch { /* noop */ }
+  e.pdfjsDoc = null;
+  e.pages = doc.getPages().map((p, i) => pageMeta(doc, p, i));
 }
 
 /** 页面编辑：添加文字/图片/形状（视觉坐标） */
@@ -702,7 +713,8 @@ handlers['page.addContent'] = async ({ docId, edits }) => {
     progress({ done: i + 1, total: edits.length, stage: `编辑第 ${edit.page + 1} 页` });
   }
   const bytes = await doc.save({ useObjectStreams: true });
-  return { artifacts: [{ name: withSuffix(e.name, '已编辑') }], summary: { edits: edits.length } };
+  syncEntryBytesOf(e, doc, bytes);
+  return { artifacts: [{ name: withSuffix(e.name, '已编辑'), mime: 'application/pdf', bytes }], summary: { edits: edits.length } };
 };
 
 // ---------------------------------------------------------------------------
@@ -1845,11 +1857,11 @@ handlers['compare.run'] = async ({ aDocId, bDocId, pagesA = 'all', pagesB = 'all
 
 let currentOp = null;
 
-function progress(data) {
+export function progress(data) {
   self.postMessage({ type: 'progress', id: currentOp?.id, ...data });
 }
 
-function checkAbort() {
+export function checkAbort() {
   if (currentOp?.aborted) throw toolkitError('ERR_CANCELLED');
 }
 
