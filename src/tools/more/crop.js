@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'crop',
   name: '裁剪 PDF',
-  group: 'more',
+  group: 'm-page',
   desc: '按边距/百分比/精确框设置裁剪区域',
   accepts: 'pdf',
   multiple: false,

@@ -23,7 +23,7 @@ const SYNTAX_NOTE = '支持语法：# 标题（最多三级）、- 列表、**�
 registerTool({
   id: 'createpdf',
   name: '生成 PDF',
-  group: 'more',
+  group: 'm-topdf',
   desc: '富文本撰写并导出 PDF（标题/列表/表格）',
   accepts: 'pdf',
   multiple: false,

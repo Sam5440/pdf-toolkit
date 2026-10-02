@@ -10,7 +10,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'formcreate',
   name: '创建可填写表单',
-  group: 'more',
+  group: 'm-edit',
   desc: '在 PDF 上添加文本框、复选框表单字段',
   accepts: 'pdf',
   multiple: false,

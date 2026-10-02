@@ -12,7 +12,7 @@ const PREVIEW_DPI = 96;
 registerTool({
   id: 'redact',
   name: 'PDF 涂黑',
-  group: 'more',
+  group: 'm-secure',
   desc: '涂抹敏感区域，物理删除下层文字',
   accepts: 'pdf',
   multiple: false,

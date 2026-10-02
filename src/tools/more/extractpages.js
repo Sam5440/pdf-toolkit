@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'extractpages',
   name: '提取 PDF 页面',
-  group: 'more',
+  group: 'm-page',
   desc: '抽取所选页保存为新 PDF',
   accepts: 'pdf',
   multiple: false,

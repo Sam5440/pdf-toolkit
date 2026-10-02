@@ -22,7 +22,7 @@ const FONT_OPTS = [
 registerTool({
   id: 'webpage',
   name: '网页转 PDF',
-  group: 'more',
+  group: 'm-topdf',
   desc: '输入网址或上传 HTML 转为 PDF（浏览器本地渲染，受 CORS 限制）',
   accepts: 'pdf',
   multiple: false,

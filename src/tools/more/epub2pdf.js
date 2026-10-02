@@ -23,7 +23,7 @@ const FONT_OPTS = [
 registerTool({
   id: 'epub2pdf',
   name: 'EPUB 转 PDF',
-  group: 'more',
+  group: 'm-topdf',
   desc: '电子书按章节转换为 PDF',
   accepts: 'pdf',
   multiple: false,

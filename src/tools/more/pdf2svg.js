@@ -10,7 +10,7 @@ const NOTE = '位图封装 SVG，非矢量追踪';
 registerTool({
   id: 'pdf2svg',
   name: 'PDF 转 SVG',
-  group: 'more',
+  group: 'm-frompdf',
   desc: `每页导出 SVG（${NOTE}）`,
   accepts: 'pdf',
   multiple: false,

@@ -14,7 +14,7 @@ const AMBIGUOUS = new Set(['0', 'O', '1', 'l', 'I']);
 registerTool({
   id: 'passgen',
   name: '密码生成器',
-  group: 'more',
+  group: 'm-secure',
   desc: '生成高强度随机密码（纯本地）',
   accepts: 'pdf',
   multiple: false,

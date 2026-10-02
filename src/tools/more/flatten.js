@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'flatten',
   name: '扁平化 PDF',
-  group: 'more',
+  group: 'm-fix',
   desc: '表单扁平化或整册栅格化烧入',
   accepts: 'pdf',
   multiple: false,

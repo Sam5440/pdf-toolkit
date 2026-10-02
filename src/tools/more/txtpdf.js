@@ -24,7 +24,7 @@ const FONT_OPTS = [
 registerTool({
   id: 'txtpdf',
   name: '文本转 PDF',
-  group: 'more',
+  group: 'm-topdf',
   desc: '将 txt/csv 文本文件排版为 PDF',
   accepts: 'pdf',
   multiple: false,

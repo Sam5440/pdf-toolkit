@@ -1,3 +1,48 @@
+/* 收藏星标（工具卡片右上角）：未收藏=白底灰描边，已收藏=黄色填充 */
+.fav-star {
+  position: absolute; top: 7px; right: 7px;
+  width: 26px; height: 26px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; user-select: none; z-index: 2;
+}
+.fav-star svg {
+  width: 18px; height: 18px; display: block;
+  fill: #ffffff; stroke: #94a3b8; stroke-width: 1.6;
+  stroke-linejoin: round; filter: drop-shadow(0 1px 1.5px rgba(2, 6, 23, 0.22));
+  transition: fill 0.15s, stroke 0.15s, transform 0.15s;
+}
+.fav-star:hover svg { stroke: #f59e0b; transform: scale(1.12); }
+.fav-star.on svg { fill: #fbbf24; stroke: #d97706; }
+.fav-star:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+.dark .fav-star svg { fill: rgba(255, 255, 255, 0.06); }
+
+/* 首页/更多页分类分区 */
+.home-sec {
+  display: flex; align-items: baseline; gap: 10px;
+  margin: 18px 0 10px;
+}
+.home-sec:first-of-type { margin-top: 4px; }
+.home-sec h2 { font-size: 14.5px; font-weight: 700; margin: 0; }
+.home-more-link { margin-top: 22px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.home-sec-divider {
+  margin: 22px 0 2px; font-size: 12px; font-weight: 600; color: var(--muted);
+  display: flex; align-items: center; gap: 10px;
+}
+.home-sec-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* Markdown 编辑器 + 实时预览（md2pdf） */
+.md-editor-ta {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 13px; line-height: 1.55; resize: vertical; min-height: 240px;
+}
+.md-pv-pages {
+  display: flex; flex-direction: column; gap: 14px; align-items: center;
+  max-height: 680px; overflow: auto;
+  background: var(--bg-soft); border-radius: var(--radius-sm); padding: 14px;
+  min-height: 60px;
+}
+.md-pv-page { max-width: 100%; background: #fff; box-shadow: var(--shadow); }
+
 /* 通用组件：按钮 / 表单 / 卡片 / 徽章 / 弹窗 / 提示 */
 .card {
   background: var(--card);

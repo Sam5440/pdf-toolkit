@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'halve',
   name: '页面切半',
-  group: 'more',
+  group: 'm-page',
   desc: '将每页裁切为左右或上下两半',
   accepts: 'pdf',
   multiple: false,

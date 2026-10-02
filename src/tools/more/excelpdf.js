@@ -24,7 +24,7 @@ const FONT_OPTS = [
 registerTool({
   id: 'excelpdf',
   name: 'Excel 转 PDF',
-  group: 'more',
+  group: 'm-topdf',
   desc: 'xlsx 表格转换为 PDF（旧 .xls 不支持）',
   accepts: 'pdf',
   multiple: false,

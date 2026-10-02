@@ -9,7 +9,7 @@ const money = (n) => `¥${Number(n || 0).toFixed(2)}`;
 registerTool({
   id: 'invoice',
   name: '发票生成',
-  group: 'more',
+  group: 'm-util',
   desc: '填写发票信息生成 PDF 单据',
   accepts: 'pdf',
   multiple: false,

@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'svgpdf',
   name: 'SVG 转 PDF',
-  group: 'more',
+  group: 'm-topdf',
   desc: 'SVG 矢量图转换为 PDF',
   accepts: 'pdf',
   multiple: false,

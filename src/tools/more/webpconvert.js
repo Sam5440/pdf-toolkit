@@ -7,7 +7,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'webpconvert',
   name: 'WebP 转 JPG/PNG',
-  group: 'more',
+  group: 'm-img',
   desc: '批量 WebP 图像格式转换',
   accepts: 'pdf',
   multiple: false,

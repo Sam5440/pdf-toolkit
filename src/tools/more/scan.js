@@ -7,7 +7,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'scan',
   name: '扫描件转 PDF',
-  group: 'more',
+  group: 'm-topdf',
   desc: '摄像头拍摄多张照片合成 PDF',
   accepts: 'pdf',
   multiple: false,

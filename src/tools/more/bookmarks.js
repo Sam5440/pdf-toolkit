@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'bookmarks',
   name: '添加书签',
-  group: 'more',
+  group: 'm-edit',
   desc: '写入 PDF 大纲书签（标题/页码/层级）',
   accepts: 'pdf',
   multiple: false,

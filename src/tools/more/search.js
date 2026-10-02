@@ -9,7 +9,7 @@ import {
 registerTool({
   id: 'search',
   name: 'PDF 搜索',
-  group: 'more',
+  group: 'm-view',
   desc: '全册搜索文字，显示页码与上下文',
   accepts: 'pdf',
   multiple: false,

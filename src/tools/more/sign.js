@@ -24,7 +24,7 @@ const POS9 = {
 registerTool({
   id: 'sign',
   name: 'PDF 签署',
-  group: 'more',
+  group: 'm-edit',
   desc: '手绘或输入签名并盖章到 PDF',
   accepts: 'pdf',
   multiple: false,

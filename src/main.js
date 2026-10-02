@@ -5,12 +5,13 @@ import './styles/workspace.css';
 
 import { TOOLS, GROUPS, getTool } from './tools/registry.js';
 import { esc, fmtTime2, fmtBytes } from './core/format.js';
-import { toast, openModal, button, field } from './components/ui.js';
+import { toast, openModal, button, field, favStar } from './components/ui.js';
 import { iconNode } from './components/icons.js';
 import { getSettings, setSetting } from './core/settings.js';
 import { listHistory, getHistory, deleteHistory, clearHistory, historyUsedBytes } from './core/history.js';
 import { probeFonts } from './core/fonts.js';
 import { setLimitsFromSettings } from './core/limits.js';
+import { isMoreGroup, getFavorites, resetFavorites, defaultFavoriteIds } from './core/favorites.js';
 
 const app = document.getElementById('app');
 
@@ -28,24 +29,14 @@ function navigate() {
   renderApp(m ? m[1] : null);
 }
 
-function renderApp(toolId) {
-  const tool = toolId ? getTool(toolId) : null;
-  app.innerHTML = '';
-  const shell = document.createElement('div');
-  shell.className = 'app';
-
-  // 侧边栏
-  const sidebar = document.createElement('aside');
-  sidebar.className = 'sidebar';
-  sidebar.innerHTML = `
-    <div class="side-brand"><div class="logo">PDF</div><span class="brand-text">万能工具箱</span></div>`;
-  for (const g of GROUPS) {
-    const items = TOOLS.filter((t) => t.group === g.id);
-    if (!items.length) continue;
-    const gh = document.createElement('div');
-    gh.className = 'side-group';
-    gh.textContent = g.name;
-    sidebar.appendChild(gh);
+/** 侧边栏：核心分组逐组列出；hiddenOnHome 分组统一收进「更多」区（专项页链接 + 全部工具） */
+function buildSidebar(sidebar, toolId) {
+  const moreGroups = GROUPS.filter((g) => g.hiddenOnHome);
+  const emitGroup = (gh, items) => {
+    const head = document.createElement('div');
+    head.className = 'side-group';
+    head.textContent = gh;
+    sidebar.appendChild(head);
     const nav = document.createElement('nav');
     nav.className = 'side-nav';
     for (const t of items) {
@@ -57,7 +48,50 @@ function renderApp(toolId) {
       nav.appendChild(a);
     }
     sidebar.appendChild(nav);
+  };
+  for (const g of GROUPS) {
+    if (g.hiddenOnHome) continue;
+    const items = TOOLS.filter((t) => t.group === g.id);
+    if (items.length) emitGroup(g.name, items);
   }
+  const moreItems = moreGroups.flatMap((g) => TOOLS.filter((t) => t.group === g.id));
+  if (moreItems.length) {
+    const head = document.createElement('div');
+    head.className = 'side-group';
+    head.textContent = '更多';
+    sidebar.appendChild(head);
+    const nav = document.createElement('nav');
+    nav.className = 'side-nav';
+    const moreLink = document.createElement('a');
+    moreLink.className = 'side-link side-link-more' + (location.hash === '#/more' ? ' active' : '');
+    moreLink.href = '#/more';
+    moreLink.innerHTML = `<span class="ico"></span><span class="link-text">更多工具页</span>`;
+    moreLink.querySelector('.ico').appendChild(iconNode('more-grid'));
+    nav.appendChild(moreLink);
+    for (const t of moreItems) {
+      const a = document.createElement('a');
+      a.className = 'side-link' + (t.id === toolId ? ' active' : '');
+      a.href = `#/tool/${t.id}`;
+      a.innerHTML = `<span class="ico"></span><span class="link-text">${esc(t.name)}</span>`;
+      a.querySelector('.ico').appendChild(iconNode(t.id));
+      nav.appendChild(a);
+    }
+    sidebar.appendChild(nav);
+  }
+}
+
+function renderApp(toolId) {
+  const tool = toolId ? getTool(toolId) : null;
+  app.innerHTML = '';
+  const shell = document.createElement('div');
+  shell.className = 'app';
+
+  // 侧边栏
+  const sidebar = document.createElement('aside');
+  sidebar.className = 'sidebar';
+  sidebar.innerHTML = `
+    <div class="side-brand"><div class="logo">PDF</div><span class="brand-text">万能工具箱</span></div>`;
+  buildSidebar(sidebar, toolId);
   const foot = document.createElement('div');
   foot.className = 'side-foot';
   foot.innerHTML = `<div class="local-badge"><span class="dot"></span>本地处理 · 文件不上传</div>
@@ -71,7 +105,7 @@ function renderApp(toolId) {
   const topbar = document.createElement('div');
   topbar.className = 'topbar';
   topbar.innerHTML = `
-    <div class="tb-title">${tool ? `<span class="tb-ico"></span>${esc(tool.name)}<span class="tb-sub">${esc(tool.desc)}</span>` : 'PDF 万能工具箱'} </div>`;
+    <div class="tb-title">${tool ? `<span class="tb-ico"></span>${esc(tool.name)}<span class="tb-sub">${esc(tool.desc)}</span>` : (location.hash === '#/more' ? '更多工具' : 'PDF 万能工具箱')} </div>`;
   if (tool) topbar.querySelector('.tb-ico').appendChild(iconNode(tool.id));
   const tbBtns = document.createElement('div');
   tbBtns.style.cssText = 'display:flex;gap:6px';
@@ -104,6 +138,8 @@ function renderApp(toolId) {
     content.appendChild(ws);
   } else if (location.hash === '#/history') {
     renderHistory(content);
+  } else if (location.hash === '#/more') {
+    renderMorePage(content);
   } else {
     renderHome(content);
   }
@@ -114,6 +150,35 @@ function renderApp(toolId) {
   fontOkEl.textContent = fontAvailability['noto-sc'] ? '中文水印已就绪' : '需部署字体包';
 }
 
+/** 工具卡片（带右上角收藏星标）。首页/更多页共用 */
+function toolCard(t) {
+  const c = document.createElement('a');
+  c.className = 'tool-card';
+  c.href = `#/tool/${t.id}`;
+  c.innerHTML = `
+    <div class="tc-ico"></div>
+    <div class="tc-name">${esc(t.name)}</div>
+    <div class="tc-desc">${esc(t.desc)}</div>`;
+  c.querySelector('.tc-ico').appendChild(iconNode(t.id));
+  // 星标切换：首页需即时增删卡片 → 重渲染；#/more 专项页原位更新即可
+  c.appendChild(favStar(t.id, {
+    onChange: () => { if (location.hash !== '#/more') navigate(); },
+  }));
+  return c;
+}
+
+function appendSection(content, name, items, countNote) {
+  const head = document.createElement('div');
+  head.className = 'home-sec';
+  head.innerHTML = `<h2>${esc(name)}</h2>` + (countNote ? `<span class="muted-sm">${esc(countNote)}</span>` : '');
+  content.appendChild(head);
+  const grid = document.createElement('div');
+  grid.className = 'tool-grid';
+  for (const t of items) grid.appendChild(toolCard(t));
+  content.appendChild(grid);
+}
+
+/** 首页：只显示已收藏的工具，按功能分类分区（收藏 = 是否在首页显示的唯一开关） */
 function renderHome(content) {
   const hero = document.createElement('div');
   hero.className = 'card';
@@ -123,75 +188,88 @@ function renderHome(content) {
       <div class="hero-ico" data-hero-ico></div>
       <div>
         <b style="font-size:15px">全部处理在您的浏览器内完成</b>
-        <div class="note" style="margin-top:4px">文件不会发送到任何服务器：选择文件后，压缩、合并、水印、OCR 等全部通过 WASM 在本机浏览器中执行，可离线内网使用。</div>
+        <div class="note" style="margin-top:4px">文件不会发送到任何服务器：选择文件后，压缩、合并、水印、OCR 等全部通过 WASM 在本机浏览器中执行，可离线内网使用。点击卡片右上角的 ☆ 可调整首页显示。</div>
       </div>
     </div>`;
   hero.querySelector('[data-hero-ico]').appendChild(iconNode('security'));
   content.appendChild(hero);
-  const grid = document.createElement('div');
-  grid.className = 'tool-grid';
-  // 「更多」分组工具默认不在主页显示，点击按钮展开
-  const mainTools = TOOLS.filter((t) => {
-    const g = GROUPS.find((x) => x.id === t.group);
-    return !(g && g.hiddenOnHome);
-  });
-  const moreTools = TOOLS.filter((t) => {
-    const g = GROUPS.find((x) => x.id === t.group);
-    return g && g.hiddenOnHome;
-  });
-  const addCards = (list) => {
-    for (const t of list) {
-      const c = document.createElement('a');
-      c.className = 'tool-card';
-      c.href = `#/tool/${t.id}`;
-      c.innerHTML = `
-        <div class="tc-ico"></div>
-        <div class="tc-name">${esc(t.name)}</div>
-        <div class="tc-desc">${esc(t.desc)}</div>`;
-      c.querySelector('.tc-ico').appendChild(iconNode(t.id));
-      grid.appendChild(c);
-    }
-  };
-  addCards(mainTools);
-  content.appendChild(grid);
-  if (moreTools.length) {
-    const moreWrap = document.createElement('div');
-    moreWrap.style.marginTop = '14px';
-    const toggle = button(`更多工具（${moreTools.length}）`, 'btn-outline btn-sm', () => {
-      const expanded = moreWrap.getAttribute('data-open') === '1';
-      if (expanded) {
-        moreWrap.setAttribute('data-open', '0');
-        moreGrid.replaceChildren();
-        divider.style.display = 'none';
-        toggle.textContent = `更多工具（${moreTools.length}）`;
-      } else {
-        moreWrap.setAttribute('data-open', '1');
-        if (!moreGrid.children.length) {
-          for (const t of moreTools) {
-            const c = document.createElement('a');
-            c.className = 'tool-card';
-            c.href = `#/tool/${t.id}`;
-            c.innerHTML = `
-              <div class="tc-ico"></div>
-              <div class="tc-name">${esc(t.name)}</div>
-              <div class="tc-desc">${esc(t.desc)}</div>`;
-            c.querySelector('.tc-ico').appendChild(iconNode(t.id));
-            moreGrid.appendChild(c);
-          }
-        }
-        divider.style.display = '';
-        toggle.textContent = '收起更多工具';
+
+  const favs = getFavorites();
+  const sections = [];
+  for (const g of GROUPS) {
+    const items = TOOLS.filter((t) => t.group === g.id && favs.has(t.id));
+    if (items.length) sections.push({ g, items });
+  }
+  if (!sections.length) {
+    const empty = document.createElement('div');
+    empty.className = 'card';
+    empty.style.marginBottom = '16px';
+    empty.innerHTML = '<div class="card-body"><div class="empty"><span class="empty-ico"></span>还没有收藏的工具<br>去「更多工具页」发现功能，点击卡片右上角的 ★ 收藏到首页</div></div>';
+    empty.querySelector('.empty-ico').appendChild(iconNode('more-grid'));
+    const goBtn = button('进入更多工具页', 'btn-outline btn-sm', () => { location.hash = '#/more'; });
+    empty.querySelector('.empty').appendChild(goBtn);
+    content.appendChild(empty);
+    return;
+  }
+  for (const s of sections) appendSection(content, s.g.name, s.items, `${s.items.length} 个工具`);
+
+  const moreCount = TOOLS.filter((t) => isMoreGroup(t.group)).length;
+  if (moreCount) {
+    const wrap = document.createElement('div');
+    wrap.className = 'home-more-link';
+    const a = document.createElement('a');
+    a.href = '#/more';
+    a.className = 'btn btn-outline';
+    a.textContent = `更多工具页（${moreCount} 个扩展功能）`;
+    wrap.appendChild(a);
+    const note = document.createElement('div');
+    note.className = 'note';
+    note.textContent = '全部扩展功能按类别分组，收藏后显示在首页';
+    wrap.appendChild(note);
+    content.appendChild(wrap);
+  }
+}
+
+/** 「更多」专项页：扩展工具按功能分类分区（默认全部不收藏）；
+ *  核心工具也列在页面下方，作为完整目录——否则取消收藏的核心工具将无处重新收藏 */
+function renderMorePage(content) {
+  const head = document.createElement('div');
+  head.className = 'card';
+  head.style.marginBottom = '16px';
+  head.innerHTML = `
+    <div class="card-body" style="display:flex;gap:14px;align-items:flex-start">
+      <div class="hero-ico" data-hero-ico></div>
+      <div>
+        <b style="font-size:15px">更多工具</b>
+        <div class="note" style="margin-top:4px">扩展功能按类别分组（默认不收藏）。点击卡片右上角的 ★ 收藏后即显示在首页，再次点击取消收藏；下方同时列出核心工具，方便随时调整。所有处理仍在本地浏览器完成。</div>
+      </div>
+    </div>`;
+  head.querySelector('[data-hero-ico]').appendChild(iconNode('more-grid'));
+  content.appendChild(head);
+
+  const ordered = [...GROUPS.filter((g) => g.hiddenOnHome), ...GROUPS.filter((g) => !g.hiddenOnHome)];
+  let shown = 0;
+  let coreStarted = false;
+  for (const g of ordered) {
+    const items = TOOLS.filter((t) => t.group === g.id);
+    if (!items.length) continue;
+    if (!g.hiddenOnHome && !coreStarted) {
+      coreStarted = true;
+      if (shown) {
+        const div = document.createElement('div');
+        div.className = 'home-sec-divider';
+        div.textContent = '—— 核心工具 ——';
+        content.appendChild(div);
       }
-    });
-    toggle.setAttribute('data-more-toggle', '1');
-    const divider = document.createElement('div');
-    divider.className = 'note';
-    divider.style.cssText = 'display:none;margin:10px 0 8px;font-weight:600';
-    divider.textContent = '—— 更多工具 ——';
-    const moreGrid = document.createElement('div');
-    moreGrid.className = 'tool-grid';
-    moreWrap.append(toggle, divider, moreGrid);
-    content.appendChild(moreWrap);
+    }
+    appendSection(content, g.name, items, g.hiddenOnHome ? `${items.length} 个工具 · 默认不在首页` : `${items.length} 个工具`);
+    shown += items.length;
+  }
+  if (!shown) {
+    const empty = document.createElement('div');
+    empty.className = 'card';
+    empty.innerHTML = '<div class="card-body"><div class="empty">暂无扩展工具</div></div>';
+    content.appendChild(empty);
   }
 }
 
@@ -286,6 +364,20 @@ function openSettings() {
     field('OCR 识别 DPI', (() => { const i = document.createElement('input'); i.type = 'number'; i.value = s.ocrDpi; i.min = 96; i.max = 300; i.step = 8; i.onchange = () => setSetting('ocrDpi', +i.value || 200); return i; })(), '越高识别越准、越慢'),
   ];
   rows.forEach((r) => box.appendChild(r));
+  const favRow = document.createElement('div');
+  favRow.className = 'field';
+  favRow.appendChild(button('恢复默认收藏', 'btn-outline btn-sm', () => {
+    resetFavorites();
+    toast(`已恢复默认收藏（${defaultFavoriteIds().length} 个核心工具）`);
+    box.closest('.modal-mask')?.remove();
+    if (location.hash === '#/more') renderApp(null);
+    else navigate();
+  }));
+  const favHint = document.createElement('div');
+  favHint.className = 'hint';
+  favHint.textContent = '撤销全部星标调整，首页恢复为 15 个核心工具';
+  favRow.appendChild(favHint);
+  box.appendChild(favRow);
   const note = document.createElement('div');
   note.className = 'note';
   note.textContent = '设置仅保存在本机浏览器，不会包含任何密码。';

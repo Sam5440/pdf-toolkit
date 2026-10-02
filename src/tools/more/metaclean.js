@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'metaclean',
   name: '移除元数据',
-  group: 'more',
+  group: 'm-secure',
   desc: '清空文档信息与 XMP 元数据',
   accepts: 'pdf',
   multiple: false,

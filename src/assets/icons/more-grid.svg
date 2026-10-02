@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 更多工具：3×3 圆角方块网格（右上格空心弱化，暗示可扩展） -->
+  <rect x="8" y="8" width="10" height="10" rx="2.5"/>
+  <rect x="19" y="8" width="10" height="10" rx="2.5"/>
+  <rect x="30" y="8" width="10" height="10" rx="2.5"/>
+  <rect x="8" y="19" width="10" height="10" rx="2.5"/>
+  <rect x="19" y="19" width="10" height="10" rx="2.5"/>
+  <rect x="30" y="19" width="10" height="10" rx="2.5"/>
+  <rect x="8" y="30" width="10" height="10" rx="2.5"/>
+  <rect x="19" y="30" width="10" height="10" rx="2.5"/>
+  <path d="M35 31v8M31 35h8"/>
+</svg>

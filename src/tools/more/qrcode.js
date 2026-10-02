@@ -7,7 +7,7 @@ import { qrMatrix, qrToCanvas } from '../../core/qr.js';
 registerTool({
   id: 'qrcode',
   name: '生成二维码',
-  group: 'more',
+  group: 'm-util',
   desc: '文本/网址生成二维码 PNG（可选嵌入 PDF）',
   accepts: 'pdf',
   multiple: false,

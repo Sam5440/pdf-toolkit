@@ -77,7 +77,7 @@ export function officeExportTool(p) {
   registerTool({
     id: p.id,
     name: p.name,
-    group: 'more',
+    group: 'm-frompdf',
     desc: p.desc,
     accepts: 'pdf',
     multiple: false,

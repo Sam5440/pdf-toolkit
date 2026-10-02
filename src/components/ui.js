@@ -1,5 +1,37 @@
 // 轻量 UI 基础组件：toast / modal / 参数表单 helpers
 import { esc } from '../core/format.js';
+import { isFavorite, toggleFavorite } from '../core/favorites.js';
+
+const STAR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.85 5.85 6.45.85-4.73 4.5 1.18 6.4L12 17.4l-5.75 3l1.18-6.4l-4.73-4.5l6.45-.85z"/></svg>';
+
+/** 工具卡片右上角收藏星标：未收藏=白色（灰描边），已收藏=黄色。
+ *  onChange(on) 由调用方决定是否重渲染（首页需要即时增删卡片，专项页原位更新）。 */
+export function favStar(toolId, { onChange } = {}) {
+  const on = isFavorite(toolId);
+  const el = document.createElement('span');
+  el.className = 'fav-star' + (on ? ' on' : '');
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  el.setAttribute('data-star', toolId);
+  el.setAttribute('aria-pressed', String(on));
+  el.setAttribute('aria-label', on ? `取消收藏 ${toolId}` : `收藏 ${toolId} 到首页`);
+  el.title = on ? '取消收藏' : '收藏到首页';
+  el.innerHTML = STAR_SVG;
+  const flip = () => {
+    toggleFavorite(toolId);
+    const now = isFavorite(toolId);
+    el.classList.toggle('on', now);
+    el.setAttribute('aria-pressed', String(now));
+    el.setAttribute('aria-label', now ? `取消收藏 ${toolId}` : `收藏 ${toolId} 到首页`);
+    el.title = now ? '取消收藏' : '收藏到首页';
+    onChange?.(now);
+  };
+  el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); flip(); });
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); }
+  });
+  return el;
+}
 
 let toastWrap = null;
 export function toast(msg, type = 'ok', ms = 2600) {

@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'rotate',
   name: '旋转 PDF',
-  group: 'more',
+  group: 'm-page',
   desc: '按页范围旋转 90/180/270°（相对或绝对）',
   accepts: 'pdf',
   multiple: false,

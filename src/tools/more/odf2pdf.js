@@ -23,7 +23,7 @@ const FONT_OPTS = [
 registerTool({
   id: 'odf2pdf',
   name: 'ODF 转 PDF',
-  group: 'more',
+  group: 'm-topdf',
   desc: 'odt/ods/odp/odg 文档转换为 PDF',
   accepts: 'pdf',
   multiple: false,

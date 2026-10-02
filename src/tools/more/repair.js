@@ -8,7 +8,7 @@ import { resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'repair',
   name: '修复 PDF',
-  group: 'more',
+  group: 'm-fix',
   desc: '重建损坏的 PDF 交叉引用与结构',
   accepts: 'pdf',
   multiple: false,

@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'docinfo',
   name: '修改文档信息',
-  group: 'more',
+  group: 'm-view',
   desc: '编辑标题、作者、主题、关键词等元数据',
   accepts: 'pdf',
   multiple: false,

@@ -33,7 +33,7 @@ async function heicToPng(doc) {
 registerTool({
   id: 'heicpdf',
   name: 'HEIC 转 PDF',
-  group: 'more',
+  group: 'm-topdf',
   desc: 'iPhone HEIC 照片转换为 PDF',
   accepts: 'pdf',
   multiple: false,

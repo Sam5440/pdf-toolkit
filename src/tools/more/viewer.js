@@ -9,7 +9,7 @@ const BASE_DPI = 96;
 registerTool({
   id: 'viewer',
   name: 'PDF 查看器',
-  group: 'more',
+  group: 'm-view',
   desc: '本地浏览 PDF：翻页/缩放/旋转',
   accepts: 'pdf',
   multiple: false,

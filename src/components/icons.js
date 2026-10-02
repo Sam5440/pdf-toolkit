@@ -17,7 +17,7 @@ export const EMOJI = {
   text: '📄', images2pdf: '🖼', pdf2images: '🏞', extractimages: '📦', compare: '🔍',
   'theme-moon': '🌙', 'theme-sun': '☀️',
   history: '🕘', settings: '⚙️', upload: '📄', success: '✅', winner: '🏆',
-  doc: '📄', trash: '🗑', warn: '⚠️', image: '🖼',
+  doc: '📄', trash: '🗑', warn: '⚠️', image: '🖼', 'more-grid': '🧰',
   // 「更多」分组
   rotate: '🔄', removepages: '➖', extractpages: '📤', nup: '🔲', halve: '➗',
   crop: '⬜', pagenumbers: '#️⃣', bookmarks: '🔖', docinfo: 'ℹ️', metaclean: '🧹',

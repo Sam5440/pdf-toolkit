@@ -9,7 +9,7 @@ import { decodeTiff } from '../../core/tiff.js';
 registerTool({
   id: 'tiffpdf',
   name: 'TIFF 转 PDF',
-  group: 'more',
+  group: 'm-topdf',
   desc: '多页 TIFF 转换为 PDF',
   accepts: 'pdf',
   multiple: false,

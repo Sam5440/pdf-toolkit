@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'pdf2tiff',
   name: 'PDF 转 TIFF',
-  group: 'more',
+  group: 'm-frompdf',
   desc: '多页 TIFF（Pillow/预览器可读）',
   accepts: 'pdf',
   multiple: false,

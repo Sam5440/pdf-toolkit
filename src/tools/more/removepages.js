@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'removepages',
   name: '删除 PDF 页面',
-  group: 'more',
+  group: 'm-page',
   desc: '按页码范围删除指定页',
   accepts: 'pdf',
   multiple: false,

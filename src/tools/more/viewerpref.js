@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'viewerpref',
   name: '查看器偏好',
-  group: 'more',
+  group: 'm-secure',
   desc: '设置打开方式：单页/双页、全屏、隐藏工具栏等',
   accepts: 'pdf',
   multiple: false,

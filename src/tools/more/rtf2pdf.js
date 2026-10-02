@@ -23,7 +23,7 @@ const FONT_OPTS = [
 registerTool({
   id: 'rtf2pdf',
   name: 'RTF 转 PDF',
-  group: 'more',
+  group: 'm-topdf',
   desc: 'RTF 文档转换为 PDF',
   accepts: 'pdf',
   multiple: false,

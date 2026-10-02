@@ -9,7 +9,7 @@ const HEIC_HINT = '当前浏览器不支持 HEIC 解码，请用 Safari 或先�
 registerTool({
   id: 'heicconvert',
   name: 'HEIC 转 JPG/PNG',
-  group: 'more',
+  group: 'm-img',
   desc: 'HEIC 照片格式转换',
   accepts: 'pdf',
   multiple: false,

@@ -10,7 +10,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'formfill',
   name: '填写 PDF 表单',
-  group: 'more',
+  group: 'm-edit',
   desc: '识别并填写 AcroForm 表单字段',
   accepts: 'pdf',
   multiple: false,

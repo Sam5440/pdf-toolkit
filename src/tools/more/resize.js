@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'resize',
   name: '更改页面大小',
-  group: 'more',
+  group: 'm-page',
   desc: '统一调整为 A4/A3/A5/Letter 等规格',
   accepts: 'pdf',
   multiple: false,

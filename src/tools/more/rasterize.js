@@ -10,7 +10,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'rasterize',
   name: '栅格化 PDF',
-  group: 'more',
+  group: 'm-fix',
   desc: '整册转为指定 DPI 的图像 PDF',
   accepts: 'pdf',
   multiple: false,

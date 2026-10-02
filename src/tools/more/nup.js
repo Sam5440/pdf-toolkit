@@ -8,7 +8,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'nup',
   name: '每页页面数',
-  group: 'more',
+  group: 'm-page',
   desc: '将多页拼版到一页纸（2/4/6/9/16 合 1）',
   accepts: 'pdf',
   multiple: false,

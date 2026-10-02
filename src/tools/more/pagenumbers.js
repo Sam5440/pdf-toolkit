@@ -10,7 +10,7 @@ import { paramsCard, resultCard, runWithProgress } from './common.js';
 registerTool({
   id: 'pagenumbers',
   name: '添加页码',
-  group: 'more',
+  group: 'm-page',
   desc: '九宫格位置、格式模板、CJK 安全页码',
   accepts: 'pdf',
   multiple: false,
