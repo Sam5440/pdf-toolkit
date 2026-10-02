@@ -1,6 +1,7 @@
 // 「更多」工具族的引擎操作（在 worker 内运行）。
 // 与 engine-worker.js 为循环引用：仅函数体中访问其导出（ESM 活绑定，延迟到调用期解析）。
 import * as pdfLib from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import * as geometry from './geometry.js';
 import { parsePageRange } from './pagerange.js';
 import { hexToRgb01 } from './watermark-model.js';
@@ -732,7 +733,377 @@ handlers['search.run'] = async ({ docId, query, pages = 'all', caseSensitive = f
 };
 
 // ---------------------------------------------------------------------------
-// 文本 → PDF（生成/撰写/文本类导入共用的分页渲染器）
+// 文本 → PDF（文本型）：嵌入 NotoSansSC-Text 预子集字体逐行绘制真实文字，
+// 产物可框选/搜索/复制；KaTeX 公式 / Mermaid / 思维导图仍以 PNG 图片混排。
+// 字体获取或嵌入失败时回退 rasterFallbackTextToPdf（Canvas 位图旧实现，见本区域末尾）。
+// ---------------------------------------------------------------------------
+
+const TEXT_FONT_FILES = {
+  regular: 'NotoSansSC-Regular-Text.ttf',
+  bold: 'NotoSansSC-Bold-Text.ttf',
+};
+const textFontBytesPromises = new Map(); // weight → Promise<ArrayBuffer>（worker 生命周期内复用，避免重复下载）
+
+function textFontBase() {
+  // 主线程 run() 会随 limits.assetBase 传入绝对基址；开发/直连场景回退构建期 BASE_URL
+  if (LIMITS.assetBase) return LIMITS.assetBase;
+  return import.meta.env.BASE_URL || '/';
+}
+
+/** 惰性加载文本型字库（同源 fetch /fonts/text/…，约 2.2MB/字重；生成脚本见 scripts/build_text_fonts.py） */
+function loadTextFontBytes(weight) {
+  if (!textFontBytesPromises.has(weight)) {
+    const file = TEXT_FONT_FILES[weight] || TEXT_FONT_FILES.regular;
+    textFontBytesPromises.set(weight, (async () => {
+      const url = `${textFontBase()}fonts/text/${file}`;
+      let resp;
+      try {
+        resp = await fetch(url);
+      } catch {
+        throw new Error(`字体请求失败：${url}`);
+      }
+      if (!resp.ok) throw new Error(`字体缺失（${url}），请确认部署包含 public/fonts/text`);
+      return resp.arrayBuffer();
+    })());
+  }
+  return textFontBytesPromises.get(weight);
+}
+
+/** base64 → bytes（用于 embedPng；逐字节填充避免大 buffer 一次性转换） */
+function base64ToBytes(b64) {
+  const bin = atob(b64);
+  const n = bin.length;
+  const u8 = new Uint8Array(n);
+  for (let i = 0; i < n; i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+
+// WinAnsi（PDF 标准字体编码）可表示判定：ASCII 可见区 / Latin-1 高半区 / WinAnsi 特有标点
+const WIN_ANSI_EXTRA = '\u20AC\u201A\u0192\u201E\u2026\u2020\u2021\u02C6\u2030\u0160\u2039\u0152\u017D'
+  + '\u2018\u2019\u201C\u201D\u2022\u2013\u2014\u02DC\u2122\u0161\u203A\u0153\u017E\u0178';
+
+function isWinAnsiLine(s) {
+  for (const ch of String(s ?? '')) {
+    const c = ch.codePointAt(0);
+    if (c >= 0x20 && c <= 0x7e) continue;
+    if (c >= 0xa0 && c <= 0xff) continue;
+    if (WIN_ANSI_EXTRA.includes(ch)) continue;
+    return false;
+  }
+  return true;
+}
+
+const C_BODY = pdfLib.rgb(0.066, 0.066, 0.066);      // #111111 正文/代码
+const C_QUOTE = pdfLib.rgb(0.33, 0.36, 0.42);        // 引用文字
+const C_QUOTE_BAR = pdfLib.rgb(0.804, 0.835, 0.882); // #cbd5e1 引用左侧竖条
+const C_CODE_BG = pdfLib.rgb(0.953, 0.957, 0.965);   // #f3f4f6 代码背景条
+const C_HR = pdfLib.rgb(0.612, 0.639, 0.686);        // #9ca3af 分隔线
+const C_GRID = pdfLib.rgb(0.667, 0.667, 0.667);      // #aaaaaa 表格线
+const C_TH_BG = pdfLib.rgb(0.941, 0.941, 0.941);     // #f0f0f0 表头底
+
+function textStyleOf(b, fontSize) {
+  switch (b.type) {
+    case 'h1': return { size: fontSize * 2.0, bold: true, before: fontSize * 1.2, after: fontSize * 0.6, lh: 1.3 };
+    case 'h2': return { size: fontSize * 1.55, bold: true, before: fontSize * 1.0, after: fontSize * 0.5, lh: 1.3 };
+    case 'h3': return { size: fontSize * 1.25, bold: true, before: fontSize * 0.8, after: fontSize * 0.4, lh: 1.35 };
+    case 'li': return { size: fontSize, bold: false, indent: fontSize * 1.8 * ((b.level ?? 0) + 1), before: 2, after: 2, lh: 1.55 };
+    case 'quote': return { size: fontSize * 0.95, bold: false, indent: fontSize * 1.2, before: 4, after: 4, lh: 1.55, quote: true };
+    case 'code': return { size: fontSize * 0.92, bold: false, mono: true, indent: fontSize, before: 4, after: 4, lh: 1.45, code: true };
+    default: return { size: fontSize, bold: false, before: 3, after: 3, lh: 1.6 };
+  }
+}
+
+/**
+ * blocks → 分页后的绘制项（纯计算；y 自内容区顶向下，绘制端换算 pdf-lib y-up）。
+ * 项：{kind:'text', text, font, size, color, x, y(基线)}
+ *   | {kind:'rect', x, yTop, w, h, color?, border?}
+ *   | {kind:'hr', y}
+ *   | {kind:'img', b64, x, yTop, w, h}
+ */
+function paginateBlocks(blocks, ctx) {
+  const { pw, ph, margin, fontSize, maxW, fontReg, fontBold, fontCourier, charW, textW } = ctx;
+  const limitY = ph - margin * 2;
+  const pages = [];
+  let cur = [];
+  let y = 0;
+  const newPage = () => { pages.push(cur); cur = []; y = 0; };
+  const addText = (text, font, size, x, baseline, color) => {
+    cur.push({ kind: 'text', text, font, size, color, x, y: baseline });
+  };
+  // 相邻文字原子合并为字符串 run（文本层按词连续，利于搜索/选中）
+  const toRuns = (atoms) => {
+    const runs = [];
+    let buf = null;
+    for (const a of atoms) {
+      if (a.t === 't') {
+        if (!buf) { buf = { t: 's', v: '', w: 0 }; runs.push(buf); }
+        buf.v += a.v;
+        buf.w += a.w;
+      } else {
+        buf = null;
+        runs.push(a);
+      }
+    }
+    return runs;
+  };
+
+  const total = blocks.length;
+  const step = Math.max(1, Math.ceil(total / 10));
+  let nextMilestone = step;
+  for (let bi = 0; bi < total; bi++) {
+    checkAbort();
+    if (bi >= nextMilestone) {
+      progress({ done: bi, total, stage: '排版中…' });
+      nextMilestone += step;
+    }
+    const b = blocks[bi];
+    if (b.type === 'pagebreak') { newPage(); continue; }
+    if (b.type === 'hr') {
+      if (y + 8 + 2 + 8 > limitY) newPage();
+      y += 8;
+      cur.push({ kind: 'hr', y });
+      y += 2 + 8;
+      continue;
+    }
+    if (b.type === 'table') {
+      const rows = (b.rows || []).map((r) => (Array.isArray(r) ? r.map((c) => String(c ?? '')) : [String(r ?? '')]));
+      if (rows.length) {
+        const cellSize = fontSize * 0.95;
+        const nCols = Math.max(...rows.map((r) => r.length));
+        const widths = [];
+        for (let ci = 0; ci < nCols; ci++) {
+          let mx = 0;
+          for (const r of rows) mx = Math.max(mx, textW(fontReg, cellSize, r[ci] || ''));
+          widths.push(Math.min(maxW, Math.max(24, mx + 10)));
+        }
+        const sum = widths.reduce((a, c) => a + c, 0);
+        if (sum > maxW) {
+          const k = maxW / sum;
+          for (let ci = 0; ci < widths.length; ci++) widths[ci] *= k;
+        }
+        const rh = fontSize * 0.95 * 1.5 + 8;
+        y += 6;
+        for (let ri = 0; ri < rows.length; ri++) {
+          if (y + rh > limitY) newPage();
+          const header = ri === 0;
+          let x = margin;
+          for (let ci = 0; ci < widths.length; ci++) {
+            cur.push({
+              kind: 'rect', x, yTop: y, w: widths[ci], h: rh,
+              color: header ? C_TH_BG : undefined,
+              border: { color: C_GRID, width: 0.6 },
+            });
+            const cell = rows[ri][ci] || '';
+            if (cell) addText(cell, header ? (fontBold || fontReg) : fontReg, cellSize, x + 5, y + rh - 6, C_BODY);
+            x += widths[ci];
+          }
+          y += rh;
+        }
+        y += 6;
+      }
+      continue;
+    }
+    if (b.type === 'img') {
+      // 富渲染栅格化块（公式/图形）：b64 PNG + pt 尺寸；宽 clamp maxW、超高缩页内、水平居中
+      if (!b.b64) continue;
+      const availH = limitY;
+      let w = Math.min(maxW, b.wPt || maxW);
+      let h = (b.hPt || w) * w / (b.wPt || 1);
+      if (h > availH) { w = (b.wPt || 1) * availH / (b.hPt || 1); h = availH; }
+      const gap = fontSize * 0.4;
+      if (y + gap + h + gap > limitY) newPage();
+      y += gap;
+      cur.push({ kind: 'img', b64: b.b64, x: (pw - w) / 2, yTop: y, w, h });
+      y += h + gap;
+      continue;
+    }
+
+    const st = textStyleOf(b, fontSize);
+    let font = st.bold ? (fontBold || fontReg) : fontReg;
+    if (st.code && fontCourier && String(b.text ?? '').split('\n').every(isWinAnsiLine)) {
+      font = fontCourier; // 整块均为 WinAnsi 的代码块用标准 Courier（无需嵌入）
+    }
+    const availW = Math.max(8, maxW - (st.indent || 0));
+    const marker = b.type === 'li' ? (b.marker || '•') : null;
+    const markerW = marker ? textW(fontReg, st.size, `${marker} `) : 0;
+    // 原子流：文字逐字（宽缓存）+ 数学原子整体；纯文本块按 '\n' 分段（保留空行）
+    let paraLists;
+    if (Array.isArray(b.segs)) {
+      paraLists = [[]];
+      for (const seg of b.segs) {
+        if (seg.t === 'm') {
+          if (!seg.b64) continue;
+          const hPt = seg.hPt || 0;
+          paraLists[paraLists.length - 1].push({
+            t: 'm', b64: seg.b64, w: seg.wPt || 0, hPt,
+            baselinePt: Math.min(Math.max(seg.baselinePt ?? hPt, 0), hPt),
+          });
+          continue;
+        }
+        const parts = String(seg.v ?? '').split('\n');
+        parts.forEach((part, idx) => {
+          if (idx > 0 && paraLists[paraLists.length - 1].length) paraLists.push([]);
+          const list = paraLists[paraLists.length - 1];
+          for (const ch of part) list.push({ t: 't', v: ch, w: charW(font, st.size, ch) });
+        });
+      }
+    } else {
+      paraLists = String(b.text ?? '').split('\n').map(
+        (para) => [...para].map((ch) => ({ t: 't', v: ch, w: charW(font, st.size, ch) })),
+      );
+    }
+    // 折行：逐原子累计宽度；块首行让位 marker
+    const lineH = st.size * st.lh;
+    const rowsAll = [];
+    for (const atoms of paraLists) {
+      const rows = [];
+      let row = [];
+      let rowW = 0;
+      const flush = () => { rows.push(row); row = []; rowW = 0; };
+      for (const a of atoms) {
+        const avail = (rows.length === 0 && rowsAll.length === 0) ? availW - markerW : availW;
+        if (rowW + a.w > avail && row.length) flush();
+        row.push(a);
+        rowW += a.w;
+      }
+      flush();
+      for (const r of rows) rowsAll.push({ atoms: r, first: rowsAll.length === 0 });
+    }
+    if (rowsAll.length) rowsAll[rowsAll.length - 1].last = true;
+    // 逐行落位（超页换页；段前/段后只在块首/块尾计）
+    for (const { atoms, first, last } of rowsAll) {
+      if (y + lineH > limitY) newPage();
+      if (first) y += st.before || 0;
+      const runs = toRuns(atoms);
+      if (first && marker) runs.unshift({ t: 's', v: `${marker} `, w: markerW, markerRun: true });
+      const lineWidth = runs.reduce((s, r) => s + r.w, 0);
+      let x0 = margin + (st.indent || 0);
+      if (b.align === 'center') x0 = (pw - lineWidth) / 2;
+      else if (b.align === 'right') x0 = pw - margin - lineWidth;
+      const baseline = y;
+      if (st.code) cur.push({ kind: 'rect', x: margin, yTop: baseline - st.size * 1.05, w: maxW, h: lineH, color: C_CODE_BG });
+      if (st.quote) cur.push({ kind: 'rect', x: margin, yTop: baseline - st.size * 1.05, w: 2, h: lineH, color: C_QUOTE_BAR });
+      let x = x0;
+      for (const r of runs) {
+        if (r.t === 's') {
+          if (r.v) addText(r.v, r.markerRun ? fontReg : font, st.size, x, baseline, st.quote ? C_QUOTE : C_BODY);
+        } else {
+          cur.push({ kind: 'img', b64: r.b64, x, yTop: baseline - r.baselinePt, w: r.w, h: r.hPt });
+        }
+        x += r.w;
+      }
+      y += lineH;
+      if (last) y += st.after || 0;
+    }
+  }
+  pages.push(cur);
+  return pages.filter((p) => p.length);
+}
+
+/** 文本型构建：字体嵌入 → 排版分页 → 逐页绘制（文字 drawText / 图形 drawImage） */
+async function buildTextPdfVector({ name, blocks, paper, margin, fontSize, title }) {
+  const [pw, ph] = PAPERS[paper] || PAPERS.a4;
+  const maxW = pw - margin * 2;
+  const out = await pdfLib.PDFDocument.create();
+  out.registerFontkit(fontkit);
+
+  // 1) 字体：subset:false 嵌入（subset:true 对 CJK 产出损坏字形——见 scripts/build_text_fonts.py 头注）；
+  //    Bold 惰性（仅标题/表头文档加载）；全 WinAnsi 代码块用标准 Courier
+  let fontReg, fontBold = null, fontCourier = null;
+  try {
+    fontReg = await out.embedFont(await loadTextFontBytes('regular'), { subset: false });
+    const needsBold = blocks.some((b) => b.type === 'h1' || b.type === 'h2' || b.type === 'h3' || b.type === 'table');
+    if (needsBold) fontBold = await out.embedFont(await loadTextFontBytes('bold'), { subset: false });
+    const hasCourierCode = blocks.some((b) => b.type === 'code'
+      && String(b.text ?? '').split('\n').every(isWinAnsiLine));
+    if (hasCourierCode) fontCourier = await out.embedFont(pdfLib.StandardFonts.Courier);
+  } catch (err) {
+    const ferr = new Error(err?.message || String(err));
+    ferr.fontFailure = true;
+    throw ferr;
+  }
+
+  // 2) 排版 + 分页（pdf-lib 字体度量，与绘制完全同源）
+  const widthCaches = new Map(); // font → (size → (ch → pt 宽))
+  const charW = (font, size, ch) => {
+    let bySize = widthCaches.get(font);
+    if (!bySize) { bySize = new Map(); widthCaches.set(font, bySize); }
+    let byCh = bySize.get(size);
+    if (!byCh) { byCh = new Map(); bySize.set(size, byCh); }
+    let w = byCh.get(ch);
+    if (w === undefined) {
+      w = font.widthOfTextAtSize(ch, size);
+      byCh.set(ch, w);
+    }
+    return w;
+  };
+  const textW = (font, size, s) => {
+    let t = 0;
+    for (const ch of String(s)) t += charW(font, size, ch);
+    return t;
+  };
+  const pages = paginateBlocks(blocks, { pw, ph, margin, fontSize, maxW, fontReg, fontBold, fontCourier, charW, textW });
+  if (!pages.length) throw toolkitError('ERR_NO_INPUT', '排版结果为空');
+
+  // 3) 逐页绘制（按阅读顺序逐行 drawText，保证文本层可搜索/可选中）
+  const pngCache = new Map(); // b64 → 已嵌入图像（同图只嵌入一次）
+  const embedPng = async (b64) => {
+    let img = pngCache.get(b64);
+    if (!img) {
+      img = await out.embedPng(base64ToBytes(b64));
+      pngCache.set(b64, img);
+    }
+    return img;
+  };
+  for (let pi = 0; pi < pages.length; pi++) {
+    checkAbort();
+    const page = out.addPage([pw, ph]);
+    const pdfY = (yTopDown) => ph - margin - yTopDown; // 内容顶坐标（y 自上而下）→ PDF y-up
+    for (const it of pages[pi]) {
+      if (it.kind === 'text') {
+        page.drawText(it.text, { x: it.x, y: pdfY(it.y), size: it.size, font: it.font, color: it.color });
+      } else if (it.kind === 'rect') {
+        page.drawRectangle({
+          x: it.x, y: pdfY(it.yTop) - it.h, width: it.w, height: it.h,
+          ...(it.color ? { color: it.color } : {}),
+          ...(it.border ? { borderColor: it.border.color, borderWidth: it.border.width } : {}),
+        });
+      } else if (it.kind === 'hr') {
+        page.drawLine({
+          start: { x: margin, y: pdfY(it.y) }, end: { x: pw - margin, y: pdfY(it.y) },
+          thickness: 0.8, color: C_HR,
+        });
+      } else if (it.kind === 'img') {
+        const png = await embedPng(it.b64);
+        page.drawImage(png, { x: it.x, y: pdfY(it.yTop) - it.h, width: it.w, height: it.h });
+      }
+    }
+    progress({ done: pi + 1, total: pages.length, stage: `写入第 ${pi + 1} 页` });
+  }
+  if (title) { try { out.setTitle(title); } catch { /* noop */ } }
+  try { out.setLanguage('zh-CN'); } catch { /* noop */ }
+  const bytes = await out.save({ useObjectStreams: true });
+  const outName = /\.pdf$/i.test(name) ? name : `${name}.pdf`;
+  return { artifacts: [{ name: outName, mime: 'application/pdf', bytes }], summary: { pages: pages.length, mode: 'text' } };
+}
+
+handlers['text.toPdf'] = async ({ name = '文档', blocks = [], paper = 'a4', margin = 48, fontSize = 11, title = '' }) => {
+  if (!blocks.length) throw toolkitError('ERR_NO_INPUT', '内容为空');
+  try {
+    return await buildTextPdfVector({ name, blocks, paper, margin, fontSize, title });
+  } catch (err) {
+    if (!err || err.fontFailure !== true) throw err;
+    // 字体获取/嵌入失败：回退图片型（Canvas 栅格）实现
+    const fb = await rasterFallbackTextToPdf({ name, blocks, paper, margin, fontSize, title });
+    return {
+      ...fb,
+      warnings: [`内嵌字体加载失败（${err.message}），已回退为图片型 PDF（文字暂不可选中/搜索）`],
+    };
+  }
+};
+
+// ---------------------------------------------------------------------------
+// 文本 → PDF（图片型回退：Canvas 位图 → JPEG；仅在文本型字体加载/嵌入失败时使用）
 // ---------------------------------------------------------------------------
 
 const TP_K = 2; // 渲染倍率（清晰度）
@@ -742,8 +1113,15 @@ function tpFont(size, bold, italic, mono) {
   return `${italic ? 'italic ' : ''}${bold ? 700 : 400} ${Math.round(size * TP_K)}px ${fam}`;
 }
 
-/** blocks → 分页后的渲染任务（纯计算） */
-function paginateBlocks(blocks, opts) {
+/** 绘制期字体：画布已 scale(TP_K)（用户单位=pt），字体尺寸直接用 pt；
+ *  tpFont 的 TP_K 倍率仅适用于未缩放的测量画布（测得 px/TP_K=pt）。 */
+function tpFontDraw(size, bold, italic, mono) {
+  const fam = mono ? "'Courier New', monospace" : `'pdftoolkit-cjk', 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+  return `${italic ? 'italic ' : ''}${bold ? 700 : 400} ${Math.round(size)}px ${fam}`;
+}
+
+/** blocks → 分页后的渲染任务（纯计算）——旧栅格实现 */
+function rasterPaginate(blocks, opts) {
   const { paper = 'a4', margin = 48, fontSize = 11 } = opts;
   const [pw0, ph0] = PAPERS[paper] || PAPERS.a4;
   const maxW = pw0 - margin * 2;
@@ -752,7 +1130,7 @@ function paginateBlocks(blocks, opts) {
       case 'h1': return { size: fontSize * 2.0, bold: true, before: fontSize * 1.2, after: fontSize * 0.6, lh: 1.3 };
       case 'h2': return { size: fontSize * 1.55, bold: true, before: fontSize * 1.0, after: fontSize * 0.5, lh: 1.3 };
       case 'h3': return { size: fontSize * 1.25, bold: true, before: fontSize * 0.8, after: fontSize * 0.4, lh: 1.35 };
-      case 'li': return { size: fontSize, bold: false, indent: fontSize * 1.8, before: 2, after: 2, lh: 1.55 };
+      case 'li': return { size: fontSize, bold: false, indent: fontSize * 1.8 * ((b.level ?? 0) + 1), before: 2, after: 2, lh: 1.55 };
       case 'quote': return { size: fontSize * 0.95, bold: false, indent: fontSize * 1.2, before: 4, after: 4, lh: 1.55, gray: true };
       case 'code': return { size: fontSize * 0.92, bold: false, mono: true, indent: fontSize, before: 4, after: 4, lh: 1.45, code: true };
       default: return { size: fontSize, bold: false, before: 3, after: 3, lh: 1.6 };
@@ -766,7 +1144,17 @@ function paginateBlocks(blocks, opts) {
       lines.push({ table: b.rows || [], before: 6, after: 6, fontSize });
       continue;
     }
+    if (b.type === 'img') {
+      // 富渲染栅格化块（公式/图形）：b64 PNG + pt 尺寸
+      lines.push({ img: { b64: b.b64, wPt: b.wPt, hPt: b.hPt }, before: fontSize * 0.4, after: fontSize * 0.4 });
+      continue;
+    }
     const st = styleOf(b);
+    if (Array.isArray(b.segs)) {
+      // 富文本块（含行内数学原子）：segs = [{t:'s',v}|{t:'m',b64,wPt,hPt,baselinePt}]
+      lines.push({ rich: true, segs: b.segs, st, type: b.type, align: b.align || 'left', marker: b.type === 'li' ? (b.marker || '•') : null });
+      continue;
+    }
     const text = String(b.text ?? '');
     const paras = text.split('\n');
     for (const para of paras) {
@@ -776,10 +1164,10 @@ function paginateBlocks(blocks, opts) {
   return { lines, pw: pw0, ph: ph0, maxW, margin };
 }
 
-handlers['text.toPdf'] = async ({ name = '文档', blocks = [], paper = 'a4', margin = 48, fontSize = 11, title = '' }) => {
-  if (!blocks.length) throw toolkitError('ERR_NO_INPUT', '内容为空');
+/** 旧 Canvas 位图实现原样保留（字体加载失败时的兜底；产物文字不可选中/搜索） */
+async function rasterFallbackTextToPdf({ name = '文档', blocks = [], paper = 'a4', margin = 48, fontSize = 11, title = '' }) {
   await ensureWorkerCJKFont();
-  const { lines, pw, ph, maxW } = paginateBlocks(blocks, { paper, margin, fontSize });
+  const { lines, pw, ph, maxW } = rasterPaginate(blocks, { paper, margin, fontSize });
   // 逐行排版（Canvas measureText，与渲染同字体设定，保证一致）
   const layout = []; // {kind:'line', text|segments, x, yBaseline, size, ...}
   let pageLayouts = [];
@@ -811,6 +1199,21 @@ handlers['text.toPdf'] = async ({ name = '文档', blocks = [], paper = 'a4', ma
     }
     out.push(line);
     return out;
+  };
+  // 富路径字符宽度缓存（per-style，防 O(n²) 重复 measureText）
+  const charCache = new Map(); // fontSpec → Map(ch → pt 宽)
+  const probeCtx = new OffscreenCanvas(8, 8).getContext('2d');
+  const charW = (ch, st) => {
+    const key = tpFont(st.size, st.bold, false, st.mono);
+    let m = charCache.get(key);
+    if (!m) { m = new Map(); charCache.set(key, m); }
+    let w = m.get(ch);
+    if (w === undefined) {
+      probeCtx.font = key;
+      w = probeCtx.measureText(ch).width / TP_K;
+      m.set(ch, w);
+    }
+    return w;
   };
   for (const item of lines) {
     checkAbort();
@@ -860,6 +1263,63 @@ handlers['text.toPdf'] = async ({ name = '文档', blocks = [], paper = 'a4', ma
       y += item.after;
       continue;
     }
+    if (item.img) {
+      // 图形/公式块：maxW 内取宽，超高则等比缩到页内；y+h 超页换页；水平居中
+      const it = item.img;
+      const availH = ph - margin * 2;
+      let w = Math.min(maxW, it.wPt || maxW);
+      let h = (it.hPt || w) * w / (it.wPt || 1);
+      if (h > availH) { w = (it.wPt || 1) * availH / (it.hPt || 1); h = availH; }
+      if (y + item.before + h + item.after > ph - margin) { pageLayouts.push(cur); cur = []; y = margin; }
+      y += item.before;
+      cur.push({ kind: 'img', b64: it.b64, x: (pw - w) / 2, y, w, h });
+      y += h + item.after;
+      continue;
+    }
+    if (item.rich) {
+      // 富文本行：segs 展开为原子流（文字按字符、数学原子整体），逐原子累计宽度折行
+      const st = item.st;
+      const availW = maxW - (st.indent || 0);
+      const prefixW = item.marker ? measure(`${item.marker} `, st) : 0;
+      const rows = [];
+      let run = [], w = 0, first = true;
+      for (const seg of item.segs) {
+        if (seg.t === 'm') {
+          const atom = { t: 'm', b64: seg.b64, w: seg.wPt, hPt: seg.hPt, baselinePt: Math.min(Math.max(seg.baselinePt ?? seg.hPt, 0), seg.hPt) };
+          if (w + atom.w > (first ? availW - prefixW : availW) && run.length) { rows.push({ runs: run, w }); run = []; w = 0; first = false; }
+          run.push(atom);
+          w += atom.w;
+          continue;
+        }
+        for (const ch of String(seg.v ?? '')) {
+          if (ch === '\n') { if (run.length) { rows.push({ runs: run, w }); run = []; w = 0; } first = false; continue; }
+          const atom = { t: 't', v: ch, w: charW(ch, st) };
+          if (w + atom.w > (first ? availW - prefixW : availW) && run.length) { rows.push({ runs: run, w }); run = []; w = 0; first = false; }
+          run.push(atom);
+          w += atom.w;
+        }
+      }
+      rows.push({ runs: run, w });
+      for (let wi = 0; wi < rows.length; wi++) {
+        const lineH = st.size * st.lh;
+        if (y + lineH > ph - margin) { pageLayouts.push(cur); cur = []; y = margin; }
+        if (wi === 0) y += st.before || 0;
+        const row = rows[wi];
+        const runs = wi === 0 && item.marker
+          ? [{ t: 't', v: `${item.marker} `, w: prefixW }, ...row.runs]
+          : row.runs;
+        cur.push({
+          kind: 'rich', runs, y,
+          width: row.w + (wi === 0 && item.marker ? prefixW : 0),
+          size: st.size, bold: st.bold || undefined, gray: st.gray || undefined,
+          mono: st.mono || undefined, code: st.code || undefined,
+          align: item.align, indent: st.indent || 0,
+        });
+        y += lineH;
+        if (wi === rows.length - 1) y += st.after || 0;
+      }
+      continue;
+    }
     const st = item.st;
     const availW = maxW - (st.indent || 0);
     const wrapped = wrap(item.para, st, availW);
@@ -886,6 +1346,15 @@ handlers['text.toPdf'] = async ({ name = '文档', blocks = [], paper = 'a4', ma
 
   // 渲染每页 → JPEG → PDF
   const out = await pdfLib.PDFDocument.create();
+  const pngCache = new Map(); // b64 → 已嵌入图像（同图只嵌入一次）
+  const embedPng = async (b64) => {
+    let img = pngCache.get(b64);
+    if (!img) {
+      img = await out.embedPng(base64ToBytes(b64));
+      pngCache.set(b64, img);
+    }
+    return img;
+  };
   for (let pi = 0; pi < pageLayouts.length; pi++) {
     checkAbort();
     const canvas = new OffscreenCanvas(Math.round(pw * TP_K), Math.round(ph * TP_K));
@@ -912,26 +1381,40 @@ handlers['text.toPdf'] = async ({ name = '文档', blocks = [], paper = 'a4', ma
           ctx.lineWidth = 0.6;
           ctx.strokeRect(x + margin, ln.yTop, ln.widths[ci], ln.h);
           ctx.fillStyle = '#111111';
-          ctx.font = tpFont(fontSize * 0.95, ln.header, false, false);
+          ctx.font = tpFontDraw(fontSize * 0.95, ln.header, false, false);
           ctx.textBaseline = 'alphabetic';
           ctx.fillText(ln.cells[ci].text, x + margin + 5, ln.yTop + ln.h - 6);
           x += ln.widths[ci];
         }
+      } else if (ln.kind === 'img') {
+        // 图形块在页级以 PNG 叠画（见下方 drawPageOverlays），位图页跳过
+      } else if (ln.kind === 'rich') {
+        // 富文本行：位图页只画文字 run，数学原子由页级 PNG 叠画（x 与布局同序推进）
+        ctx.font = tpFontDraw(ln.size, ln.bold, false, ln.mono);
+        ctx.fillStyle = ln.gray ? '#555555' : '#111111';
+        ctx.textBaseline = 'alphabetic';
+        let x = ln.align === 'center' ? (pw - ln.width) / 2
+          : ln.align === 'right' ? pw - margin - ln.width
+            : margin + ln.indent;
+        for (const run of ln.runs) {
+          if (run.t !== 'm') ctx.fillText(run.v, x, ln.y);
+          x += run.w;
+        }
       } else {
         const weight = ln.bold ? 700 : 400;
-        ctx.font = tpFont(ln.size, ln.bold, false, ln.mono);
+        ctx.font = tpFontDraw(ln.size, ln.bold, false, ln.mono);
         ctx.fillStyle = ln.gray ? '#555555' : '#111111';
         ctx.textBaseline = 'alphabetic';
         let x = margin + ln.indent;
         if (ln.align === 'center') {
-          const w = ctx.measureText(ln.text).width / TP_K;
+          const w = ctx.measureText(ln.text).width;
           x = (pw - w) / 2;
         } else if (ln.align === 'right') {
-          const w = ctx.measureText(ln.text).width / TP_K;
+          const w = ctx.measureText(ln.text).width;
           x = pw - margin - w;
         }
         if (ln.code) {
-          const w = ctx.measureText(ln.text).width / TP_K;
+          const w = ctx.measureText(ln.text).width;
           ctx.fillStyle = '#f3f4f6';
           ctx.fillRect(x - 4, ln.y - ln.size * 1.05, Math.min(w + 8, maxW), ln.size * 1.45);
           ctx.fillStyle = '#111111';
@@ -943,13 +1426,32 @@ handlers['text.toPdf'] = async ({ name = '文档', blocks = [], paper = 'a4', ma
     const img = await out.embedJpg(new Uint8Array(await blob.arrayBuffer()));
     const page = out.addPage([pw, ph]);
     page.drawImage(img, { x: 0, y: 0, width: pw, height: ph });
+    // 图形/公式 PNG 以矢量坐标叠画到 PDF 页上（布局 y 自页顶向下，PDF y 自页底向上）
+    for (const ln of pageLayouts[pi]) {
+      if (ln.kind === 'img') {
+        const png = await embedPng(ln.b64);
+        page.drawImage(png, { x: ln.x, y: ph - ln.y - ln.h, width: ln.w, height: ln.h });
+        continue;
+      }
+      if (ln.kind !== 'rich') continue;
+      let x = ln.align === 'center' ? (pw - ln.width) / 2
+        : ln.align === 'right' ? pw - margin - ln.width
+          : margin + ln.indent;
+      for (const run of ln.runs) {
+        if (run.t === 'm') {
+          const png = await embedPng(run.b64);
+          page.drawImage(png, { x, y: ph - (ln.y - run.baselinePt) - run.hPt, width: run.w, height: run.hPt });
+        }
+        x += run.w;
+      }
+    }
     progress({ done: pi + 1, total: pageLayouts.length, stage: `渲染第 ${pi + 1} 页` });
   }
   if (title) { try { out.setTitle(title); } catch { /* noop */ } }
   const bytes = await out.save({ useObjectStreams: true });
   const outName = /\.pdf$/i.test(name) ? name : `${name}.pdf`;
-  return { artifacts: [{ name: outName, mime: 'application/pdf', bytes }], summary: { pages: pageLayouts.length } };
-};
+  return { artifacts: [{ name: outName, mime: 'application/pdf', bytes }], summary: { pages: pageLayouts.length, mode: 'raster-fallback' } };
+}
 
 // ---------------------------------------------------------------------------
 // PDF → 其他格式（文本级）
