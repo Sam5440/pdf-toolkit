@@ -33,6 +33,17 @@ test.describe('PDF 转图片工具', () => {
     expect(fs.statSync(p).size).toBeGreaterThan(0);
   });
 
+  test('downscaled_img.pdf→大图缩小渲染→1 个产物', async ({ page }) => {
+    // 回归：大图绘制到小区域触发 pdf.js 临时 canvas 缩放路径，
+    // Worker 里无 document，曾报 "Cannot read properties of undefined (reading 'createElement')"
+    await upload(page, ['downscaled_img.pdf']);
+    await expect(page.getByText('全部 1 页')).toBeVisible();
+
+    await page.getByRole('button', { name: '开始转换' }).click();
+    await expect(page.getByText('转换完成')).toBeVisible();
+    await expect(page.locator('.result-artifact')).toHaveCount(1);
+  });
+
   test('参数错误：页码超出范围→引擎报错不出产物', async ({ page }) => {
     await upload(page, ['multi3.pdf']);
     await expect(page.getByText('全部 3 页')).toBeVisible();

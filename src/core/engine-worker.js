@@ -39,6 +39,40 @@ async function getPdfjs() {
   return pdfjs;
 }
 
+// Worker 里没有 document，pdf.js 默认的 DOMCanvasFactory / DOMFilterFactory 在
+// 图像缩放、蒙版、透明组合等渲染路径会崩溃（无 document.createElement）。
+// 对齐 pdf.js 无 DOM 环境的官方做法：canvas 用 OffscreenCanvas 创建，
+// 滤镜工厂降级为 no-op（仅影响极少数带传递函数的蒙版）。
+class OffscreenCanvasFactory {
+  // pdf.js 会传 { ownerDocument, enableHWA }，这里无 DOM 依赖故忽略
+  create(width, height) {
+    if (width <= 0 || height <= 0) throw new Error('Invalid canvas size');
+    const canvas = new OffscreenCanvas(width, height);
+    return { canvas, context: canvas.getContext('2d', { willReadFrequently: true }) };
+  }
+  reset({ canvas }, width, height) {
+    if (!canvas) throw new Error('Canvas is not specified');
+    if (width <= 0 || height <= 0) throw new Error('Invalid canvas size');
+    canvas.width = width;
+    canvas.height = height;
+  }
+  destroy(canvasAndContext) {
+    if (!canvasAndContext.canvas) throw new Error('Canvas is not specified');
+    canvasAndContext.canvas = null;
+    canvasAndContext.context = null;
+  }
+}
+
+class NoDomFilterFactory {
+  addFilter() { return 'none'; }
+  addHCMFilter() { return 'none'; }
+  addAlphaFilter() { return 'none'; }
+  addLuminosityFilter() { return 'none'; }
+  addKnockoutFilter() { return 'none'; }
+  addHighlightHCMFilter() { return 'none'; }
+  destroy() { /* noop */ }
+}
+
 let mupdfMod = null;
 async function getMupdf() {
   if (!mupdfMod) mupdfMod = await import('mupdf');
@@ -170,7 +204,13 @@ export async function pdfjsOpen(entry) {
   if (entry.pdfjsDoc) { touchLru(entry.docId); return entry.pdfjsDoc; }
   if (entry.needsPassword) throw toolkitError('ERR_ENCRYPTED');
   const pjs = await getPdfjs();
-  const task = pjs.getDocument({ data: entry.bytes.slice(), isEvalSupported: false, useSystemFonts: true });
+  const task = pjs.getDocument({
+    data: entry.bytes.slice(),
+    isEvalSupported: false,
+    useSystemFonts: true,
+    CanvasFactory: OffscreenCanvasFactory,
+    FilterFactory: NoDomFilterFactory,
+  });
   entry.pdfjsDoc = await task.promise;
   touchLru(entry.docId);
   return entry.pdfjsDoc;

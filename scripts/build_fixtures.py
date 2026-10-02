@@ -75,6 +75,28 @@ def smask_pdf():
     return out.getvalue()
 
 
+def downscaled_img_pdf():
+    """超大图像绘制到极小区域（渲染时 >2 倍降采样，走 pdf.js 临时 canvas 缩放路径）"""
+    import fitz
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGB", (1600, 1600), (245, 245, 245))
+    d = ImageDraw.Draw(img)
+    for i in range(0, 1600, 40):
+        d.line([(0, i), (1600, i)], fill=(120, 160, 220))
+        d.line([(i, 0), (i, 1600)], fill=(220, 160, 120))
+    buf_img = io.BytesIO()
+    img.save(buf_img, "JPEG", quality=85)
+    doc = fitz.open()
+    page = doc.new_page(width=400, height=300)
+    page.insert_image(fitz.Rect(30, 30, 120, 120), stream=buf_img.getvalue())
+    page.insert_text((200, 100), "DOWNSCALED IMAGE", fontsize=14)
+    out = io.BytesIO()
+    doc.save(out)
+    doc.close()
+    return out.getvalue()
+
+
 def scan_pdf(text_simulated=True, pages=2, dpi=150):
     """扫描件模拟：页面只有图像、无文字层（OCR 用）"""
     import fitz
@@ -554,6 +576,7 @@ def main():
         "multi8.pdf": pdf_bytes(8, "长文档拆分"),
         "rotated90.pdf": rotated_pdf(),
         "smask_alpha.pdf": smask_pdf(),
+        "downscaled_img.pdf": downscaled_img_pdf(),
         "scan2.pdf": scan_pdf(),
         "enc_user123.pdf": encrypted_pdf(),
         "photo_l.jpg": big_image_bytes("JPEG", (1200, 900)),
@@ -587,3 +610,74 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------------------
+# 富渲染夹具（md2pdf 富模式）：行内/独立数学公式、Mermaid 流程图、markmap 思维导图。
+# 追加块：只新增 rich.md，不改动上方既有夹具逻辑。
+# ---------------------------------------------------------------------------
+
+def rich_md_bytes():
+    """Markdown 富渲染：KaTeX 行内/独立公式 + Mermaid（classDef 上色）+ 思维导图 + 表格/代码/引用"""
+    text = r"""# 傅里叶与流程
+
+这是一个富渲染测试文档，能量公式 $E=mc^2$ 出现在中文句子里，
+希腊字母 $\alpha+\beta$ 紧邻 CJK 文本，还有负数 $-1$ 的情形。
+
+独立公式如下：
+
+$$\int_0^\infty e^{-x^2}\,dx=\frac{\sqrt{\pi}}{2}$$
+
+## 流程图
+
+```mermaid
+flowchart TD
+    A[开始] --> B{是否继续?}
+    B -->|是| C[处理]
+    C --> D[结束]
+    B -->|否| E[终止]
+    classDef good fill:#2f855a,stroke:#1c4532,color:#ffffff;
+    classDef bad fill:#c53030,stroke:#742a2a,color:#ffffff;
+    class C,D good
+    class E bad
+```
+
+## 产品结构
+
+```mindmap
+- 产品规划
+  - 平台
+    - 引擎内核
+    - 渲染管线
+  - 协作
+    - 权限中心
+    - 消息通知
+  - 分析
+    - 数据看板
+    - 报表导出
+```
+
+## 数据表
+
+| 指标 | 数值 | 单位 |
+| --- | --- | --- |
+| 频率 | 50 | Hz |
+| 电压 | 220 | V |
+| 电流 | 10 | A |
+
+```js
+console.log("富渲染 fixture");
+```
+
+> 引用：全部处理在本地浏览器完成，文件不出浏览器。
+
+文档到此结束。
+"""
+    return text.encode("utf-8")
+
+
+if __name__ == "__main__":
+    OUT.mkdir(parents=True, exist_ok=True)
+    rich_data = rich_md_bytes()
+    (OUT / "rich.md").write_bytes(rich_data)
+    print(f"rich.md: {len(rich_data)} bytes")
