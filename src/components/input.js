@@ -1,8 +1,65 @@
 // 输入文档面板：文件选择/拖拽/列表管理（安全渲染文件名）
 import { esc, fmtBytes, baseName } from '../core/format.js';
 import { addDocument, getDocument, removeDocument, pickFiles, bindDropzone, validateFile, warnFile } from '../core/files.js';
-import { toast } from './ui.js';
+import { toast, openModal, button } from './ui.js';
 import { iconNode } from './icons.js';
+
+// ---- 内嵌浏览器无文件选择器的引导（全局单例：一次弹窗、防抖动） ----
+let pickerHelpLastAt = 0;
+
+function showPickerHelp() {
+  const now = Date.now();
+  if (now - pickerHelpLastAt < 5000) return;
+  pickerHelpLastAt = now;
+  const box = document.createElement('div');
+  const note = document.createElement('div');
+  note.className = 'note';
+  note.style.marginBottom = '10px';
+  note.textContent = '当前页面似乎运行在内嵌浏览器中，系统文件选择框无法弹出。可以用以下任一方式添加文件：';
+  box.appendChild(note);
+  const ways = document.createElement('ol');
+  ways.style.cssText = 'margin:0 0 14px 18px;font-size:13px;line-height:1.9';
+  ways.innerHTML = '<li>把文件从访达（Finder）直接<b>拖放</b>到上传区；</li><li><b>复制本页地址</b>，在 Safari / Chrome 等系统浏览器中打开后使用完整功能。</li>';
+  box.appendChild(ways);
+  const actions = document.createElement('div');
+  actions.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+  actions.appendChild(button('复制本页地址', 'btn-primary btn-sm', async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      toast('地址已复制，请粘贴到 Safari / Chrome 打开');
+    } catch {
+      toast(`请手动复制本页地址：${location.href}`, 'ok', 6000);
+    }
+  }));
+  actions.appendChild(button('重试选择文件', 'btn-outline btn-sm', () => {
+    box.closest('.modal-mask')?.querySelector('.modal-head button')?.click();
+    const dz = document.querySelector('.dropzone');
+    if (dz) dz.click();
+  }));
+  box.appendChild(actions);
+  openModal('无法打开文件选择器', box);
+}
+
+// ---- 全局粘贴文件通道：最近创建的面板接收 paste 的文件 ----
+let activePasteTarget = null;
+let pasteBound = false;
+
+function bindPasteOnce() {
+  if (pasteBound) return;
+  pasteBound = true;
+  document.addEventListener('paste', (e) => {
+    const files = [...(e.clipboardData?.files || [])];
+    if (!files.length || !activePasteTarget) return;
+    e.preventDefault();
+    activePasteTarget(files);
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pdftoolkit:picker-blocked', () => {
+    if (document.querySelector('.dropzone')) showPickerHelp();
+  });
+}
 
 /**
  * 创建输入文档面板
@@ -34,6 +91,8 @@ export function inputPanel(opts = {}) {
     await panel.addFiles(files);
   };
   bindDropzone(dz, (files) => panel.addFiles(files), { multiple });
+  bindPasteOnce();
+  activePasteTarget = (files) => panel.addFiles(files);
 
   function renderList() {
     list.innerHTML = '';

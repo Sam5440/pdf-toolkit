@@ -43,7 +43,9 @@ export function warnFile(f) {
 }
 
 /**
- * 创建 <input type=file> 并触发选择
+ * 创建 <input type=file> 并触发选择。
+ * 内嵌浏览器（无文件选择对话框）判定：点击后 window focus 从未离开且始终无文件
+ * → 选择器没弹出 → 移除悬挂 input 并广播 pdftoolkit:picker-blocked（UI 层弹引导）。
  * @param {{multiple?:boolean, accept?:string}} opts
  * @returns {Promise<File[]>}
  */
@@ -55,18 +57,34 @@ export function pickFiles({ multiple = false, accept = 'application/pdf,.pdf' } 
     input.multiple = multiple;
     input.style.display = 'none';
     document.body.appendChild(input);
+    let blurred = false;
+    const onBlur = () => { blurred = true; };
+    window.addEventListener('blur', onBlur);
+    const cleanup = () => {
+      clearTimeout(probeTimer);
+      window.removeEventListener('blur', onBlur);
+    };
+    // 用户取消：focus 恢复后仍无文件则返回空
+    window.addEventListener('focus', () => setTimeout(() => {
+      if (!input.files?.length && document.body.contains(input)) {
+        setTimeout(() => { if (document.body.contains(input)) { cleanup(); input.remove(); resolve([]); } }, 300);
+      }
+    }, 100), { once: true });
     input.addEventListener('change', () => {
+      cleanup();
       const files = [...(input.files || [])];
       input.remove();
       resolve(files);
     });
-    // 用户取消：focus 恢复后仍无文件则返回空
-    window.addEventListener('focus', () => setTimeout(() => {
-      if (!input.files?.length && document.body.contains(input)) {
-        // 稍等 change 事件
-        setTimeout(() => { if (document.body.contains(input)) { input.remove(); resolve([]); } }, 300);
+    // 选择器从未弹出（内嵌 webview）：1.5s 内 focus 未离开且无文件
+    const probeTimer = setTimeout(() => {
+      if (!blurred && !input.files?.length && document.body.contains(input)) {
+        cleanup();
+        input.remove();
+        try { window.dispatchEvent(new CustomEvent('pdftoolkit:picker-blocked')); } catch { /* ignore */ }
+        resolve([]);
       }
-    }, 100), { once: true });
+    }, 1500);
     input.click();
   });
 }
