@@ -54,6 +54,8 @@ test.describe('md2pdf · WASM 引擎', () => {
     await page.locator('select').nth(1).selectOption('typst');
     await page.getByRole('button', { name: '开始转换' }).click();
     await expect(page.getByText('处理完成')).toBeVisible({ timeout: 280_000 });
+    // Typst 分支不走 engine.run()，产物入架曾漏掉——对齐内置引擎行为的回归断言
+    await expect(page.locator('.tray-rail [data-tray-item]')).toHaveCount(1);
     const p = await saveDownload(page, '下载', 'md2pdf-typst-sample.pdf');
     const buf = fs.readFileSync(p);
     expect(buf.length).toBeGreaterThan(10_000);

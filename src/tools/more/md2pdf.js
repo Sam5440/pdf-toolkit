@@ -9,6 +9,7 @@
 //          ② Pandoc 高保真引擎（pandoc-wasm，脚注/任务列表/完整样式）
 import { registerTool } from '../core.js';
 import { run } from '../../core/engine.js';
+import { addResultArtifacts } from '../../core/tray.js';
 import { inputPanel } from '../../components/input.js';
 import { field, select, button, checkbox, toast } from '../../components/ui.js';
 import { paramsCard, resultCard, runWithProgress } from './common.js';
@@ -546,6 +547,7 @@ registerTool({
           onStage: (s) => setP(35, s),
         });
         const art = { name: `${baseName}.pdf`, bytes, mime: 'application/pdf' };
+        addResultArtifacts([art]); // 不走 engine.run()，入架对齐内置引擎分支
         resultBox.appendChild(resultCard({
           arts: [art],
           summary: { 引擎: 'Typst 排版', 纸张: paperSel.value.toUpperCase(), 字号: `${fontSize}pt` },
