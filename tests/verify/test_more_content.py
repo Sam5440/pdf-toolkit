@@ -6,8 +6,10 @@
   mc-ff-noflat.pdf    mc-ff-flat.pdf  mc-flatten.pdf  mc-raster.pdf
   mc-repair.pdf       mc-word.docx  mc-ppt.pptx  mc-excel.xlsx  mc-html.html
   mc-md.md  mc-rtf.rtf  mc-epub.epub  mc-odt.odt  mc-tiff.tiff  mc-svg.zip
+  mc-pptimg.pptx
 """
 import io
+import re
 import zipfile
 import xml.etree.ElementTree as ET
 
@@ -217,6 +219,36 @@ def test_pptx_structure():
     slide = files["ppt/slides/slide1.xml"].decode("utf-8")
     assert "<p:sld" in slide
     assert "Fixture" in slide, "幻灯片应保留原 PDF 文字"
+
+
+def test_pptximg_structure():
+    """图片型 PPTX：每页一帧整页图，跟随页面比例时 off=0,0 且图占满幻灯片。"""
+    files, _ = _zip_text("mc-pptimg.pptx")
+    slides = sorted(n for n in files if n.startswith("ppt/slides/slide") and n.endswith(".xml"))
+    media = sorted(n for n in files if n.startswith("ppt/media/"))
+    assert len(slides) == 3, "multi3 共 3 页 → 3 帧幻灯片"
+    assert len(media) == 3, "每帧对应 1 张整页媒体图"
+    pres = files["ppt/presentation.xml"].decode("utf-8")
+    m = re.search(r'<p:sldSz cx="(\d+)" cy="(\d+)"/>', pres)
+    assert m, "presentation.xml 应声明幻灯片尺寸"
+    cx, cy = int(m.group(1)), int(m.group(2))
+    a4_ratio = 595.2756 / 841.8898
+    assert abs(cx / cy - a4_ratio) < 0.01, "幻灯片比例应跟随 A4 页面（默认「跟随 PDF 首页」）"
+    for n in slides:
+        s = files[n].decode("utf-8")
+        assert "<p:pic>" in s, "每帧应为整页图片"
+        assert 'r:embed="rId2"' in s
+        off = re.search(r'<a:off x="(-?\d+)" y="(-?\d+)"/><a:ext cx="(\d+)" cy="(\d+)"/>', s)
+        assert off, "图片应有显式位置/尺寸"
+        assert (int(off.group(1)), int(off.group(2))) == (0, 0), "跟随页面比例时应整页铺满（无留白偏移）"
+        assert (int(off.group(3)), int(off.group(4))) == (cx, cy), "图片应占满幻灯片"
+    # 媒体为真实渲染位图（PNG 头），宽高比≈A4
+    assert files[media[0]][:8] == b"\x89PNG\r\n\x1a\n"
+    from PIL import Image
+
+    img = Image.open(io.BytesIO(files[media[0]]))
+    w, h = img.size
+    assert abs(w / h - a4_ratio) < 0.02, f"媒体图比例异常：{w}x{h}"
 
 
 def test_odt_structure():

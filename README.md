@@ -1,6 +1,6 @@
 # PDF 万能工具箱（纯浏览器端 PDF 工具）
 
-一个**纯前端**的 PDF 万能工具箱：15 个核心工具 + 48 个「更多」工具，所有文件处理都在你的浏览器内通过 WebAssembly/JS 完成，
+一个**纯前端**的 PDF 万能工具箱：15 个核心工具 + 49 个「更多」工具，所有文件处理都在你的浏览器内通过 WebAssembly/JS 完成，
 **文件字节绝不发送到任何服务器**。部署方只需提供静态资源服务，服务器上不留任何用户文件。
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FSam5440%2Fpdf-toolkit&project-name=pdf-toolkit)
@@ -45,7 +45,7 @@
 
 ![水印工具页](docs/screenshots/tool-watermark-light.png)
 
-## 更多工具（48 个，对齐 PDF24）
+## 更多工具（49 个，对齐 PDF24）
 
 在 15 个核心工具之外，另有一组「更多」工具，集中在**「更多工具页」**（侧边栏「更多 → 更多工具页」，
 或首页底部入口）。**收藏系统**：首页只显示已收藏的工具（默认 = 15 个核心工具），每张卡片右上角
@@ -61,18 +61,32 @@
 | 优化与修复 | 扁平化 PDF（表单/栅格双模式）· 栅格化 PDF · 修复 PDF |
 | 查看与检查 | PDF 查看器 · PDF 搜索 |
 | 创建与转换 | 生成 PDF · 文本/Markdown/RTF/EPUB/ODF/Excel/SVG/TIFF/HEIC 转 PDF · 网页转 PDF · 扫描件转 PDF · 发票生成 |
-| 图像与导出 | WebP/HEIC 转 JPG/PNG · 生成二维码 · PDF 转 Word/PPT/Excel/HTML/Markdown/RTF/EPUB/ODF/TIFF/SVG |
+| 图像与导出 | WebP/HEIC 转 JPG/PNG · 生成二维码 · PDF 转 Word/PPT/PPT（图片型）/Excel/HTML/Markdown/RTF/EPUB/ODF/TIFF/SVG |
 
-> **Markdown 转 PDF（在线编辑 + 实时预览，默认收藏）**：支持直接在编辑器里撰写/粘贴，
-> 上传的 .md 也会载入编辑器可继续修改；预览区实时显示最终 PDF 页面（所见即所得）。
-> 内容与参数自动暂存本机（刷新不丢）。渲染支持 KaTeX 数学公式（行内 `$…$` / 独立
-> `$$…$$`）、Mermaid 图形（```mermaid 代码块）、思维导图（```mindmap 代码块），
-> 全部离线 bundle 渲染后嵌入 PDF，无需联网。该工具已默认收藏到首页（可在设置恢复）。
+> **Markdown 转 PDF/Word（双栏工作台 + 多引擎，默认收藏）**：左编辑器 + 右双模式
+> 预览（「即时」HTML 排版预览 /「PDF 版式」页面画布，滚动同步、全屏、加载示例），
+> 上传的 .md 载入编辑器可继续修改，内容与参数自动暂存本机（刷新不丢）。渲染支持
+> KaTeX 数学公式（`$…$` / `$$…$$`）、Mermaid（```mermaid）、思维导图（```mindmap）、
+> GFM 表格/任务列表/脚注、代码块语法高亮（highlight.js，25 种常用语言，GitHub 色板，
+> PDF/Word/预览三端一致），全部离线渲染，无需联网。表格上下留白对齐 GitHub 规范
+> （margin-bottom 16px≈12pt 视觉白隙）。
 >
-> **输出为文本型 PDF**：标题/正文/列表/表格/代码为嵌入字体的真实文字——可框选、
-> 可搜索、可复制（内嵌 Noto Sans SC，GB2312 全量字库）；公式与图形以高分辨率图片
-> 混排。文本转 PDF、生成 PDF、RTF/EPUB/ODF/Excel 转 PDF 等全部文本类工具同样输出
-> 文本型 PDF。字库再生成见 `scripts/build_text_fonts.py`。
+> **PDF 转图片型 PPT（默认收藏）**：每页渲染为整幅图片、铺满一帧幻灯片，观感与原
+> PDF 完全一致；幻灯片比例可跟随 PDF 首页（整页铺满无留白）或 16:9 / 4:3（等比
+> 适应 / 铺满裁切 / 拉伸三种填充方式），PNG/JPEG + DPI 可调。与文本级「PDF 转 PPT」
+> 互补——后者文字可编辑，前者观感 1:1。
+>
+> **多引擎输出**（全部浏览器内完成，文件不出浏览器）：
+> - PDF：①内置文本引擎（嵌入 Noto Sans SC，可框选/搜索/复制，公式图形高清混排）；
+>   ②Typst 排版引擎（pandoc→typst + typst.ts WASM 编译，专业排版、公式原生矢量，
+>   首次加载 28MB）；③浏览器打印引擎（Chrome 打印排版，打印对话框另存为 PDF）。
+> - Word：①内置轻量引擎（直构 OOXML，毫秒级，真 Word 结构非 HTML 壳）；
+>   ②Pandoc 高保真引擎（pandoc-wasm，脚注/任务列表/完整样式，首次加载 58MB）。
+> - 重型 WASM 引擎二进制不进 git，用 `node scripts/fetch-engines.mjs` 重建到
+>   `public/engines/`（构建 dist 时随 public/ 拷贝，之后完全离线可用）。
+>
+> 文本转 PDF、生成 PDF、RTF/EPUB/ODF/Excel 转 PDF 等全部文本类工具同样输出文本型
+> PDF。字库再生成见 `scripts/build_text_fonts.py`。
 
 ## 界面图标
 

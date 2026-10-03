@@ -13,22 +13,23 @@ import { TOOLS, GROUPS } from '../../src/tools/registry.js';
 describe('favorites', () => {
   beforeEach(() => resetFavorites());
 
-  it('默认收藏 = 核心工具 + defaultFav 标记工具（15 核心 + md2pdf）', () => {
+  it('默认收藏 = 核心工具 + defaultFav 标记工具（15 核心 + md2pdf + pdf2pptimg）', () => {
     const def = defaultFavoriteIds();
-    expect(def).toHaveLength(16);
+    expect(def).toHaveLength(17);
     for (const id of def) expect(isFavorite(id)).toBe(true);
-    expect(getFavorites().size).toBe(16);
+    expect(getFavorites().size).toBe(17);
     expect(isFavorite('md2pdf')).toBe(true); // Markdown 转 PDF 默认收藏
+    expect(isFavorite('pdf2pptimg')).toBe(true); // PDF 转图片型 PPT 默认收藏
   });
 
-  it('「更多」工具除 defaultFav（md2pdf）外默认全部不收藏', () => {
+  it('「更多」工具除 defaultFav（md2pdf、pdf2pptimg）外默认全部不收藏', () => {
     const moreTools = TOOLS.filter((t) => isMoreGroup(t.group));
-    expect(moreTools.length).toBe(48);
+    expect(moreTools.length).toBe(49);
     for (const t of moreTools) {
       if (t.defaultFav) continue;
       expect(isFavorite(t.id)).toBe(false);
     }
-    expect(moreTools.filter((t) => t.defaultFav).map((t) => t.id)).toEqual(['md2pdf']);
+    expect(moreTools.filter((t) => t.defaultFav).map((t) => t.id)).toEqual(['md2pdf', 'pdf2pptimg']);
   });
 
   it('切换收藏：加 → 删', () => {
@@ -42,24 +43,25 @@ describe('favorites', () => {
   it('核心工具可取消收藏（首页不再显示的语义）', () => {
     toggleFavorite('compress');
     expect(isFavorite('compress')).toBe(false);
-    expect(getFavorites().size).toBe(15);
+    expect(getFavorites().size).toBe(16);
   });
 
   it('defaultFav 工具也可取消收藏', () => {
     toggleFavorite('md2pdf');
     expect(isFavorite('md2pdf')).toBe(false);
-    expect(getFavorites().size).toBe(15);
+    expect(getFavorites().size).toBe(16);
   });
 
-  it('resetFavorites 恢复默认（含 md2pdf）', () => {
+  it('resetFavorites 恢复默认（含 md2pdf / pdf2pptimg）', () => {
     toggleFavorite('qrcode');
     toggleFavorite('compress');
     toggleFavorite('md2pdf');
     resetFavorites();
     expect(isFavorite('compress')).toBe(true);
     expect(isFavorite('md2pdf')).toBe(true);
+    expect(isFavorite('pdf2pptimg')).toBe(true);
     expect(isFavorite('qrcode')).toBe(false);
-    expect(getFavorites().size).toBe(16);
+    expect(getFavorites().size).toBe(17);
   });
 
   it('isMoreGroup 只认 hiddenOnHome 分组', () => {

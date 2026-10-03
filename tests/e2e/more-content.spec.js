@@ -279,3 +279,15 @@ test.describe('more · 导出族（文本级转换）', () => {
     expect(fs.statSync(p).size).toBeGreaterThan(0);
   });
 });
+
+test.describe('more · PDF 转图片型 PPT（默认收藏）', () => {
+  test('pdf2pptimg：multi3 默认参数 → 下载 mc-pptimg.pptx（每页一帧整页图）', async ({ page }) => {
+    test.setTimeout(120_000);
+    await openTool(page, 'pdf2pptimg');
+    await upload(page, ['multi3.pdf'], false);
+    await expect(page.getByRole('button', { name: '开始转换' })).toBeEnabled({ timeout: 15_000 });
+    await page.getByRole('button', { name: '开始转换' }).click();
+    const p = await downloadWhenReady(page, 'mc-pptimg.pptx');
+    expect(fs.statSync(p).size).toBeGreaterThan(0);
+  });
+});

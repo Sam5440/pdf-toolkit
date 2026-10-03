@@ -18,6 +18,7 @@ export function defaultFavoriteIds() {
 // 一次性迁移：给已有收藏存档的老用户补上新 defaultFav 工具（保留其余手工调整）
 const MIGRATIONS = [
   { key: 'pdftoolkit.favorites.mig-md2pdf', tool: 'md2pdf' },
+  { key: 'pdftoolkit.favorites.mig-pdf2pptimg', tool: 'pdf2pptimg' },
 ];
 
 function loadStoredIds() {

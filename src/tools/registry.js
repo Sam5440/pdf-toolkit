@@ -56,6 +56,7 @@ import './more/viewer.js';
 import './more/search.js';
 import './more/pdf2word.js';
 import './more/pdf2ppt.js';
+import './more/pdf2pptimg.js';
 import './more/pdf2excel.js';
 import './more/pdf2html.js';
 import './more/pdf2md.js';

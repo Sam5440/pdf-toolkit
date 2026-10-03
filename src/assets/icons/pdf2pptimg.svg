@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 源：竖版 PDF 页面（家族页面母题 rx=3，3:4 竖版） -->
+  <rect x="6.5" y="16" width="12" height="16" rx="3"/>
+  <!-- 单向转换箭头：PDF → 幻灯片 -->
+  <path d="M21.5 25 H26 M23.3 22.2 L26 25 L23.3 27.8"/>
+  <!-- 产物：横版幻灯片，山形照片顶满左右边框（整页铺满语义）+ 太阳圆点 -->
+  <rect x="28" y="19.5" width="13.5" height="11" rx="2"/>
+  <path d="M28 27.6 L31.2 24.4 L33.4 26.6 L36.4 23.6 L41.5 27.6"/>
+  <circle cx="38.2" cy="22.6" r="1.4" fill="currentColor" stroke="none"/>
+</svg>

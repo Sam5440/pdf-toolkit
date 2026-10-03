@@ -35,7 +35,7 @@ export const EMOJI = {
   passgen: '🔑', qrcode: '📱', scan: '📷', webpage: '🌐', invoice: '🧾',
   createpdf: '📝', txtpdf: '📃', md2pdf: '⬇️', rtf2pdf: '📃', epub2pdf: '📖',
   odf2pdf: '⭕', excelpdf: '📊', svgpdf: '📈', tiffpdf: '🗞', heicpdf: '📸',
-  imgconvert: '🔀', pdf2word: '📘', pdf2ppt: '📕', pdf2excel: '📗', pdf2html: '🕸',
+  imgconvert: '🔀', pdf2word: '📘', pdf2ppt: '📕', pdf2pptimg: '📽', pdf2excel: '📗', pdf2html: '🕸',
   pdf2md: '📉', pdf2rtf: '📃', pdf2epub: '📚', pdf2odf: '🌏', pdf2tiff: '🗞',
   pdf2svg: '🖋', webpconvert: '🔀', heicconvert: '🔀',
 };

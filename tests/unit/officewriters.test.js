@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { unzipSync, strFromU8 } from 'fflate';
 import {
-  buildOffice, buildDocx, buildXlsx, buildPptx, buildOdt, buildEpub,
+  buildOffice, buildDocx, buildXlsx, buildPptx, buildPptxImages, buildOdt, buildEpub,
   buildRtf, buildHtml, buildMd,
 } from '../../src/core/officewriters.js';
 import { encodeTiff, decodeTiff } from '../../src/core/tiff.js';
@@ -78,6 +78,64 @@ describe('officewriters · zip 族', () => {
     expect(r.ext).toBe('md');
     expect(r.mime).toContain('text/markdown');
     expect(() => buildOffice('nope', pages)).toThrow(/不支持的导出格式/);
+  });
+});
+
+describe('officewriters · buildPptxImages（图片型）', () => {
+  // A4 竖版页：595×842pt → EMU ×12700
+  const A4 = { w: 595, h: 842 };
+  const slides = [
+    { bytes: new Uint8Array([0x89, 1, 2, 3]), mime: 'image/png', ...A4 },
+    { bytes: new Uint8Array([0xff, 4, 5]), mime: 'image/jpeg', ...A4 },
+  ];
+
+  it('跟随页面尺寸：1:1 铺满（off 0,0，ext=幻灯片尺寸），媒体按页落盘', () => {
+    const zip = unzipSync(buildPptxImages(slides));
+    expect(Object.keys(zip)).toContain('ppt/media/image1.png');
+    expect(Object.keys(zip)).toContain('ppt/media/image2.jpg');
+    expect([...zip['ppt/media/image1.png']]).toEqual([0x89, 1, 2, 3]);
+    const s1 = strFromU8(zip['ppt/slides/slide1.xml']);
+    expect(s1).toContain('<p:pic>');
+    expect(s1).toContain('r:embed="rId2"');
+    expect(s1).toContain('<a:off x="0" y="0"/><a:ext cx="7556500" cy="10693400"/>');
+    const pres = strFromU8(zip['ppt/presentation.xml']);
+    expect(pres).toContain('<p:sldSz cx="7556500" cy="10693400"/>');
+    const rels1 = strFromU8(zip['ppt/slides/_rels/slide1.xml.rels']);
+    expect(rels1).toContain('Target="../media/image1.png"');
+    const ct = strFromU8(zip['[Content_Types].xml']);
+    expect(ct).toContain('Extension="png"');
+    expect(ct).toContain('Extension="jpg"');
+  });
+
+  it('16:9 + contain：等比适应留白居中（水平有边距，不出界）', () => {
+    const zip = unzipSync(buildPptxImages([slides[0]], { slideWPt: 960, slideHPt: 540, fit: 'contain' }));
+    const s1 = strFromU8(zip['ppt/slides/slide1.xml']);
+    const off = /<a:off x="(-?\d+)" y="(-?\d+)"/.exec(s1);
+    const ext = /<a:ext cx="(\d+)" cy="(\d+)"/.exec(s1);
+    expect(+off[1]).toBeGreaterThan(0); // 左右留白居中
+    expect(+ext[1]).toBeLessThan(12192000); // 宽度未占满
+    expect(+ext[2]).toBeLessThanOrEqual(6858000); // 高度不超界
+    expect(strFromU8(zip['ppt/presentation.xml'])).toContain('<p:sldSz cx="12192000" cy="6858000"/>');
+  });
+
+  it('16:9 + cover：铺满裁切（短边占满、长边出界负偏移）', () => {
+    const zip = unzipSync(buildPptxImages([slides[0]], { slideWPt: 960, slideHPt: 540, fit: 'cover' }));
+    const s1 = strFromU8(zip['ppt/slides/slide1.xml']);
+    const off = /<a:off x="(-?\d+)" y="(-?\d+)"/.exec(s1);
+    const ext = /<a:ext cx="(\d+)" cy="(\d+)"/.exec(s1);
+    expect(+off[2]).toBeLessThan(0); // 垂直方向出界（裁切）
+    expect(+ext[1]).toBeGreaterThanOrEqual(12192000); // 宽度占满
+  });
+
+  it('stretch：拉伸填满（off 0,0，ext=幻灯片尺寸）', () => {
+    const zip = unzipSync(buildPptxImages([slides[0]], { slideWPt: 960, slideHPt: 540, fit: 'stretch' }));
+    const s1 = strFromU8(zip['ppt/slides/slide1.xml']);
+    expect(s1).toContain('<a:off x="0" y="0"/><a:ext cx="12192000" cy="6858000"/>');
+  });
+
+  it('空页面 / 尺寸缺失抛错', () => {
+    expect(() => buildPptxImages([])).toThrow(/没有可写入的页面/);
+    expect(() => buildPptxImages([{ bytes: new Uint8Array([1]), mime: 'image/png' }])).toThrow(/页面尺寸缺失/);
   });
 });
 
