@@ -107,6 +107,9 @@ function preamble({ paper = 'a4', fontSize = 11 }) {
     '#show heading.where(level: 2): set text(size: ' + (pt * 1.55).toFixed(1) + 'pt)',
     '#show heading.where(level: 3): set text(size: ' + (pt * 1.25).toFixed(1) + 'pt)',
     '#show heading: set block(above: 1.3em, below: 0.8em)',
+    // pandoc 非模板（fragment）输出会调用 #horizontalrule（md 的 --- 分隔线），
+    // 定义取自 pandoc 官方模板 default.typst（3.10 输出小写名）
+    '#let horizontalrule = line(start: (25%, 0%), end: (75%, 0%))',
   ].join('\n');
 }
 
@@ -129,7 +132,9 @@ export async function markdownToPdfTypst(markdown, { paper, fontSize, title, onS
     bytes = await $typst.pdf({ mainContent: doc });
   } catch (err) {
     const msg = String(err?.message || err);
-    throw new Error(`Typst 编译失败：${msg.slice(0, 300)}`);
+    // SourceDiagnostic 转储里抽可读的 message 字段，别给用户看结构体
+    const readable = [...msg.matchAll(/message:\s*"([^"]*)"/g)].map((m) => m[1]).join('；');
+    throw new Error(`Typst 编译失败：${readable || msg.slice(0, 300)}`);
   }
   if (!bytes || !bytes.length) throw new Error('Typst 未产出 PDF');
   return { bytes };

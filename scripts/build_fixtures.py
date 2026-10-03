@@ -701,6 +701,11 @@ console.log("富渲染 fixture");
 
 > 引用：全部处理在本地浏览器完成，文件不出浏览器。
 
+---
+
+- [x] 分隔线回归：`---` 走 Typst 引擎需 #horizontalrule 定义（pandoc fragment 缺模板）
+- [ ] 未完成任务项
+
 文档到此结束。
 """
     return text.encode("utf-8")

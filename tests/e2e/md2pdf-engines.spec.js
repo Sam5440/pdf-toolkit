@@ -43,4 +43,20 @@ test.describe('md2pdf · WASM 引擎', () => {
     expect(buf.length).toBeGreaterThan(5_000);
     expect(buf.subarray(0, 2).toString('latin1')).toBe('PK'); // zip 容器
   });
+
+  // 示例文档是产品门面（加载示例即所见），含 --- 分隔线/任务列表/脚注/表格/公式/mermaid，
+  // 曾经 --- 在 Typst 引擎下必炸（pandoc fragment 输出 #horizontalrule 无定义）——常驻回归。
+  test('Typst 引擎：应用示例文档（加载示例）→ PDF', async ({ page }) => {
+    test.setTimeout(300_000);
+    await openTool(page, 'md2pdf');
+    await page.getByRole('button', { name: '加载示例' }).click();
+    await page.locator('select').first().selectOption('pdf');
+    await page.locator('select').nth(1).selectOption('typst');
+    await page.getByRole('button', { name: '开始转换' }).click();
+    await expect(page.getByText('处理完成')).toBeVisible({ timeout: 280_000 });
+    const p = await saveDownload(page, '下载', 'md2pdf-typst-sample.pdf');
+    const buf = fs.readFileSync(p);
+    expect(buf.length).toBeGreaterThan(10_000);
+    expect(buf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+  });
 });
