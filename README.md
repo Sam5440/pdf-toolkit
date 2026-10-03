@@ -120,8 +120,10 @@ bash scripts/build_fonts.sh   # 可选：从 Google Fonts 可变字体生成中�
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FSam5440%2Fpdf-toolkit&project-name=pdf-toolkit)
 
-点击按钮 → 用 GitHub 账号授权 → 确认即可。Vercel 会自动识别 Vite 项目（`npm run build` → `dist/`），
-无需配置任何环境变量；`.wasm` / `.ttf` 等静态资源自带正确 MIME。
+点击按钮 → 用 GitHub 账号授权 → 确认即可。仓库内置 `vercel.json`：构建前先跑
+`node scripts/fetch-engines.mjs` 下载重型 WASM 引擎（pandoc / Typst，`public/engines/`
+不进 git），再 `vite build` —— 缺了这一步 md2pdf 的 Typst / Pandoc 引擎会 404。
+`.wasm` / `.ttf` 等静态资源 Vercel 自带正确 MIME。
 
 ### 其他托管
 

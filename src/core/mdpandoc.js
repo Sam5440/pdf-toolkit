@@ -7,13 +7,17 @@ import { createPandocInstance } from '../vendor-pandoc-core.js';
 let instancePromise = null;
 
 const WASM_URL_ERROR =
-  'pandoc 引擎文件缺失：请先运行 node scripts/fetch-engines.mjs 生成 public/engines/pandoc/pandoc.wasm';
+  'pandoc 引擎文件未找到：若刚重建/重启过站点请刷新页面后重试；若持续出现，请运行 node scripts/fetch-engines.mjs 生成 public/engines/pandoc/pandoc.wasm';
 
 async function fetchWithProgress(url, onProgress, retries = 2) {
+  // 404 也重试：vite build 会先清空 dist 再拷贝 public，重建的数秒窗口内静态文件短暂 404，
+  // 用户此时操作会被误报"文件缺失"；重试耗尽仍 404 才提示 fetch-engines。
+  // 网络类 TypeError（含下载中途断流）重试 1 次整体重下；其余业务错误直抛。
   for (let attempt = 0; ; attempt++) {
+    let notFound = false;
     try {
       const res = await fetch(url);
-      if (res.status === 404) throw new Error(WASM_URL_ERROR);
+      if (res.status === 404) { notFound = true; throw new TypeError('404'); }
       if (!res.ok) throw new Error(`pandoc.wasm 加载失败：HTTP ${res.status}`);
       const total = Number(res.headers.get('content-length')) || 0;
       if (!res.body || !total) return new Uint8Array(await res.arrayBuffer());
@@ -32,9 +36,9 @@ async function fetchWithProgress(url, onProgress, retries = 2) {
       for (const c of chunks) { out.set(c, off); off += c.length; }
       return out;
     } catch (err) {
-      if (attempt >= retries || (err instanceof TypeError && attempt >= 1)) {
-        // 保留业务错误（404 提示等）直抛；网络类错误重试后仍失败才抛出
-        if (!(err instanceof TypeError)) throw err;
+      if (!(notFound || err instanceof TypeError)) throw err;
+      if (attempt >= (notFound ? retries : 1)) {
+        if (notFound) throw new Error(WASM_URL_ERROR);
         throw new Error(`pandoc.wasm 下载失败（已重试）：${err.message}`);
       }
       await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));

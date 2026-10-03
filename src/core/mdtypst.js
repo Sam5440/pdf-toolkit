@@ -19,12 +19,14 @@ const PAPERS = {
   a4: '"a4"', letter: '"us-letter"', a5: '"a5"', a3: '"a3"', legal: '"us-legal"',
 };
 
-/** 引擎 wasm 预取（带重试 + 进度），bytes 直接喂给 getModule（同时获得下载进度可见性） */
+/** 引擎 wasm 预取（带重试 + 进度），bytes 直接喂给 getModule（同时获得下载进度可见性）。
+ *  404 同样重试——vite build 清空 dist 的数秒窗口内会短暂 404，别误报"文件缺失"。 */
 async function fetchWasm(url, onProgress) {
   for (let attempt = 0; ; attempt++) {
+    let notFound = false;
     try {
       const res = await fetch(url);
-      if (res.status === 404) throw new Error('Typst 引擎文件缺失：请先运行 node scripts/fetch-engines.mjs');
+      if (res.status === 404) { notFound = true; throw new TypeError('404'); }
       if (!res.ok) throw new Error(`Typst 引擎加载失败：HTTP ${res.status}`);
       const total = Number(res.headers.get('content-length')) || 0;
       if (!res.body || !total) return new Uint8Array(await res.arrayBuffer());
@@ -43,8 +45,14 @@ async function fetchWasm(url, onProgress) {
       for (const c of chunks) { out.set(c, off); off += c.length; }
       return out;
     } catch (err) {
-      if (attempt >= 1 || !(err instanceof TypeError)) throw err;
-      await new Promise((r) => setTimeout(r, 600));
+      if (!(notFound || err instanceof TypeError)) throw err;
+      if (attempt >= (notFound ? 2 : 1)) {
+        if (notFound) {
+          throw new Error('Typst 引擎文件未找到：若刚重建/重启过站点请刷新页面后重试；若持续出现，请运行 node scripts/fetch-engines.mjs');
+        }
+        throw new Error(`Typst 引擎下载失败（已重试）：${err.message}`);
+      }
+      await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
     }
   }
 }
