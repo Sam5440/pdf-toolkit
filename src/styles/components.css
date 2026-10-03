@@ -43,6 +43,152 @@
 }
 .md-pv-page { max-width: 100%; background: #fff; box-shadow: var(--shadow); }
 
+/* ---- md2pdf 双栏工作台（左编辑器 / 右即时预览，对标 markdowntoword.io） ---- */
+.md-workspace { position: relative; }
+.md-split {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px;
+  align-items: stretch;
+}
+.md-split > .card { display: flex; flex-direction: column; margin: 0 !important; }
+.md-split .md-editor-ta {
+  flex: 1; min-height: 430px; resize: none; width: 100%;
+  display: block;
+}
+.md-pane-head {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-weight: 600; font-size: 13.5px;
+}
+.md-pane-head .muted-sm { font-weight: 400; }
+.md-pane-head .spacer { flex: 1; }
+.md-pane-body { flex: 1; min-height: 0; display: flex; }
+.md-workspace.fs {
+  position: fixed; inset: 0; z-index: 80; background: var(--bg);
+  padding: 14px; overflow: auto;
+}
+.md-workspace.fs .md-split .md-editor-ta { min-height: calc(100vh - 140px); }
+@media (max-width: 980px) {
+  .md-split { grid-template-columns: minmax(0, 1fr); }
+  .md-split .md-editor-ta { min-height: 240px; }
+}
+
+/* 即时预览文档区（镜像 PDF 产物样式） */
+.mdx-doc {
+  flex: 1; overflow: auto; max-height: 680px;
+  background: var(--bg-soft); border-radius: var(--radius-sm);
+  padding: 16px 10px; min-height: 60px;
+}
+.mdx-paper {
+  background: #fff; color: #111; max-width: 720px; margin: 0 auto;
+  padding: 40px 44px; border-radius: 3px; box-shadow: var(--shadow);
+  font-size: 14.5px; line-height: 1.72; word-break: break-word;
+}
+.mdx-paper > :first-child { margin-top: 0 !important; }
+.mdx-paper > :last-child { margin-bottom: 0 !important; }
+.mdx-paper h1, .mdx-paper h2, .mdx-paper h3 { font-weight: 700; line-height: 1.35; color: #111; margin: 1.2em 0 0.5em; }
+.mdx-paper h1 { font-size: 1.75em; margin-top: 0.2em; padding-bottom: 0.3em; border-bottom: 1px solid #e5e7eb; }
+.mdx-paper h2 { font-size: 1.4em; }
+.mdx-paper h3 { font-size: 1.17em; }
+.mdx-paper p { margin: 0.55em 0; }
+.mdx-paper a { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }
+.mdx-paper strong { font-weight: 700; }
+.mdx-paper del { color: #6b7280; }
+.mdx-paper ul, .mdx-paper ol { margin: 0.5em 0; padding-left: 1.7em; }
+.mdx-paper li { margin: 0.22em 0; }
+.mdx-paper li > input[type="checkbox"] { margin-right: 0.45em; vertical-align: -2px; accent-color: #2563eb; }
+.mdx-paper li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.25em; }
+.mdx-paper blockquote {
+  margin: 0.7em 0; padding: 0.15em 0.9em; color: #545b66;
+  border-left: 3px solid #cbd5e1; background: #f8fafc; border-radius: 0 4px 4px 0;
+}
+.mdx-paper hr { border: none; border-top: 1px solid #9ca3af; margin: 1.3em 0; }
+.mdx-paper table { border-collapse: collapse; margin: 0.6em 0 1.2em; width: 100%; font-size: 0.94em; }
+.mdx-paper th, .mdx-paper td { border: 1px solid #aaa; padding: 5px 10px; vertical-align: top; }
+.mdx-paper th { background: #f0f0f0; font-weight: 700; }
+.mdx-paper th[align="left"], .mdx-paper td[align="left"] { text-align: left; }
+.mdx-paper th[align="right"], .mdx-paper td[align="right"] { text-align: right; }
+.mdx-paper th[align="center"], .mdx-paper td[align="center"] { text-align: center; }
+.mdx-paper code {
+  font-family: var(--mono); font-size: 0.88em;
+  background: #f3f4f6; border-radius: 3px; padding: 0.12em 0.35em;
+}
+.mdx-paper .katex { font-size: 1.06em; }
+.mdx-code {
+  position: relative; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 6px;
+  margin: 0.7em 0; overflow: hidden;
+}
+.mdx-code pre {
+  margin: 0; padding: 11px 13px; overflow-x: auto;
+  font-family: var(--mono); font-size: 0.855em; line-height: 1.5; color: #111;
+}
+.mdx-code pre code { background: none; padding: 0; font-size: 1em; }
+.mdx-code-lang {
+  position: absolute; top: 6px; right: 8px; font-size: 10.5px; color: #9ca3af;
+  font-family: var(--mono); user-select: none;
+}
+.mdx-code:not(.nolang) pre { padding-top: 26px; }
+/* 代码语法高亮（mdhl → hljs-* 类）：亮色 GitHub Light / 暗色 GitHub Dark，
+   色板取自 highlight.js 官方 github.css（颜色同 GitHub prettylights） */
+.mdx-code .hljs-keyword, .mdx-code .hljs-doctag, .mdx-code .hljs-type,
+.mdx-code .hljs-template-tag, .mdx-code .hljs-template-variable,
+.mdx-code .hljs-variable.language_ { color: #d73a49; }
+.mdx-code .hljs-title, .mdx-code .hljs-title.class_, .mdx-code .hljs-title.function_ { color: #6f42c1; }
+.mdx-code .hljs-attr, .mdx-code .hljs-attribute, .mdx-code .hljs-literal, .mdx-code .hljs-meta,
+.mdx-code .hljs-number, .mdx-code .hljs-operator, .mdx-code .hljs-variable,
+.mdx-code .hljs-selector-attr, .mdx-code .hljs-selector-class, .mdx-code .hljs-selector-id { color: #005cc5; }
+.mdx-code .hljs-string, .mdx-code .hljs-regexp, .mdx-code .hljs-meta .hljs-string { color: #032f62; }
+.mdx-code .hljs-built_in, .mdx-code .hljs-symbol { color: #e36209; }
+.mdx-code .hljs-comment, .mdx-code .hljs-code, .mdx-code .hljs-formula { color: #6a737d; }
+.mdx-code .hljs-name, .mdx-code .hljs-quote, .mdx-code .hljs-selector-tag,
+.mdx-code .hljs-selector-pseudo { color: #22863a; }
+.mdx-code .hljs-addition { color: #22863a; }
+.mdx-code .hljs-deletion { color: #b31d28; }
+.mdx-code .hljs-section { color: #005cc5; font-weight: 600; }
+.mdx-code .hljs-bullet { color: #735c0f; }
+.mdx-code .hljs-emphasis { font-style: italic; }
+.mdx-code .hljs-strong { font-weight: 700; }
+.mdx-figure { margin: 0.9em auto; text-align: center; min-height: 24px; }
+.mdx-figure svg { max-width: 100%; }
+.mdx-figure-fail, .mdx-imgfail {
+  display: block; margin: 0.7em auto; padding: 12px 16px; text-align: center;
+  background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px;
+  color: #94a3b8; font-size: 0.9em; max-width: 85%;
+}
+.mdx-img { max-width: 100%; height: auto; display: block; margin: 0.7em auto; }
+.mdx-paper .footnotes { margin-top: 1.6em; padding-top: 0.7em; border-top: 1px solid #e5e7eb; font-size: 0.9em; color: #4b5563; }
+.mdx-paper .footnotes h2.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.mdx-paper .footnotes ol { padding-left: 1.4em; }
+.mdx-paper sup a { text-decoration: none; }
+.dark .mdx-paper { background: #101828; color: #dbe2ec; }
+.dark .mdx-paper h1, .dark .mdx-paper h2, .dark .mdx-paper h3 { color: #f1f5f9; }
+.dark .mdx-paper h1 { border-bottom-color: #26314a; }
+.dark .mdx-paper blockquote { background: #131c30; color: #9aa7ba; border-left-color: #35507e; }
+.dark .mdx-paper th { background: #18233c; }
+.dark .mdx-paper th, .dark .mdx-paper td { border-color: #475066; }
+.dark .mdx-paper code, .dark .mdx-code { background: #182236; }
+.dark .mdx-code { border-color: #26314a; }
+.dark .mdx-code pre { color: #dbe2ec; }
+.dark .mdx-code-lang { color: #64748b; }
+.dark .mdx-paper a { color: #7cb0ff; }
+.dark .mdx-figure-fail, .dark .mdx-imgfail { background: #131c30; border-color: #324061; color: #64748b; }
+.dark .mdx-paper .footnotes { border-top-color: #26314a; color: #9aa7ba; }
+.dark .mdx-code .hljs-keyword, .dark .mdx-code .hljs-doctag, .dark .mdx-code .hljs-type,
+.dark .mdx-code .hljs-template-tag, .dark .mdx-code .hljs-template-variable,
+.dark .mdx-code .hljs-variable.language_ { color: #ff7b72; }
+.dark .mdx-code .hljs-title, .dark .mdx-code .hljs-title.class_, .dark .mdx-code .hljs-title.function_ { color: #d2a8ff; }
+.dark .mdx-code .hljs-attr, .dark .mdx-code .hljs-attribute, .dark .mdx-code .hljs-literal, .dark .mdx-code .hljs-meta,
+.dark .mdx-code .hljs-number, .dark .mdx-code .hljs-operator, .dark .mdx-code .hljs-variable,
+.dark .mdx-code .hljs-selector-attr, .dark .mdx-code .hljs-selector-class, .dark .mdx-code .hljs-selector-id { color: #79c0ff; }
+.dark .mdx-code .hljs-string, .dark .mdx-code .hljs-regexp, .dark .mdx-code .hljs-meta .hljs-string { color: #a5d6ff; }
+.dark .mdx-code .hljs-built_in, .dark .mdx-code .hljs-symbol { color: #ffa657; }
+.dark .mdx-code .hljs-comment, .dark .mdx-code .hljs-code, .dark .mdx-code .hljs-formula { color: #8b949e; }
+.dark .mdx-code .hljs-name, .dark .mdx-code .hljs-quote, .dark .mdx-code .hljs-selector-tag,
+.dark .mdx-code .hljs-selector-pseudo { color: #7ee787; }
+.dark .mdx-code .hljs-addition { color: #aff5b4; }
+.dark .mdx-code .hljs-deletion { color: #ffdcd7; }
+.dark .mdx-code .hljs-section { color: #79c0ff; font-weight: 600; }
+.dark .mdx-code .hljs-bullet { color: #f2cc60; }
+
 /* 通用组件：按钮 / 表单 / 卡片 / 徽章 / 弹窗 / 提示 */
 .card {
   background: var(--card);

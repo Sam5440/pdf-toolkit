@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import {
   splitInlineMath,
   parseMarkdownRich,
+  splitEmojiClusters,
 } from '../../src/core/mdrender.js';
 
 describe('splitInlineMath', () => {
@@ -46,10 +47,10 @@ describe('splitInlineMath', () => {
     ]);
   });
 
-  it('行内 $$ 对当行内数学切分', () => {
+  it('行内 $$ 对当行内数学切分（dd 标记 display 定界）', () => {
     expect(splitInlineMath('a $$x+y$$ b')).toEqual([
       { t: 's', v: 'a ' },
-      { t: 'm', tex: 'x+y' },
+      { t: 'm', tex: 'x+y', dd: true },
       { t: 's', v: ' b' },
     ]);
   });
@@ -86,9 +87,10 @@ describe('parseMarkdownRich', () => {
     expect(blocks.map((b) => b.text)).toEqual(['甲', '乙', '丙']);
   });
 
-  it('有序列表 marker 为 null；嵌套有序 level 递增', () => {
+  it('有序列表 marker 为编号；嵌套有序 level 递增', () => {
     const { blocks } = parseMarkdownRich('1. 第一\n2. 第二\n\n1. 外层\n   1. 内层');
-    expect(blocks[0].marker).toBeNull();
+    expect(blocks[0].marker).toBe('1.');
+    expect(blocks[1].marker).toBe('2.');
     expect(blocks[0].text).toBe('第一');
     expect(blocks[2].level).toBe(0);
     expect(blocks[3].level).toBe(1);
@@ -109,8 +111,11 @@ describe('parseMarkdownRich', () => {
     expect(blocks[2]).toEqual({ type: 'img', kind: 'math', tex: '\\alpha+\\beta' });
     expect(blocks[3]).toMatchObject({ type: 'img', kind: 'mindmap' });
     expect(blocks[3].code).toContain('根');
-    expect(blocks[4]).toEqual({ type: 'code', text: 'console.log(1);' });
-    expect(blocks[5]).toEqual({ type: 'code', text: 'plain fence' });
+    expect(blocks[4].lang).toBe('js');
+    expect(blocks[4].tokens.map((t) => t.v).join('')).toBe('console.log(1);'); // 语法高亮 token
+    expect(blocks[4].tokens.some((t) => t.c === '#6f42c1')).toBe(true); // log 函数名紫色
+    expect(blocks[5].lang).toBe(''); // 无语言：自动探测（此处无命中 → 单个无色 token）
+    expect(blocks[5].tokens.map((t) => t.v).join('')).toBe('plain fence');
   });
 
   it('独立 $$...$$ 段 → display 数学块', () => {
@@ -159,14 +164,68 @@ describe('parseMarkdownRich', () => {
     expect(warnings[0]).toContain('跳过 HTML');
   });
 
-  it('行内语法展平：em/strong/link 只取文本，codespan 保留反引号原文', () => {
+  it('行内富段：strong→b、codespan→c、em/link 只取文本；纯文本块保持 text 形式', () => {
     const { blocks } = parseMarkdownRich('**粗体** 与 *斜体* 与 `代码` 与 [链接](https://x.y)');
-    expect(blocks[0].text).toBe('粗体 与 斜体 与 `代码` 与 链接');
+    expect(blocks[0].segs).toEqual([
+      { t: 'b', v: '粗体' },
+      { t: 's', v: ' 与 斜体 与 ' },
+      { t: 'c', v: '代码' },
+      { t: 's', v: ' 与 链接' },
+    ]);
+    expect(blocks[0].text).toBeUndefined();
+  });
+
+  it('标题含行内代码 → segs（c 段）；纯标题保持 text', () => {
+    const { blocks } = parseMarkdownRich('## 接口 `/v1/chat`\n\n## 纯标题');
+    expect(blocks[0].segs).toEqual([
+      { t: 's', v: '接口 ' },
+      { t: 'c', v: '/v1/chat' },
+    ]);
+    expect(blocks[1]).toEqual({ type: 'h2', text: '纯标题' });
+  });
+
+  it('表格单元格：纯文本为字符串，含行内代码/粗体 → 富段', () => {
+    const { blocks } = parseMarkdownRich('| A | B |\n| --- | --- |\n| 纯 | `码` 与 **粗** |');
+    expect(blocks[0].rows[0]).toEqual(['A', 'B']);
+    expect(blocks[0].rows[1][0]).toBe('纯');
+    expect(blocks[0].rows[1][1]).toEqual([
+      { t: 'c', v: '码' },
+      { t: 's', v: ' 与 ' },
+      { t: 'b', v: '粗' },
+    ]);
   });
 
   it('引用与分隔线', () => {
     const { blocks } = parseMarkdownRich('> 引用一句\n> 第二行\n\n---');
     expect(blocks[0]).toEqual({ type: 'quote', text: '引用一句\n第二行' });
     expect(blocks[1]).toEqual({ type: 'hr' });
+  });
+});
+
+describe('splitEmojiClusters', () => {
+  it('纯文本不产 emoji 簇', () => {
+    expect(splitEmojiClusters('普通文字 123')).toEqual([{ v: '普通文字 123', emoji: false }]);
+  });
+
+  it('emoji 与文字混排切簇；VS16 附着到 emoji', () => {
+    expect(splitEmojiClusters('结论 ✅ 通过')).toEqual([
+      { v: '结论 ', emoji: false },
+      { v: '✅', emoji: true },
+      { v: ' 通过', emoji: false },
+    ]);
+  });
+
+  it('⚠️ = ⚠(字体有字形,保持文字) + VS16(丢弃)', () => {
+    expect(splitEmojiClusters('⚠️警告')).toEqual([{ v: '⚠警告', emoji: false }]);
+  });
+
+  it('孤立 VS16 直接丢弃', () => {
+    expect(splitEmojiClusters('a️b')).toEqual([{ v: 'ab', emoji: false }]);
+  });
+
+  it('✓ 与 ⚠ 保持文字（字体覆盖），✅/❌/⭐ 为 emoji', () => {
+    const r = splitEmojiClusters('✓⚠ ✅ ❌ ⭐');
+    expect(r.filter((c) => c.emoji).map((c) => c.v)).toEqual(['✅', '❌', '⭐']);
+    expect(r.filter((c) => !c.emoji).map((c) => c.v)).toEqual(['✓⚠ ', ' ', ' ']);
   });
 });

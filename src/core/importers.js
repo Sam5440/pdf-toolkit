@@ -20,7 +20,7 @@ export function decodeText(bytes) {
 export function parseMarkdown(text) {
   const lines = String(text ?? '').replace(/\r\n?/g, '\n').split('\n');
   const blocks = [];
-  let inCode = false, codeBuf = [], listMarker = null, paraBuf = [];
+  let inCode = false, codeBuf = [], olN = 0, paraBuf = [];
   const inline = (s) => s
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
@@ -41,20 +41,23 @@ export function parseMarkdown(text) {
     const mH = /^(#{1,6})\s+(.*)$/.exec(line);
     if (mH) {
       flushPara();
+      olN = 0;
       blocks.push({ type: `h${Math.min(3, mH[1].length)}`, text: inline(mH[2]) });
       continue;
     }
-    if (/^\s*(---+|\*\*\*+|___+)\s*$/.test(line)) { flushPara(); blocks.push({ type: 'hr' }); continue; }
-    if (line.startsWith('>')) { flushPara(); blocks.push({ type: 'quote', text: inline(line.replace(/^>\s?/, '')) }); continue; }
+    if (/^\s*(---+|\*\*\*+|___+)\s*$/.test(line)) { flushPara(); olN = 0; blocks.push({ type: 'hr' }); continue; }
+    if (line.startsWith('>')) { flushPara(); olN = 0; blocks.push({ type: 'quote', text: inline(line.replace(/^>\s?/, '')) }); continue; }
     const mUl = /^\s*[-*+]\s+(.*)$/.exec(line);
     const mOl = /^\s*\d+[.)]\s+(.*)$/.exec(line);
     if (mUl || mOl) {
       flushPara();
-      blocks.push({ type: 'li', text: inline(mUl ? mUl[1] : mOl[1]), marker: mUl ? '•' : null });
+      olN = mOl ? olN + 1 : 0; // 有序列表连续编号，无序打断归零
+      blocks.push({ type: 'li', text: inline(mUl ? mUl[1] : mOl[1]), marker: mOl ? `${olN}.` : '•' });
       continue;
     }
     if (/^\s*\|.+\|\s*$/.test(line)) {
       flushPara();
+      olN = 0;
       const cells = line.trim().replace(/^\||\|$/g, '').split('|').map((c) => inline(c.trim()));
       if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue; // 分隔行
       const prev = blocks[blocks.length - 1];

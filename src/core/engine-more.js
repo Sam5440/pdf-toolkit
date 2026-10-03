@@ -66,6 +66,19 @@ async function copySubset(entry, pageIdxs, name) {
   return { artifacts: [{ name, mime: 'application/pdf', bytes }], summary: { pages: pageIdxs.length } };
 }
 
+/** 高亮 token [{v,c}] → 视觉行（\n 断行；与 mdhl.tokenLines 同构——本地实现避免 worker 引入 hljs） */
+function tokenLines(tokens) {
+  const lines = [[]];
+  for (const tk of tokens) {
+    const parts = String(tk.v ?? '').split('\n');
+    parts.forEach((p, i) => {
+      if (i > 0) lines.push([]);
+      if (p) lines[lines.length - 1].push({ v: p, c: tk.c });
+    });
+  }
+  return lines;
+}
+
 // ---------------------------------------------------------------------------
 // 页面操作
 // ---------------------------------------------------------------------------
@@ -801,6 +814,18 @@ const C_HR = pdfLib.rgb(0.612, 0.639, 0.686);        // #9ca3af 分隔线
 const C_GRID = pdfLib.rgb(0.667, 0.667, 0.667);      // #aaaaaa 表格线
 const C_TH_BG = pdfLib.rgb(0.941, 0.941, 0.941);     // #f0f0f0 表头底
 
+// 语法高亮 token 色（'#rrggbb'）→ pdf-lib rgb 缓存（mdhl 色板固定，条目个位数）
+const HL_RGB = new Map();
+const rgbOfHex = (hex) => {
+  let c = HL_RGB.get(hex);
+  if (!c) {
+    const { r, g, b } = hexToRgb01(hex);
+    c = pdfLib.rgb(r, g, b);
+    HL_RGB.set(hex, c);
+  }
+  return c;
+};
+
 function textStyleOf(b, fontSize) {
   switch (b.type) {
     case 'h1': return { size: fontSize * 2.0, bold: true, before: fontSize * 1.2, after: fontSize * 0.6, lh: 1.3 };
@@ -813,15 +838,29 @@ function textStyleOf(b, fontSize) {
   }
 }
 
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+
+/** 表格列宽拟合：自然宽之和 ≤ 总宽直接用自然宽；否则按「富余水位」等比压缩，不低于最小宽 */
+function fitColumns(natW, minW, total) {
+  const sumNat = natW.reduce((a, b) => a + b, 0);
+  if (sumNat <= total) return natW.slice();
+  const sumMin = minW.reduce((a, b) => a + b, 0);
+  if (sumMin >= total) { const eq = total / minW.length; return minW.map(() => eq); }
+  const k = (total - sumMin) / (sumNat - sumMin);
+  return natW.map((w, i) => minW[i] + (w - minW[i]) * k);
+}
+
 /**
  * blocks → 分页后的绘制项（纯计算；y 自内容区顶向下，绘制端换算 pdf-lib y-up）。
  * 项：{kind:'text', text, font, size, color, x, y(基线)}
  *   | {kind:'rect', x, yTop, w, h, color?, border?}
  *   | {kind:'hr', y}
  *   | {kind:'img', b64, x, yTop, w, h}
+ * 富段模型：segs = [{t:'s',v}|{t:'b',v} 粗体|{t:'c',v} 行内代码|{t:'m'/'e',…} 栅格化原子]，表格单元格同构。
+ * 西文按词折行（CJK 逐字可断）；行内代码用 Courier+浅灰底；列表悬挂缩进；代码块逐行选字体；表格单元格换行+跨页重复表头。
  */
 function paginateBlocks(blocks, ctx) {
-  const { pw, ph, margin, fontSize, maxW, fontReg, fontBold, fontCourier, charW, textW } = ctx;
+  const { pw, ph, margin, fontSize, maxW, fontReg, fontBold, fontCourier, charW, textW, hasGlyph } = ctx;
   const limitY = ph - margin * 2;
   const pages = [];
   let cur = [];
@@ -830,13 +869,21 @@ function paginateBlocks(blocks, ctx) {
   const addText = (text, font, size, x, baseline, color) => {
     cur.push({ kind: 'text', text, font, size, color, x, y: baseline });
   };
-  // 相邻文字原子合并为字符串 run（文本层按词连续，利于搜索/选中）
+  const fontOf = (role, v) => {
+    if (role === 'bold') return fontBold || fontReg;
+    if (role === 'mono' && fontCourier && isWinAnsiLine(v)) return fontCourier;
+    return fontReg;
+  };
+  // 相邻同字体/同底色/同前景色的文字原子合并为字符串 run（文本层按词连续，利于搜索/选中）
   const toRuns = (atoms) => {
     const runs = [];
     let buf = null;
     for (const a of atoms) {
       if (a.t === 't') {
-        if (!buf) { buf = { t: 's', v: '', w: 0 }; runs.push(buf); }
+        if (!buf || buf.font !== a.font || !!buf.code !== !!a.code || (buf.color || null) !== (a.color || null)) {
+          buf = { t: 's', v: '', w: 0, font: a.font, code: a.code, color: a.color || null };
+          runs.push(buf);
+        }
         buf.v += a.v;
         buf.w += a.w;
       } else {
@@ -845,6 +892,119 @@ function paginateBlocks(blocks, ctx) {
       }
     }
     return runs;
+  };
+  const isBreakableChar = (ch) => {
+    const c = ch.codePointAt(0);
+    return c >= 0x2e80 || (c >= 0x2010 && c <= 0x205e); // CJK/全角 + 破折引号类标点：逐字可断
+  };
+  /** 文本 → 原子流。charMode（代码块）逐字保留缩进；否则西文按词、CJK/空格逐字，缺字形字符丢弃。
+   *  color：语法高亮前景色（仅代码块 token 携带），贯穿折行/hardSplit 到绘制。 */
+  const atomsOfText = (v, font, size, { code = false, charMode = false, color = null } = {}) => {
+    const out = [];
+    const extra = color ? { color } : {};
+    const pushCh = (ch, more) => {
+      out.push({ t: 't', v: ch, w: charW(font, size, ch), font, size, code, ...extra, ...more });
+    };
+    if (charMode) {
+      for (const ch of String(v ?? '')) if (hasGlyph(ch)) pushCh(ch, {});
+      return out;
+    }
+    let word = '', wordW = 0;
+    const flush = () => {
+      if (!word) return;
+      out.push({ t: 't', v: word, w: wordW, font, size, code, ...extra });
+      word = ''; wordW = 0;
+    };
+    for (const ch of String(v ?? '')) {
+      if (!hasGlyph(ch)) continue;
+      if (/\s/.test(ch)) {
+        flush();
+        pushCh(ch, { space: true });
+        continue;
+      }
+      if (isBreakableChar(ch)) {
+        flush();
+        pushCh(ch, {});
+        continue;
+      }
+      word += ch;
+      wordW += charW(font, size, ch);
+    }
+    flush();
+    return out;
+  };
+  /** 富段 → 原子流（blockBold：标题/表头的 s 段整体加粗） */
+  const atomsOfSegs = (segs, size, blockBold) => {
+    const out = [];
+    for (const seg of segs) {
+      if (seg.t === 'm' || seg.t === 'e') {
+        if (!seg.b64) continue;
+        const hPt = seg.hPt || 0;
+        out.push({ t: 'img', b64: seg.b64, w: seg.wPt || 0, hPt, baselinePt: clamp(Math.min(seg.baselinePt ?? hPt, hPt), 0, hPt) });
+        continue;
+      }
+      const isCode = seg.t === 'c';
+      const role = (seg.t === 'b' || (blockBold && seg.t === 's')) ? 'bold' : 'reg';
+      const font = fontOf(isCode ? 'mono' : role, String(seg.v ?? ''));
+      out.push(...atomsOfText(String(seg.v ?? ''), font, size, { code: isCode }));
+    }
+    return out;
+  };
+  /**
+   * 词感知折行：行尾空格为回退断点；整词放不下断行；单原子超行宽按字符硬切；
+   * 行首空格丢弃；图片原子超宽独占一行。availOf(rowIdx) 支持悬挂缩进。
+   */
+  const wrapRows = (atoms, availOf) => {
+    const rows = [];
+    let row = [], rowW = 0, spaceAt = -1;
+    const avail = () => availOf(rows.length);
+    const breakLine = () => { rows.push(row); row = []; rowW = 0; spaceAt = -1; };
+    const hardSplit = (a) => { // 单原子超行宽：按字符切（保留原子字体/底色属性）
+      let buf = '', bufW = 0;
+      for (const ch of a.v) {
+        const cw = charW(a.font, a.size, ch);
+        if (buf && rowW + bufW + cw > avail()) {
+          row.push({ ...a, v: buf, w: bufW });
+          rowW += bufW;
+          breakLine();
+          buf = '';
+          bufW = 0;
+        }
+        buf += ch;
+        bufW += cw;
+      }
+      if (buf) { row.push({ ...a, v: buf, w: bufW }); rowW += bufW; }
+    };
+    for (const a of atoms) {
+      if (a.t === 'img') {
+        if (row.length && rowW + a.w > avail()) breakLine();
+        if (a.w > avail()) { row.push(a); rowW += a.w; breakLine(); continue; } // 超宽图独立成行
+        row.push(a);
+        rowW += a.w;
+        spaceAt = -1;
+        continue;
+      }
+      if (a.space) {
+        if (!row.length) continue; // 行首空格丢弃
+        row.push(a);
+        rowW += a.w;
+        spaceAt = row.length;
+        continue;
+      }
+      if (row.length && rowW + a.w > avail()) {
+        if (spaceAt >= 0 && spaceAt < row.length) { row = row.slice(0, spaceAt); } // 回退空格断点（丢行尾空格）
+        breakLine();
+        if (a.w > avail() && String(a.v ?? '').length > 1) { hardSplit(a); continue; }
+        row.push(a);
+        rowW += a.w;
+        continue;
+      }
+      if ((!row.length || rows.length === 0) && a.w > avail() && String(a.v ?? '').length > 1) { hardSplit(a); continue; }
+      row.push(a);
+      rowW += a.w;
+    }
+    if (row.length || !rows.length) rows.push(row);
+    return rows;
   };
 
   const total = blocks.length;
@@ -866,41 +1026,70 @@ function paginateBlocks(blocks, ctx) {
       continue;
     }
     if (b.type === 'table') {
-      const rows = (b.rows || []).map((r) => (Array.isArray(r) ? r.map((c) => String(c ?? '')) : [String(r ?? '')]));
-      if (rows.length) {
-        const cellSize = fontSize * 0.95;
-        const nCols = Math.max(...rows.map((r) => r.length));
-        const widths = [];
-        for (let ci = 0; ci < nCols; ci++) {
-          let mx = 0;
-          for (const r of rows) mx = Math.max(mx, textW(fontReg, cellSize, r[ci] || ''));
-          widths.push(Math.min(maxW, Math.max(24, mx + 10)));
+      const normCell = (c) => (Array.isArray(c) ? c : [{ t: 's', v: String(c ?? '') }]);
+      const rows = (b.rows || []).map((r) => (Array.isArray(r) ? r.map(normCell) : [normCell(r)]));
+      if (!rows.length) continue;
+      const cellSize = fontSize * 0.95;
+      const cellLh = cellSize * 1.45;
+      const vPad = 4;
+      const hPad = 5;
+      const nCols = Math.max(...rows.map((r) => r.length));
+      const grid = rows.map((r) => { const c = r.slice(); while (c.length < nCols) c.push([{ t: 's', v: '' }]); return c; });
+      const cellAtoms = grid.map((r, ri) => r.map((cell) => atomsOfSegs(cell, cellSize, ri === 0)));
+      const natW = [], minW = [];
+      for (let ci = 0; ci < nCols; ci++) {
+        let nat = 0, min = 0;
+        for (const r of cellAtoms) {
+          const atoms = r[ci];
+          nat = Math.max(nat, atoms.reduce((s, a) => s + a.w, 0));
+          for (const a of atoms) min = Math.max(min, a.img ? Math.min(a.w, maxW) : a.w);
         }
-        const sum = widths.reduce((a, c) => a + c, 0);
-        if (sum > maxW) {
-          const k = maxW / sum;
-          for (let ci = 0; ci < widths.length; ci++) widths[ci] *= k;
-        }
-        const rh = fontSize * 0.95 * 1.5 + 8;
-        y += 6;
-        for (let ri = 0; ri < rows.length; ri++) {
-          if (y + rh > limitY) newPage();
-          const header = ri === 0;
-          let x = margin;
-          for (let ci = 0; ci < widths.length; ci++) {
-            cur.push({
-              kind: 'rect', x, yTop: y, w: widths[ci], h: rh,
-              color: header ? C_TH_BG : undefined,
-              border: { color: C_GRID, width: 0.6 },
-            });
-            const cell = rows[ri][ci] || '';
-            if (cell) addText(cell, header ? (fontBold || fontReg) : fontReg, cellSize, x + 5, y + rh - 6, C_BODY);
-            x += widths[ci];
-          }
-          y += rh;
-        }
-        y += 6;
+        natW.push(Math.min(maxW, nat + hPad * 2));
+        minW.push(Math.min(maxW, Math.max(28, min + hPad * 2)));
       }
+      const widths = fitColumns(natW, minW, maxW);
+      const cellLines = cellAtoms.map((r) => r.map((atoms, ci) => wrapRows(atoms, () => widths[ci] - hPad * 2)));
+      const rowH = cellLines.map((r) => Math.max(1, ...r.map((lines) => Math.max(1, lines.length))) * cellLh + vPad * 2);
+      const emitRow = (ri, top) => {
+        let x = margin;
+        for (let ci = 0; ci < nCols; ci++) {
+          cur.push({
+            kind: 'rect', x, yTop: top, w: widths[ci], h: rowH[ri],
+            color: ri === 0 ? C_TH_BG : undefined,
+            border: { color: C_GRID, width: 0.6 },
+          });
+          const lines = cellLines[ri][ci];
+          for (let li = 0; li < lines.length; li++) {
+            const baseline = top + vPad + li * cellLh + cellSize * 1.1;
+            let cx = x + hPad;
+            for (const r of toRuns(lines[li])) {
+              if (r.t === 's') {
+                if (r.v) {
+                  if (r.code) cur.push({ kind: 'rect', x: cx - 1.5, yTop: baseline - cellSize * 1.02, w: r.w + 3, h: cellSize * 1.42, color: C_CODE_BG });
+                  addText(r.v, r.font, cellSize, cx, baseline, C_BODY);
+                }
+              } else {
+                cur.push({ kind: 'img', b64: r.b64, x: cx, yTop: baseline - r.baselinePt, w: r.w, h: r.hPt });
+              }
+              cx += r.w;
+            }
+          }
+          x += widths[ci];
+        }
+      };
+      // 表格上下留白：对齐 GitHub 表格规范（margin-bottom 16px≈12pt 视觉白隙）与 Eisvogel
+      // （arraystretch 1.3、表格与正文间留呼吸）。after 20pt 是因为紧随其后的文字 ascent
+      // 会吃掉 ~9pt（实测 border→墨迹 12pt+），原 6pt 时灰底几乎贴死表格——用户反馈过挤
+      y += 8;
+      for (let ri = 0; ri < grid.length; ri++) {
+        if (y + rowH[ri] > limitY) {
+          newPage();
+          if (ri > 0) { emitRow(0, y); y += rowH[0]; } // 跨页重复表头
+        }
+        emitRow(ri, y);
+        y += rowH[ri];
+      }
+      y += 20;
       continue;
     }
     if (b.type === 'img') {
@@ -919,54 +1108,63 @@ function paginateBlocks(blocks, ctx) {
     }
 
     const st = textStyleOf(b, fontSize);
-    let font = st.bold ? (fontBold || fontReg) : fontReg;
-    if (st.code && fontCourier && String(b.text ?? '').split('\n').every(isWinAnsiLine)) {
-      font = fontCourier; // 整块均为 WinAnsi 的代码块用标准 Courier（无需嵌入）
-    }
+    const isCodeBlock = b.type === 'code';
     const availW = Math.max(8, maxW - (st.indent || 0));
-    const marker = b.type === 'li' ? (b.marker || '•') : null;
+    const marker = b.type === 'li' ? (b.marker ?? '•') : null;
     const markerW = marker ? textW(fontReg, st.size, `${marker} `) : 0;
-    // 原子流：文字逐字（宽缓存）+ 数学原子整体；纯文本块按 '\n' 分段（保留空行）
+    // 原子流：富段按角色选字体；代码块逐行选字体（纯 WinAnsi 行用 Courier）；纯文本块整块字体
     let paraLists;
     if (Array.isArray(b.segs)) {
       paraLists = [[]];
       for (const seg of b.segs) {
-        if (seg.t === 'm') {
+        if (seg.t === 'm' || seg.t === 'e') {
           if (!seg.b64) continue;
           const hPt = seg.hPt || 0;
           paraLists[paraLists.length - 1].push({
-            t: 'm', b64: seg.b64, w: seg.wPt || 0, hPt,
-            baselinePt: Math.min(Math.max(seg.baselinePt ?? hPt, 0), hPt),
+            t: 'img', b64: seg.b64, w: seg.wPt || 0, hPt,
+            baselinePt: clamp(Math.min(seg.baselinePt ?? hPt, hPt), 0, hPt),
           });
           continue;
         }
+        const isCode = seg.t === 'c';
+        const role = (seg.t === 'b' || (st.bold && seg.t === 's')) ? 'bold' : 'reg';
+        const segFont = fontOf(isCode ? 'mono' : role, String(seg.v ?? ''));
         const parts = String(seg.v ?? '').split('\n');
         parts.forEach((part, idx) => {
           if (idx > 0 && paraLists[paraLists.length - 1].length) paraLists.push([]);
           const list = paraLists[paraLists.length - 1];
-          for (const ch of part) list.push({ t: 't', v: ch, w: charW(font, st.size, ch) });
+          list.push(...atomsOfText(part, segFont, st.size, { code: isCode }));
         });
       }
+    } else if (isCodeBlock) {
+      // 语法高亮：b.tokens = [{v,c}]（mdhl 产出，token 连回 === 原文）按 \n 断行逐 token 着色；
+      // 无 tokens（未知语言/旧调用）回退整块单色
+      const monoFor = (v) => (fontCourier && isWinAnsiLine(v) ? fontCourier : fontReg);
+      const lineToks = Array.isArray(b.tokens) ? tokenLines(b.tokens) : String(b.text ?? '').split('\n').map((v) => [{ v }]);
+      paraLists = lineToks.map((line) => line.flatMap((tk) => (
+        atomsOfText(tk.v, monoFor(tk.v), st.size, { charMode: true, color: tk.c || null })
+      )));
     } else {
-      paraLists = String(b.text ?? '').split('\n').map(
-        (para) => [...para].map((ch) => ({ t: 't', v: ch, w: charW(font, st.size, ch) })),
-      );
+      const font = st.bold ? (fontBold || fontReg) : fontReg;
+      paraLists = String(b.text ?? '').split('\n').map((para) => atomsOfText(para, font, st.size));
     }
-    // 折行：逐原子累计宽度；块首行让位 marker
+    // 折行：代码块逐字（保留缩进）；其余词感知，所有行让位 marker（悬挂缩进）
     const lineH = st.size * st.lh;
     const rowsAll = [];
     for (const atoms of paraLists) {
-      const rows = [];
-      let row = [];
-      let rowW = 0;
-      const flush = () => { rows.push(row); row = []; rowW = 0; };
-      for (const a of atoms) {
-        const avail = (rows.length === 0 && rowsAll.length === 0) ? availW - markerW : availW;
-        if (rowW + a.w > avail && row.length) flush();
-        row.push(a);
-        rowW += a.w;
+      let rows;
+      if (isCodeBlock) {
+        rows = [];
+        let row = [], rowW = 0;
+        for (const a of atoms) {
+          if (rowW + a.w > availW && row.length) { rows.push(row); row = []; rowW = 0; }
+          row.push(a);
+          rowW += a.w;
+        }
+        rows.push(row);
+      } else {
+        rows = wrapRows(atoms, () => (marker ? availW - markerW : availW));
       }
-      flush();
       for (const r of rows) rowsAll.push({ atoms: r, first: rowsAll.length === 0 });
     }
     if (rowsAll.length) rowsAll[rowsAll.length - 1].last = true;
@@ -975,18 +1173,25 @@ function paginateBlocks(blocks, ctx) {
       if (y + lineH > limitY) newPage();
       if (first) y += st.before || 0;
       const runs = toRuns(atoms);
-      if (first && marker) runs.unshift({ t: 's', v: `${marker} `, w: markerW, markerRun: true });
-      const lineWidth = runs.reduce((s, r) => s + r.w, 0);
-      let x0 = margin + (st.indent || 0);
+      const contIndent = marker && !first ? markerW : 0; // 悬挂缩进：续行对齐首行文字起点
+      const lineWidth = runs.reduce((s, r) => s + r.w, 0) + (first && marker ? markerW : 0);
+      let x0 = margin + (st.indent || 0) + contIndent;
       if (b.align === 'center') x0 = (pw - lineWidth) / 2;
       else if (b.align === 'right') x0 = pw - margin - lineWidth;
       const baseline = y;
       if (st.code) cur.push({ kind: 'rect', x: margin, yTop: baseline - st.size * 1.05, w: maxW, h: lineH, color: C_CODE_BG });
       if (st.quote) cur.push({ kind: 'rect', x: margin, yTop: baseline - st.size * 1.05, w: 2, h: lineH, color: C_QUOTE_BAR });
       let x = x0;
+      if (first && marker) {
+        addText(`${marker} `, fontReg, st.size, x, baseline, st.quote ? C_QUOTE : C_BODY);
+        x += markerW;
+      }
       for (const r of runs) {
         if (r.t === 's') {
-          if (r.v) addText(r.v, r.markerRun ? fontReg : font, st.size, x, baseline, st.quote ? C_QUOTE : C_BODY);
+          if (r.v) {
+            if (r.code) cur.push({ kind: 'rect', x: x - 1.5, yTop: baseline - st.size * 1.02, w: r.w + 3, h: st.size * 1.42, color: C_CODE_BG });
+            addText(r.v, r.font, st.size, x, baseline, r.color ? rgbOfHex(r.color) : (st.quote ? C_QUOTE : C_BODY));
+          }
         } else {
           cur.push({ kind: 'img', b64: r.b64, x, yTop: baseline - r.baselinePt, w: r.w, h: r.hPt });
         }
@@ -1008,20 +1213,36 @@ async function buildTextPdfVector({ name, blocks, paper, margin, fontSize, title
   out.registerFontkit(fontkit);
 
   // 1) 字体：subset:false 嵌入（subset:true 对 CJK 产出损坏字形——见 scripts/build_text_fonts.py 头注）；
-  //    Bold 惰性（仅标题/表头文档加载）；全 WinAnsi 代码块用标准 Courier
+  //    Bold 惰性（仅标题/表头/粗体段文档加载）；Courier 供纯 WinAnsi 代码块与行内代码使用
   let fontReg, fontBold = null, fontCourier = null;
   try {
     fontReg = await out.embedFont(await loadTextFontBytes('regular'), { subset: false });
-    const needsBold = blocks.some((b) => b.type === 'h1' || b.type === 'h2' || b.type === 'h3' || b.type === 'table');
+    const needsBold = blocks.some((b) => b.type === 'h1' || b.type === 'h2' || b.type === 'h3' || b.type === 'table'
+      || (Array.isArray(b.segs) && b.segs.some((s) => s.t === 'b')));
     if (needsBold) fontBold = await out.embedFont(await loadTextFontBytes('bold'), { subset: false });
-    const hasCourierCode = blocks.some((b) => b.type === 'code'
-      && String(b.text ?? '').split('\n').every(isWinAnsiLine));
-    if (hasCourierCode) fontCourier = await out.embedFont(pdfLib.StandardFonts.Courier);
+    const hasMonoUse = blocks.some((b) => b.type === 'code'
+      || (Array.isArray(b.segs) && b.segs.some((s) => s.t === 'c')));
+    if (hasMonoUse) fontCourier = await out.embedFont(pdfLib.StandardFonts.Courier);
   } catch (err) {
     const ferr = new Error(err?.message || String(err));
     ferr.fontFailure = true;
     throw ferr;
   }
+  // 字形覆盖探测（fontkit）：缺字形字符在排版期丢弃——否则画成 .notdef 空框并污染文本层 ToUnicode
+  const kitFont = fontReg?.embedder?.font ?? null;
+  const glyphCache = new Map();
+  const hasGlyph = (ch) => {
+    let v = glyphCache.get(ch);
+    if (v === undefined) {
+      try {
+        v = kitFont?.hasGlyphForCodePoint ? kitFont.hasGlyphForCodePoint(ch.codePointAt(0)) : true;
+      } catch {
+        v = true;
+      }
+      glyphCache.set(ch, v);
+    }
+    return v;
+  };
 
   // 2) 排版 + 分页（pdf-lib 字体度量，与绘制完全同源）
   const widthCaches = new Map(); // font → (size → (ch → pt 宽))
@@ -1042,7 +1263,7 @@ async function buildTextPdfVector({ name, blocks, paper, margin, fontSize, title
     for (const ch of String(s)) t += charW(font, size, ch);
     return t;
   };
-  const pages = paginateBlocks(blocks, { pw, ph, margin, fontSize, maxW, fontReg, fontBold, fontCourier, charW, textW });
+  const pages = paginateBlocks(blocks, { pw, ph, margin, fontSize, maxW, fontReg, fontBold, fontCourier, charW, textW, hasGlyph });
   if (!pages.length) throw toolkitError('ERR_NO_INPUT', '排版结果为空');
 
   // 3) 逐页绘制（按阅读顺序逐行 drawText，保证文本层可搜索/可选中）
@@ -1141,7 +1362,7 @@ function rasterPaginate(blocks, opts) {
     if (b.type === 'pagebreak') { lines.push({ brk: true }); continue; }
     if (b.type === 'hr') { lines.push({ hr: true, before: 8, after: 8 }); continue; }
     if (b.type === 'table') {
-      lines.push({ table: b.rows || [], before: 6, after: 6, fontSize });
+      lines.push({ table: b.rows || [], before: 8, after: 20, fontSize });
       continue;
     }
     if (b.type === 'img') {
@@ -1215,6 +1436,19 @@ async function rasterFallbackTextToPdf({ name = '文档', blocks = [], paper = '
     }
     return w;
   };
+  // 富段逐原子字体（b 段粗体 / c 段等宽）的宽度测量
+  const charWF = (ch, size, bold, mono) => {
+    const key = tpFont(size, bold, false, mono);
+    let m = charCache.get(key);
+    if (!m) { m = new Map(); charCache.set(key, m); }
+    let w = m.get(ch);
+    if (w === undefined) {
+      probeCtx.font = key;
+      w = probeCtx.measureText(ch).width / TP_K;
+      m.set(ch, w);
+    }
+    return w;
+  };
   for (const item of lines) {
     checkAbort();
     if (item.brk) {
@@ -1231,8 +1465,9 @@ async function rasterFallbackTextToPdf({ name = '文档', blocks = [], paper = '
       continue;
     }
     if (item.table) {
-      // 表格：等比列宽，逐行绘制
-      const rows = item.table.map((r) => (Array.isArray(r) ? r.map((c) => String(c ?? '')) : [String(r ?? '')]));
+      // 表格：等比列宽，逐行绘制（富段单元格展平为纯文本——位图回退路径不做富排版）
+      const cellPlain = (c) => (Array.isArray(c) ? c.map((s) => String(s?.v ?? '')).join('') : String(c ?? ''));
+      const rows = item.table.map((r) => (Array.isArray(r) ? r.map(cellPlain) : [cellPlain(r)]));
       if (!rows.length) continue;
       const nCols = Math.max(...rows.map((r) => r.length));
       const probe = new OffscreenCanvas(8, 8).getContext('2d');
@@ -1249,6 +1484,7 @@ async function rasterFallbackTextToPdf({ name = '文档', blocks = [], paper = '
       const k = totalW / scaled.reduce((a, b) => a + b, 0);
       const widths = scaled.map((w) => w * k);
       const rh = fontSize * 0.95 * 1.5 + 8;
+      y += item.before;
       for (let ri = 0; ri < rows.length; ri++) {
         if (y + rh > ph - margin) { pageLayouts.push(cur); cur = []; y = margin; }
         const row = { kind: 'tableRow', yTop: y, h: rh, cells: [], widths, header: ri === 0 };
@@ -1277,23 +1513,25 @@ async function rasterFallbackTextToPdf({ name = '文档', blocks = [], paper = '
       continue;
     }
     if (item.rich) {
-      // 富文本行：segs 展开为原子流（文字按字符、数学原子整体），逐原子累计宽度折行
+      // 富文本行：segs 展开为原子流（文字按字符、栅格化原子整体），逐原子累计宽度折行
       const st = item.st;
       const availW = maxW - (st.indent || 0);
       const prefixW = item.marker ? measure(`${item.marker} `, st) : 0;
       const rows = [];
       let run = [], w = 0, first = true;
       for (const seg of item.segs) {
-        if (seg.t === 'm') {
+        if (seg.t === 'm' || seg.t === 'e') {
           const atom = { t: 'm', b64: seg.b64, w: seg.wPt, hPt: seg.hPt, baselinePt: Math.min(Math.max(seg.baselinePt ?? seg.hPt, 0), seg.hPt) };
           if (w + atom.w > (first ? availW - prefixW : availW) && run.length) { rows.push({ runs: run, w }); run = []; w = 0; first = false; }
           run.push(atom);
           w += atom.w;
           continue;
         }
+        const segBold = seg.t === 'b' || (st.bold && seg.t === 's');
+        const segMono = seg.t === 'c';
         for (const ch of String(seg.v ?? '')) {
           if (ch === '\n') { if (run.length) { rows.push({ runs: run, w }); run = []; w = 0; } first = false; continue; }
-          const atom = { t: 't', v: ch, w: charW(ch, st) };
+          const atom = { t: 't', v: ch, w: charWF(ch, st.size, segBold, segMono), bold: segBold || undefined, mono: segMono || undefined };
           if (w + atom.w > (first ? availW - prefixW : availW) && run.length) { rows.push({ runs: run, w }); run = []; w = 0; first = false; }
           run.push(atom);
           w += atom.w;
@@ -1389,15 +1627,17 @@ async function rasterFallbackTextToPdf({ name = '文档', blocks = [], paper = '
       } else if (ln.kind === 'img') {
         // 图形块在页级以 PNG 叠画（见下方 drawPageOverlays），位图页跳过
       } else if (ln.kind === 'rich') {
-        // 富文本行：位图页只画文字 run，数学原子由页级 PNG 叠画（x 与布局同序推进）
-        ctx.font = tpFontDraw(ln.size, ln.bold, false, ln.mono);
+        // 富文本行：位图页只画文字 run（b/c 段按粗体/等宽字体），栅格化原子由页级 PNG 叠画
         ctx.fillStyle = ln.gray ? '#555555' : '#111111';
         ctx.textBaseline = 'alphabetic';
         let x = ln.align === 'center' ? (pw - ln.width) / 2
           : ln.align === 'right' ? pw - margin - ln.width
             : margin + ln.indent;
         for (const run of ln.runs) {
-          if (run.t !== 'm') ctx.fillText(run.v, x, ln.y);
+          if (run.t !== 'm') {
+            ctx.font = tpFontDraw(ln.size, !!run.bold, false, !!run.mono);
+            ctx.fillText(run.v, x, ln.y);
+          }
           x += run.w;
         }
       } else {

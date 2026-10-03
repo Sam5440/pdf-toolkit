@@ -6,6 +6,7 @@
 // KaTeX 字体离线化：静态引入 katex.min.css 原文与全部 woff2 资产 URL（vite ?raw / ?url），
 // 运行时 fetch → base64 data URL 替换，得到自包含 CSS 供 foreignObject 内嵌。
 import { marked } from 'marked';
+import { highlightTokens, normalizeLang } from './mdhl.js';
 import katexCssRaw from 'katex/dist/katex.min.css?raw';
 import font_AMS from 'katex/dist/fonts/KaTeX_AMS-Regular.woff2?url';
 import font_CaliB from 'katex/dist/fonts/KaTeX_Caligraphic-Bold.woff2?url';
@@ -108,11 +109,11 @@ export function splitInlineMath(text) {
       }
     }
     if (ch === '$') {
-      if (s[i + 1] === '$') { // 行内 $$ 对
+      if (s[i + 1] === '$') { // 行内 $$ 对（dd 标记 display 定界，供整段独立公式判定）
         const end = s.indexOf('$$', i + 2);
         if (end !== -1 && end > i + 2) {
           flush();
-          segs.push({ t: 'm', tex: s.slice(i + 2, end) });
+          segs.push({ t: 'm', tex: s.slice(i + 2, end), dd: true });
           i = end + 2;
           continue;
         }
@@ -236,25 +237,69 @@ export function parseMarkdownRich(text) {
   const warnings = [];
   let title = null;
 
-  /** 行内 token 展平为纯文本（em/strong/link 只取文本，codespan 保留反引号原文），图片 token 收集进 imgs */
-  const inlineTextRaw = (toks, imgs) => {
-    let out = '';
+  /**
+   * 行内 token 展平为富段数组（不触碰 DOM）：
+   * {t:'s',v} 纯文本 / {t:'b',v} 粗体 / {t:'c',v} 行内代码 / {t:'m',tex,dd?} 数学（未栅格化）。
+   * em/del/link 只取内部段（CJK 无斜体，em 退化为正文）；行内 HTML 除 <br> 外丢弃；图片 token 收集进 imgs。
+   */
+  const pushSplit = (out, text) => {
+    // 先还原数学占位符再切分：占位符（纯字母数字）不含定界符，必须先还原为 $...$ 才能识别
+    for (const seg of splitInlineMath(restoreMathStash(text, stash))) {
+      if (seg.t === 's' && !seg.v) continue;
+      const last = out[out.length - 1];
+      if (last && last.t === 's' && seg.t === 's') last.v += seg.v;
+      else out.push(seg);
+    }
+  };
+  const inlineSegsRaw = (toks, imgs) => {
+    const out = [];
     for (const tk of toks ?? []) {
       switch (tk.type) {
-        case 'text': out += tk.tokens ? inlineText(tk.tokens, imgs) : (tk.text ?? tk.raw ?? ''); break;
-        case 'escape': out += tk.text ?? ''; break;
-        case 'em': case 'strong': case 'del': case 'link': out += inlineText(tk.tokens, imgs); break;
-        case 'codespan': out += `\`${tk.text ?? ''}\``; break;
-        case 'br': out += '\n'; break;
+        case 'text': case 'escape': pushSplit(out, tk.text ?? tk.raw ?? ''); break;
+        case 'strong': {
+          for (const seg of inlineSegsRaw(tk.tokens, imgs)) {
+            if (seg.t === 's') out.push({ t: 'b', v: seg.v });
+            else out.push(seg); // 数学/行内代码保持原样
+          }
+          break;
+        }
+        case 'em': case 'del': case 'link': out.push(...inlineSegsRaw(tk.tokens, imgs)); break;
+        case 'codespan': out.push({ t: 'c', v: tk.text ?? '' }); break;
+        case 'br': pushSplit(out, '\n'); break;
         case 'image': imgs?.push(tk); break;
-        case 'html': break; // 行内 HTML 丢弃
-        default: out += tk.text ?? tk.raw ?? ''; break;
+        case 'html': if (/<br\s*\/?>/i.test(tk.raw ?? tk.text ?? '')) pushSplit(out, '\n'); break;
+        default: pushSplit(out, tk.text ?? tk.raw ?? ''); break;
       }
     }
-    return out;
+    // 相邻纯文本段归并（em/link 等只取文本后会拆成多段）
+    const merged = [];
+    for (const seg of out) {
+      const last = merged[merged.length - 1];
+      if (last && last.t === 's' && seg.t === 's') last.v += seg.v;
+      else merged.push(seg);
+    }
+    return merged;
   };
-  /** 展平后还原数学占位符（占位符为纯字母数字，marked 不会改写） */
-  const inlineText = (toks, imgs) => restoreMathStash(inlineTextRaw(toks, imgs), stash);
+  /** 展平（占位符已在 pushSplit 内还原） */
+  const inlineSegs = (toks, imgs) => inlineSegsRaw(toks, imgs);
+
+  /** 富段 → 纯文本（m 按 $tex$ 还原；供标题/判空） */
+  const segsPlain = (segs) => segs
+    .map((sg) => (sg.t === 'm' ? `$${sg.tex}$` : String(sg.v ?? '')))
+    .join('');
+
+  /** 段落/标题/列表项/引用通用入队：仅纯文字 → text 形式（向后兼容），否则 segs 形式 */
+  const pushSegBlock = (type, segs, extra) => {
+    const cleaned = segs.filter((sg) => sg.t !== 's' || /\S/.test(sg.v) || /\n/.test(sg.v));
+    if (!cleaned.length) return;
+    if (cleaned.every((sg) => sg.t === 's')) {
+      const t = cleaned.map((sg) => sg.v).join('').replace(/\s+\n/g, '\n');
+      if (!t.trim()) return;
+      blocks.push({ type, text: t, ...extra });
+      return;
+    }
+    blocks.push({ type, segs: cleaned, ...extra });
+  };
 
   const pushImage = (im) => {
     const src = im.href ?? im.src ?? '';
@@ -262,47 +307,38 @@ export function parseMarkdownRich(text) {
     else warnings.push(`离线模式不抓取远程图片: ${src}`);
   };
 
-  /** 段落/标题/列表项文本块：含数学 → segs，否则 → text（向后兼容） */
-  const pushTextBlock = (type, txt, extra) => {
-    const t = String(txt ?? '').replace(/\s+\n/g, '\n');
-    if (!t.trim()) return;
-    const segs = splitInlineMath(t);
-    if (segs.some((sg) => sg.t === 'm')) blocks.push({ type, segs, ...extra });
-    else blocks.push({ type, text: t, ...extra });
-  };
-
-  /** 段落：整段仅一张图 → 图片块；整段仅一个 $$...$$ → display 数学块；其余行内处理 */
+  /** 段落：整段仅一张图 → 图片块；整段仅一个 $$...$$（dd 标记）→ display 数学块；其余行内富段 */
   const pushParagraph = (token) => {
     const imgs = [];
-    const txt = inlineText(token.tokens ?? [], imgs);
-    if (imgs.length && !txt.trim()) {
+    const segs = inlineSegs(token.tokens ?? [], imgs);
+    if (imgs.length && !segsPlain(segs).trim()) {
       imgs.forEach(pushImage);
       return;
     }
     for (const im of imgs) pushImage(im); // 行内混排图片按远程/跳过处理
-    const t = txt.trim();
-    const dm = /^\$\$([\s\S]+)\$\$$/.exec(t);
-    if (dm && !dm[1].includes('$$')) {
-      blocks.push({ type: 'img', kind: 'math', tex: dm[1].trim(), display: true });
+    if (segs.length === 1 && segs[0].t === 'm' && segs[0].dd) {
+      blocks.push({ type: 'img', kind: 'math', tex: segs[0].tex, display: true });
       return;
     }
-    pushTextBlock('p', txt);
+    pushSegBlock('p', segs);
   };
 
-  /** 列表：嵌套扁平化，level 从 0 起；无序 marker 按层级 •/◦/▪，有序 null */
+  /** 列表：嵌套扁平化，level 从 0 起；无序 marker 按层级 •/◦/▪，有序 '1.'/'2.'… */
   const walkList = (token, level) => {
+    let n = 0;
     for (const item of token.items ?? []) {
+      n += 1;
       const parts = [];
       for (const tk of item.tokens ?? []) {
         if (tk.type === 'list') continue; // 嵌套列表单独递归
         if (tk.type === 'text' || tk.type === 'paragraph') {
           const imgs = [];
-          const t = inlineText(tk.tokens ?? [], imgs);
-          if (t.trim()) parts.push(t);
+          const segs = inlineSegs(tk.tokens ?? [], imgs);
+          if (segsPlain(segs).trim()) parts.push(...segs);
         }
       }
-      const extra = { level, marker: token.ordered ? null : LIST_MARKERS[Math.min(level, LIST_MARKERS.length - 1)] };
-      pushTextBlock('li', parts.join(' '), extra);
+      const marker = token.ordered ? `${n}.` : LIST_MARKERS[Math.min(level, LIST_MARKERS.length - 1)];
+      pushSegBlock('li', parts, { level, marker });
       for (const tk of item.tokens ?? []) {
         if (tk.type === 'list') walkList(tk, level + 1);
       }
@@ -313,10 +349,11 @@ export function parseMarkdownRich(text) {
     switch (token.type) {
       case 'heading': {
         const imgs = [];
-        const txt = inlineText(token.tokens ?? [], imgs);
+        const segs = inlineSegs(token.tokens ?? [], imgs);
         for (const im of imgs) pushImage(im);
-        if (token.depth === 1 && title == null && txt.trim()) title = txt.trim();
-        pushTextBlock(`h${Math.min(3, Math.max(1, token.depth))}`, txt);
+        const plain = segsPlain(segs).trim();
+        if (token.depth === 1 && title == null && plain) title = plain;
+        pushSegBlock(`h${Math.min(3, Math.max(1, token.depth))}`, segs);
         break;
       }
       case 'paragraph': pushParagraph(token); break;
@@ -326,11 +363,12 @@ export function parseMarkdownRich(text) {
         for (const tk of token.tokens ?? []) {
           if (tk.type === 'paragraph' || tk.type === 'text') {
             const imgs = [];
-            const t = inlineText(tk.tokens ?? [], imgs);
-            if (t.trim()) parts.push(t.trim());
+            const segs = inlineSegs(tk.tokens ?? [], imgs);
+            if (segsPlain(segs).trim()) parts.push(...segs, { t: 's', v: '\n' });
           }
         }
-        if (parts.length) blocks.push({ type: 'quote', text: parts.join('\n') });
+        while (parts.length && parts[parts.length - 1].t === 's' && parts[parts.length - 1].v === '\n') parts.pop();
+        pushSegBlock('quote', parts);
         break;
       }
       case 'code': {
@@ -338,14 +376,24 @@ export function parseMarkdownRich(text) {
         if (lang === 'mermaid') blocks.push({ type: 'img', kind: 'mermaid', code: token.text ?? '' });
         else if (lang === 'mindmap' || lang === 'markmap') blocks.push({ type: 'img', kind: 'mindmap', code: token.text ?? '' });
         else if (lang === 'math' || lang === 'latex') blocks.push({ type: 'img', kind: 'math', tex: token.text ?? '' });
-        else blocks.push({ type: 'code', text: token.text ?? '' });
+        else {
+          const langName = normalizeLang(lang);
+          // tokens：mdhl 语法高亮（token 文本连回 === 原文，引擎按 token 着色；null 则纯文本回退）
+          blocks.push({ type: 'code', text: token.text ?? '', lang: langName, tokens: highlightTokens(token.text ?? '', langName) });
+        }
         break;
       }
       case 'table': {
-        const cellText = (c) => (c && typeof c === 'object' ? inlineText(c.tokens ?? [], null) : String(c ?? ''));
+        const cellSegs = (c) => (c && typeof c === 'object' ? inlineSegs(c.tokens ?? [], null) : [{ t: 's', v: String(c ?? '') }]);
+        const cellValue = (c) => {
+          const segs = cellSegs(c).filter((sg) => sg.t !== 's' || /\S/.test(sg.v) || /\n/.test(sg.v));
+          if (!segs.length) return '';
+          if (segs.every((sg) => sg.t === 's')) return segs.map((sg) => sg.v).join('');
+          return segs; // 含粗体/行内代码/数学 → 富段（引擎按段渲染）
+        };
         const rows = [
-          (token.header ?? []).map(cellText),
-          ...(token.rows ?? []).map((r) => (r ?? []).map(cellText)),
+          (token.header ?? []).map(cellValue),
+          ...(token.rows ?? []).map((r) => (r ?? []).map(cellValue)),
         ].filter((r) => r.length);
         if (rows.length) blocks.push({ type: 'table', rows });
         break;
@@ -388,7 +436,8 @@ async function svgToPng(svgStr, wPx, hPx, { warmup = false } = {}) {
   return { bytes, b64: bytesToBase64(bytes) };
 }
 
-/** KaTeX 自包含 CSS（字体 → data URL），模块级惰性缓存 */
+/** KaTeX 自包含 CSS（字体 → data URL），模块级惰性缓存。
+ *  供富渲染（foreignObject 内嵌）与浏览器打印引擎（iframe 内联样式）共用。 */
 let katexCssPromise = null;
 function getKatexCss() {
   if (!katexCssPromise) {
@@ -577,6 +626,111 @@ async function dataUrlPng(src) {
   return { b64: bytesToBase64(bytes), wPt: w / RS, hPt: h / RS };
 }
 
+// ---------------------------------------------------------------------------
+// emoji 栅格化（内嵌文本字体不含彩色 emoji 字形，直接绘制会静默丢字/污染文本层）
+// ---------------------------------------------------------------------------
+
+/** emoji 基字符判定（✓ U+2713 / ⚠ U+26A0 等已由内嵌字体覆盖，保持文字可选中，不在此列） */
+/** 供外部（浏览器打印引擎 iframe）取自包含 KaTeX CSS */
+export function getSelfContainedKatexCss() {
+  return getKatexCss();
+}
+
+export function isEmojiBase(cp) {
+  if (cp === 0x2713) return false; // ✓ 字体有字形
+  return (cp >= 0x2B00 && cp <= 0x2BFF)
+    || (cp >= 0x2700 && cp <= 0x27BF)
+    || (cp >= 0x1F000 && cp <= 0x1FAFF)
+    || (cp >= 0x1FB00 && cp <= 0x1FBFF)
+    || cp === 0x2049 || cp === 0x203C || cp === 0x2139 || cp === 0x231A || cp === 0x231B
+    || cp === 0x2934 || cp === 0x2935 || cp === 0x3030 || cp === 0x303D || cp === 0x3297 || cp === 0x3299;
+}
+
+/**
+ * 把文本切分为混和簇数组：[{v:'文字', emoji:false} | {v:'✅', emoji:true}]。
+ * VS16(U+FE0F)/ZWJ(U+200D) 附着到前一个 emoji 簇；前面无 emoji 簇时直接丢弃（这些字符本身不可见）。
+ */
+export function splitEmojiClusters(text) {
+  const s = String(text ?? '');
+  const out = [];
+  const push = (v, emoji) => {
+    if (!v) return;
+    const last = out[out.length - 1];
+    if (last && last.emoji === emoji) last.v += v;
+    else out.push({ v, emoji });
+  };
+  let plain = '';
+  for (const ch of s) {
+    const cp = ch.codePointAt(0);
+    if (cp === 0xFE0F || cp === 0x200D) {
+      const last = out[out.length - 1];
+      if (last?.emoji) last.v += ch; // 附着到 emoji 簇
+      continue; // 其余情况丢弃（不可见控制符）
+    }
+    if (isEmojiBase(cp)) {
+      push(plain, false);
+      plain = '';
+      push(ch, true);
+      continue;
+    }
+    plain += ch;
+  }
+  push(plain, false);
+  return out;
+}
+
+/** emoji 簇 → canvas → PNG 行内原子 {t:'e', b64, wPt, hPt, baselinePt}（px/RS = pt） */
+async function emojiPng(cluster, fontSizePt) {
+  const px = fontSizePt * RS;
+  const spec = `${px}px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji','Twemoji Mozilla',sans-serif`;
+  const probe = document.createElement('canvas').getContext('2d');
+  probe.font = spec;
+  const w = Math.max(2, Math.ceil(probe.measureText(cluster).width) + 2);
+  const h = Math.max(2, Math.ceil(px * 1.3));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.font = spec;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(cluster, 1, h * 0.56);
+  const blob = await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('canvas.toBlob 失败'))), 'image/png'));
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const hPt = h / RS;
+  // 视觉基线：emoji 中心落在文字基线上方约 0.25em（与正文小写主体对齐）
+  return { t: 'e', b64: bytesToBase64(bytes), wPt: w / RS, hPt, baselinePt: hPt * 0.5 + fontSizePt * 0.25 };
+}
+
+/** 文字段（s/b/c）就地切 emoji 簇并把 emoji 段栅格化为图片原子 */
+async function renderEmojiSegs(segs, fontSizePt, warnings) {
+  const out = [];
+  let changed = false;
+  for (const seg of segs) {
+    if (seg.t !== 's' && seg.t !== 'b' && seg.t !== 'c') { out.push(seg); continue; }
+    const clusters = splitEmojiClusters(seg.v);
+    if (clusters.every((c) => !c.emoji)) { out.push(seg); continue; }
+    changed = true;
+    for (const c of clusters) {
+      if (!c.emoji) {
+        const v = c.v;
+        if (!v) continue;
+        const last = out[out.length - 1];
+        if (last && last.t === seg.t && seg.t !== 'c') last.v += v;
+        else if (last && last.t === 's' && seg.t === 's') last.v += v;
+        else out.push({ t: seg.t, v });
+        continue;
+      }
+      try {
+        out.push(await emojiPng(c.v, fontSizePt));
+      } catch (err) {
+        warnings.push(`[emoji 渲染失败: ${err?.message || err}]`);
+        out.push({ t: 's', v: c.v });
+      }
+    }
+  }
+  return changed ? out : null; // null = 无 emoji，调用方保留原 segs
+}
+
 /** 单个 img 块栅格化 */
 async function renderImgBlock(b, fontSize) {
   if (b.kind === 'math') {
@@ -599,17 +753,30 @@ async function renderImgBlock(b, fontSize) {
 }
 
 /**
- * 富块渲染入口：img 块与 segs 内数学原子就地栅格化（b64/wPt/hPt/baselinePt）。
+ * 富块渲染入口：
+ * - img 块与 segs 内数学原子就地栅格化（b64/wPt/hPt/baselinePt）；
+ * - 全部文本段（segs / text 形式 / 表格单元格）切 emoji 簇栅格化为行内图片原子（内嵌字体无彩色 emoji 字形）。
  * 每块独立 try/catch：mermaid/mindmap 失败降级为原文 code 块，其余失败替换为错误提示 p 块——绝不让单块失败炸整体。
  * 返回 { blocks, warnings }。
  */
 export async function renderRichBlocks(blocks, { fontSize = 11 } = {}) {
   const warnings = [];
   const out = [];
+  /** 表格单元格：字符串/富段 → 富段（数学 + emoji 已栅格化） */
+  const renderCell = async (cell) => {
+    const segs = typeof cell === 'string' ? [{ t: 's', v: cell }] : cell;
+    if (!Array.isArray(segs)) return cell;
+    const withEmoji = await renderEmojiSegs(segs, fontSize, warnings);
+    return withEmoji ?? segs;
+  };
   for (const b of blocks) {
     try {
       if (b.type === 'img') {
         out.push(await renderImgBlock(b, fontSize));
+        continue;
+      }
+      if (b.type === 'table') {
+        out.push({ ...b, rows: await Promise.all((b.rows ?? []).map((r) => Promise.all(r.map(renderCell)))) });
         continue;
       }
       if (Array.isArray(b.segs)) {
@@ -624,7 +791,16 @@ export async function renderRichBlocks(blocks, { fontSize = 11 } = {}) {
             segs.push({ t: 's', v: `$${seg.tex}$` });
           }
         }
-        out.push({ ...b, segs });
+        const withEmoji = await renderEmojiSegs(segs, fontSize, warnings);
+        out.push({ ...b, segs: withEmoji ?? segs });
+        continue;
+      }
+      if (typeof b.text === 'string') {
+        const withEmoji = await renderEmojiSegs([{ t: 's', v: b.text }], fontSize, warnings);
+        if (withEmoji) {
+          const { text: _drop, ...rest } = b; // text 形式升级为 segs 形式（marker/level 等属性保留）
+          out.push({ ...rest, segs: withEmoji });
+        } else out.push(b);
         continue;
       }
       out.push(b);

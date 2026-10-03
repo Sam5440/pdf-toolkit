@@ -44,11 +44,12 @@ describe('parseMarkdown', () => {
     expect(blocks[0].text).toBe('一级');
   });
 
-  it('无序/有序列表，无序带圆点 marker', () => {
+  it('无序/有序列表，无序圆点、有序数字编号', () => {
     const { blocks } = parseMarkdown('- 甲\n- 乙\n\n1. 一\n2. 二');
     expect(blocks.filter((b) => b.type === 'li').map((b) => b.text)).toEqual(['甲', '乙', '一', '二']);
     expect(blocks[0].marker).toBe('•');
-    expect(blocks[2].marker).toBeNull();
+    expect(blocks[2].marker).toBe('1.');
+    expect(blocks[3].marker).toBe('2.');
   });
 
   it('表格：分隔行被跳过、相邻行合并为同一表格块', () => {

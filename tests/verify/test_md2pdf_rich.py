@@ -147,3 +147,69 @@ def test_md2pdf_rich_text_layer():
                 )
     finally:
         doc.close()
+
+
+def test_md2pdf_rich_code_syntax_colors():
+    """内置引擎代码块语法高亮：rich.md 的 ```js 块按 token 着色——
+    console(内建 #e36209)/log(函数名 #6f42c1)/字符串(#032f62) 至少一种
+    出现在文本层 span 颜色中（整块单色渲染则只有正文黑/灰）。"""
+    import fitz
+
+    p = find_artifact("md2pdf-rich-out.pdf")
+    doc = fitz.open(str(p))
+    try:
+        colors = set()
+        for page in doc:
+            for blk in page.get_text("dict")["blocks"]:
+                for line in blk.get("lines", []):
+                    for span in line.get("spans", []):
+                        colors.add(span["color"])
+        hit = {hex(c) for c in (0xE36209, 0x6F42C1, 0x032F62) if c in colors}
+        assert hit, f"代码块未按 token 着色（span 颜色集样例：{sorted(hex(c) for c in colors)[:12]}）"
+    finally:
+        doc.close()
+
+
+def test_md2pdf_rich_table_gap():
+    """表格下边距：底边框→下一文字墨迹顶 ≥ 11pt（GitHub 表格规范 margin-bottom 16px≈12pt
+    视觉白隙；旧实现 6pt 时文字墨迹距边框仅 ~2pt，灰底贴死表格）。
+
+    定位：表头「指标」所在单元格矩形出发，沿上下贴合（±2.5pt）的行矩形链走到表格底边，
+    再取其下方最近文字块顶——链会在 ~20pt 间隙处断开，不会误吞下方代码块背景条。
+    """
+    import fitz
+
+    p = find_artifact("md2pdf-rich-out.pdf")
+    doc = fitz.open(str(p))
+    try:
+        page = None
+        anchor = None
+        for cand in doc:
+            hit = next((w for w in cand.get_text("words") if w[4] == "指标"), None)
+            if hit:
+                page, anchor = cand, hit
+                break
+        assert anchor, "全文档找不到表头「指标」"
+        rects = [d["rect"] for d in page.get_drawings()]
+        cur = next(
+            (r for r in rects
+             if r.x0 <= anchor[0] + 1 and r.x1 >= anchor[2] - 1
+             and r.y0 - 2 <= anchor[1] and r.y1 + 2 >= anchor[3]),
+            None,
+        )
+        assert cur, "未找到表头单元格矩形"
+        bottom = cur.y1
+        while True:
+            nxt = [r for r in rects
+                   if abs(r.y0 - bottom) <= 2.5 and r.x0 <= anchor[0] + 1 and r.x1 >= anchor[0] + 2]
+            if not nxt:
+                break
+            bottom = max(r.y1 for r in nxt)
+        below = [w for w in page.get_text("words") if w[1] >= bottom - 0.5]
+        assert below, "表格下方无文字"
+        gap = min(w[1] for w in below) - bottom
+        assert 11 <= gap <= 45, (
+            f"表格底边与下一文字块间距 {gap:.1f}pt（期望 11–45pt；旧实现约 2-6pt）"
+        )
+    finally:
+        doc.close()

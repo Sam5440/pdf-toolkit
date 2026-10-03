@@ -26,3 +26,9 @@ __pycache__/
 *.log
 tests/e2e/.shots/
 tests/e2e/.tmp/
+
+# 重型 WASM 引擎二进制（scripts/fetch-engines.mjs 可重建 public/engines/）
+public/engines/
+
+# 用户本地问题文档（真实数据，不入公开仓库）
+问题 Markdown/

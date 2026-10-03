@@ -43,6 +43,11 @@ def build_charset() -> str:
             except UnicodeDecodeError:
                 pass  # GB2312 未定义空位
     chars += [chr(c) for c in range(0x2000, 0x2070)]   # U+2000-206F 通用标点
+    chars += [chr(c) for c in range(0x2190, 0x2200)]   # U+2190-21FF 箭头（→ ← ⇒ 等）
+    chars += [chr(c) for c in range(0x2200, 0x2300)]   # U+2200-22FF 数学运算符（≤ ≥ ∑ √ 等）
+    chars += [chr(c) for c in range(0x25A0, 0x2600)]   # U+25A0-25FF 几何图形（▶ ■ ● ★ 等）
+    chars += [chr(c) for c in range(0x2600, 0x2700)]   # U+2600-26FF 杂项符号（⚠ ☰ ✅区除外，⚠ 文字形）
+    chars += [chr(c) for c in (0x2713, 0x2717)]        # ✓ ✗ 勾叉（内嵌字体覆盖，emoji 不栅格化）
     chars += [chr(c) for c in range(0x3000, 0x3040)]   # U+3000-303F CJK 符号
     chars += [chr(c) for c in range(0xFF00, 0xFFF0)]   # U+FF00-FFEF 全角 forms
     chars += [chr(c) for c in EXTRA_CODEPOINTS]
