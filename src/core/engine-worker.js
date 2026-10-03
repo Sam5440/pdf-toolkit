@@ -208,6 +208,15 @@ export async function pdfjsOpen(entry) {
     data: entry.bytes.slice(),
     isEvalSupported: false,
     useSystemFonts: true,
+    // 资源由 pdf.worker 侧自行 fetch：API 侧的 DOMBinaryDataFactory 走
+    // fetchData(url, document.baseURI)，worker 内无 document 会 ReferenceError，
+    // 中文 CID 字体的 CMap 因此加载失败 → 文字被整体丢弃（预览中文空白）。
+    useWorkerFetch: true,
+    // 中文 PDF 常用未嵌入的 CID 字体；wasm 为 JBIG2/JPX 图像与 ICC 色彩解码
+    cMapUrl: `${assetBase()}pdfjs/cmaps/`,
+    cMapPacked: true,
+    standardFontDataUrl: `${assetBase()}pdfjs/standard_fonts/`,
+    wasmUrl: `${assetBase()}pdfjs/wasm/`,
     CanvasFactory: OffscreenCanvasFactory,
     FilterFactory: NoDomFilterFactory,
   });

@@ -6,6 +6,7 @@ import { inputPanel } from '../../components/input.js';
 import { field, select, button } from '../../components/ui.js';
 import { paramsCard, resultCard, runWithProgress } from './common.js';
 import { buildOffice } from '../../core/officewriters.js';
+import { PDFJS_ASSET_OPTS } from '../../core/pdfjs-assets.js';
 
 const NOTE = '文本级转换：保留文字与段落结构，不还原排版';
 
@@ -28,7 +29,7 @@ function getPdfjsMain() {
 /** 主线程富文本行提取（与 engine-more richLinesOf 同逻辑）：[{lines:[{text,size,heading,bold}]}] */
 async function richLinesLocal(file, pageIdxs, onProgress) {
   const pjs = await getPdfjsMain();
-  const doc = await pjs.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
+  const doc = await pjs.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false, ...PDFJS_ASSET_OPTS }).promise;
   const raw = [];
   const allSizes = [];
   for (let i = 0; i < pageIdxs.length; i++) {

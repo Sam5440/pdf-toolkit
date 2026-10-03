@@ -16,6 +16,7 @@ import * as pdfLib from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { getSettings } from '../core/settings.js';
 import { BUILTIN_FONTS, FONTS, probeFonts, getFontBytes, ensureCJKFontFace, CJK_FONT_STACK, isCJKText } from '../core/fonts.js';
+import { PDFJS_ASSET_OPTS } from '../core/pdfjs-assets.js';
 import * as geometry from '../core/geometry.js';
 import { sanitizeLayer, resolveLayerPages, applyTemplateVars, tileLayout, fullscreenLayout, hexToRgb01 } from '../core/watermark-model.js';
 import { anchorPoint } from '../core/geometry.js';
@@ -465,7 +466,7 @@ async function getPdfjs() {
 /** pdf.js 渲染字节 → ImageBitmap（主线程） */
 async function renderBytesToBitmap(bytes, dpi) {
   const pdfjs = await getPdfjs();
-  const task = pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, useSystemFonts: true });
+  const task = pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, useSystemFonts: true, ...PDFJS_ASSET_OPTS });
   const pdoc = await task.promise;
   try {
     const page = await pdoc.getPage(1);

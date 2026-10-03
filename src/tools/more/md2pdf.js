@@ -9,6 +9,7 @@ import { field, select, button, checkbox } from '../../components/ui.js';
 import { paramsCard, resultCard, runWithProgress } from './common.js';
 import { parseToBlocks, decodeText } from '../../core/importers.js';
 import { parseMarkdownRich, renderRichBlocks } from '../../core/mdrender.js';
+import { PDFJS_ASSET_OPTS } from '../../core/pdfjs-assets.js';
 
 const PAPER_OPTS = [
   { value: 'a4', label: 'A4' },
@@ -41,7 +42,7 @@ async function getPdfjs() {
 /** PDF 字节 → 逐页 canvas 预览（主线程 pdf.js） */
 async function renderPreviewBytes(bytes, pagesBox) {
   const pdfjs = await getPdfjs();
-  const doc = await pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false }).promise;
+  const doc = await pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, ...PDFJS_ASSET_OPTS }).promise;
   pagesBox.replaceChildren();
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
