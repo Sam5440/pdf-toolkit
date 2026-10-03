@@ -97,6 +97,35 @@ def downscaled_img_pdf():
     return out.getvalue()
 
 
+def tiling_pattern_pdf():
+    """TilingPattern 平铺图案 PDF（reportlab 不支持，手工构造原始对象；
+    渲染走 pdf.js 临时 canvas 图案路径）"""
+    tile = b"0.8 0 0 RG 1 w 0 0 m 16 16 l S 16 0 m 0 16 l S 1 0 0 RG 8 8 5 0 360 arc f"
+    objs = {
+        1: b"<< /Type /Catalog /Pages 2 0 R >>",
+        2: b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        3: b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] "
+           b"/Resources << /Pattern << /P1 4 0 R >> >> /Contents 5 0 R >>",
+        4: b"<< /Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 "
+           b"/BBox [0 0 16 16] /XStep 16 /YStep 16 /Resources << >> /Length "
+           + str(len(tile)).encode() + b" >>\nstream\n" + tile + b"\nendstream",
+        5: b"<< /Length 40 >>\nstream\nq /Pattern cs /P1 scn 0 0 300 200 re f Q\nendstream",
+    }
+    buf = io.BytesIO()
+    buf.write(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = {}
+    for num in sorted(objs):
+        offsets[num] = buf.tell()
+        buf.write(str(num).encode() + b" 0 obj\n" + objs[num] + b"\nendobj\n")
+    xref = buf.tell()
+    buf.write(b"xref\n0 " + str(len(objs) + 1).encode() + b"\n0000000000 65535 f \n")
+    for num in sorted(objs):
+        buf.write(("%010d 00000 n \n" % offsets[num]).encode())
+    buf.write(b"trailer\n<< /Size " + str(len(objs) + 1).encode()
+              + b" /Root 1 0 R >>\nstartxref\n" + str(xref).encode() + b"\n%%EOF\n")
+    return buf.getvalue()
+
+
 def scan_pdf(text_simulated=True, pages=2, dpi=150):
     """扫描件模拟：页面只有图像、无文字层（OCR 用）"""
     import fitz
@@ -577,6 +606,7 @@ def main():
         "rotated90.pdf": rotated_pdf(),
         "smask_alpha.pdf": smask_pdf(),
         "downscaled_img.pdf": downscaled_img_pdf(),
+        "tiling_pattern.pdf": tiling_pattern_pdf(),
         "scan2.pdf": scan_pdf(),
         "enc_user123.pdf": encrypted_pdf(),
         "photo_l.jpg": big_image_bytes("JPEG", (1200, 900)),
