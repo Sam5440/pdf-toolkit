@@ -9,6 +9,7 @@ import * as pdfLib from 'pdf-lib';
 import * as geometry from '../../core/geometry.js';
 import { registerTool } from '../core.js';
 import { ensureDoc } from '../../core/engine.js';
+import { addResultArtifacts } from '../../core/tray.js';
 import { inputPanel } from '../../components/input.js';
 import {
   field, numberInput, textInput, select, button, toast,
@@ -266,6 +267,8 @@ registerTool({
         }],
         summary: { pages: state.pageCount },
       };
+      // 本地 pdf-lib 产出（未经引擎 run）：显式镜像到右侧暂存区
+      addResultArtifacts(res.artifacts);
 
       const card2 = resultCard({
         arts: res.artifacts,

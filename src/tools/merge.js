@@ -64,7 +64,7 @@ registerTool({
             const res = await run('images.toPdf', {
               images: [{ name: d.name, bytes, mime: d.type || (m ? EXT_MIME[m[1].toLowerCase()] : '') || '' }],
               paper: 'auto', fit: 'contain',
-            }, {}, new Map());
+            }, { tray: false }, new Map()); // 中间步骤：不入暂存区
             const f = new File([res.artifacts[0].bytes], `${d.name.replace(IMG_EXT, '')}.pdf`, { type: 'application/pdf' });
             const nd = addDocument(f);
             docs = docs.map((x) => (x.id === d.id ? nd : x));

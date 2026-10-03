@@ -1,5 +1,6 @@
 // 引擎池（主线程侧）：管理 worker 池、op 调度、进度/取消、文档字节装载与驱逐重试。
 import { uid } from './format.js';
+import { addResultArtifacts } from './tray.js';
 import EngineWorkerCtor from './engine-worker.js?worker';
 
 class EnginePool {
@@ -183,10 +184,15 @@ export async function run(op, args = {}, opts = {}, docs = new Map()) {
   }
   let jobId = null;
   const exec = () => getPool().run(op, limitsArg(args), { ...opts, onSpawn: (id) => { jobId = id; opts.onSpawn?.(id); } });
+  // 生成的 PDF 产物默认镜像到右侧暂存区（中间步骤用 {tray:false} 关闭）
+  const finish = (r) => {
+    if (opts.tray !== false) addResultArtifacts(r?.artifacts);
+    return r;
+  };
   try {
     const result = await exec();
     result._opId = jobId;
-    return result;
+    return finish(result);
   } catch (e) {
     if (e.code === 'ERR_NO_INPUT' && /引擎/.test(e.message)) {
       // worker 内存驱逐：强制重装所有文档后重试一次
@@ -196,7 +202,7 @@ export async function run(op, args = {}, opts = {}, docs = new Map()) {
       }
       const result = await exec();
       result._opId = jobId;
-      return result;
+      return finish(result);
     }
     throw e;
   }

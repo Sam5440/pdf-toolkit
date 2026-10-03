@@ -1,6 +1,7 @@
 // 输入文档面板：文件选择/拖拽/列表管理（安全渲染文件名）
 import { esc, fmtBytes, baseName } from '../core/format.js';
 import { addDocument, getDocument, removeDocument, pickFiles, bindDropzone, validateFile, warnFile } from '../core/files.js';
+import { addPdfsToTray } from '../core/tray.js';
 import { toast, openModal, button } from './ui.js';
 import { iconNode } from './icons.js';
 
@@ -51,7 +52,7 @@ function bindPasteOnce() {
     const files = [...(e.clipboardData?.files || [])];
     if (!files.length || !activePasteTarget) return;
     e.preventDefault();
-    activePasteTarget(files);
+    activePasteTarget.addFiles(files);
   });
 }
 
@@ -92,7 +93,6 @@ export function inputPanel(opts = {}) {
   };
   bindDropzone(dz, (files) => panel.addFiles(files), { multiple });
   bindPasteOnce();
-  activePasteTarget = (files) => panel.addFiles(files);
 
   function renderList() {
     list.innerHTML = '';
@@ -136,9 +136,20 @@ export function inputPanel(opts = {}) {
         added.push(doc);
       }
       renderList();
+      // 上传镜像：PDF 默认在右侧暂存区创建一份副本（同一 File 引用，不复制字节）
+      if (added.length) addPdfsToTray(added.map((d) => d.file), { source: 'upload' });
       opts.onAdd?.(added);
       return added;
     },
   };
+  activePasteTarget = panel;
   return panel;
+}
+
+/** 把文件送进当前活跃的输入面板（暂存区「加入」按钮用）；无面板或面板已随旧页面卸载时返回 false */
+export function sendToActivePanel(files) {
+  const p = activePasteTarget;
+  if (!p || !files?.length || !p.el.isConnected) return false;
+  p.addFiles(files);
+  return true;
 }

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 下方收纳托盘：U 形开口向上，象征暂存放置区 -->
+  <path d="M8.5 28 V33 A4.5 4.5 0 0 0 13 37.5 H35 A4.5 4.5 0 0 0 39.5 33 V28"/>
+  <!-- 上方待存 PDF 页：切角页面母题，悬浮于托盘口（暂存/入架） -->
+  <path d="M16 10 A3 3 0 0 1 19 7 H26.5 L32 12.5 V24 A3 3 0 0 1 29 27 H19 A3 3 0 0 1 16 24 Z"/>
+  <!-- 折角 -->
+  <path d="M26.5 7 V12.5 H32"/>
+</svg>

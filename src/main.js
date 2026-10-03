@@ -12,6 +12,7 @@ import { listHistory, getHistory, deleteHistory, clearHistory, historyUsedBytes 
 import { probeFonts } from './core/fonts.js';
 import { setLimitsFromSettings } from './core/limits.js';
 import { isMoreGroup, getFavorites, resetFavorites, defaultFavoriteIds } from './core/favorites.js';
+import { trayRail, trayToggleButton } from './components/tray.js';
 
 const app = document.getElementById('app');
 
@@ -122,7 +123,7 @@ function renderApp(toolId) {
   });
   const histBtn = iconBtn('history', ' 历史', 'btn-ghost btn-sm', () => { location.hash = '#/history'; });
   const setBtn = iconBtn('settings', ' 设置', 'btn-ghost btn-sm', () => openSettings());
-  tbBtns.append(themeBtn, histBtn, setBtn);
+  tbBtns.append(themeBtn, trayToggleButton(), histBtn, setBtn);
   topbar.appendChild(tbBtns);
 
   const content = document.createElement('div');
@@ -146,6 +147,8 @@ function renderApp(toolId) {
 
   main.append(topbar, content);
   shell.append(sidebar, main);
+  // 右侧 PDF 暂存区（全局单例节点，跨页面共享）
+  shell.append(trayRail());
   app.appendChild(shell);
   fontOkEl.textContent = fontAvailability['noto-sc'] ? '中文水印已就绪' : '需部署字体包';
 }
@@ -387,5 +390,6 @@ function openSettings() {
 
 // 启动
 applyTheme();
+try { if (localStorage.getItem('pdftoolkit.tray.collapsed') === '1') document.body.classList.add('tray-collapsed'); } catch { /* 忽略 */ }
 probeFonts().then((r) => { fontAvailability = r; setLimitsFromSettings(); navigate(); });
 window.addEventListener('hashchange', navigate);

@@ -1,6 +1,7 @@
 // 文件选择/拖拽与文档注册表：文档只在浏览器内存中，绝不发送到网络。
 import { uid, fmtBytes } from './format.js';
 import { getSettings } from './settings.js';
+import { TRAY_MIME, resolveTrayFiles } from './tray.js';
 
 /** 输入文档对象：{id, name, size, type, file, info?} */
 const documents = new Map();
@@ -89,7 +90,7 @@ export function pickFiles({ multiple = false, accept = 'application/pdf,.pdf' } 
   });
 }
 
-/** 为容器绑定拖拽，返回清理函数 */
+/** 为容器绑定拖拽，返回清理函数。支持两类投放：系统文件、暂存区内部拖动（TRAY_MIME） */
 export function bindDropzone(el, onFiles, { multiple = true, accept = null } = {}) {
   const handler = (files) => {
     let list = [...files];
@@ -104,6 +105,12 @@ export function bindDropzone(el, onFiles, { multiple = true, accept = null } = {
   const onDragLeave = () => el.classList.remove('over');
   const onDrop = (e) => {
     e.preventDefault(); el.classList.remove('over');
+    // 暂存区内部拖放：dataTransfer.files 为空，按约定类型取回暂存项 id
+    const trayIds = e.dataTransfer?.getData(TRAY_MIME);
+    if (trayIds) {
+      const files = resolveTrayFiles(trayIds.split(',').filter(Boolean));
+      if (files.length) { handler(files); return; }
+    }
     if (e.dataTransfer?.files?.length) handler(e.dataTransfer.files);
   };
   el.addEventListener('dragover', onDragOver);

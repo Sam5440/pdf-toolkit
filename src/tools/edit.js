@@ -13,6 +13,7 @@ import * as geometry from '../core/geometry.js';
 import { getFontBytes, isCJKText } from '../core/fonts.js';
 import { registerTool } from './core.js';
 import { run, ensureDoc } from '../core/engine.js';
+import { addResultArtifacts } from '../core/tray.js';
 import { inputPanel } from '../components/input.js';
 import {
   progressCard, warningsBox, toast, field, numberInput, button, openModal,
@@ -724,6 +725,8 @@ registerTool({
           mime: 'application/pdf',
           bytes,
         };
+        // 本地 pdf-lib 产出（未经引擎 run）：显式镜像到右侧暂存区
+        addResultArtifacts([art]);
         pc.done();
         renderResult({ summary: { edits: edits.length } }, art, doc, edits, Date.now() - t0);
       } catch (e) {
