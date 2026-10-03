@@ -1,0 +1,13 @@
+<!-- 查看：天蓝圆框放大镜斜置左上，轻弯镜柄带平行复描短线，青色高光弧提亮镜片，表达放大观看 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <!-- 镜片：微椭圆手绘圆框 -->
+    <ellipse cx="16.6" cy="16.4" rx="8.6" ry="8.2" stroke="#0EA5E9"/>
+    <!-- 镜柄：轻弯长柄 -->
+    <path d="M22.8 22.5 Q30 29.6 37.2 36.7" stroke="#0EA5E9"/>
+    <!-- 铅笔复描：镜柄旁平行短线 -->
+    <path d="M31.5 28.1 Q32.9 29.4 34.3 30.9" stroke="#0EA5E9"/>
+    <!-- 镜片高光：青色小弧 -->
+    <path d="M11.8 14.4 Q12.5 12.4 14.4 11.3" stroke="#14B8A6"/>
+  </g>
+</svg>

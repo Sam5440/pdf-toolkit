@@ -1,13 +1,22 @@
-// SVG 图标装载器：全部图标来自 src/assets/icons/*.svg（每个图标由独立 subagent 绘制，
-// 见 docs/ICON-GUIDELINES.md）。?raw 内联进 bundle；字符串是构建期静态资产，可安全 innerHTML。
-// 图标方案（settings.iconSet）：'svg'（默认，手绘线描）| 'emoji'（原版 emoji，可在设置页切换）。
+// SVG 图标装载器：全部图标来自 src/assets/icons/*.svg（单色线描）与
+// src/assets/icons-color/*.svg（多彩手绘，第三套），每个图标由独立 subagent 绘制，
+// 见 docs/ICON-GUIDELINES.md。?raw 内联进 bundle；字符串是构建期静态资产，可安全 innerHTML。
+// 图标方案（settings.iconSet）：'svg'（默认，手绘线描）| 'color'（多彩手绘）| 'emoji'（原版 emoji）。
+// 新功能图标必须三套齐备（单色 + 多彩 + EMOJI 映射），见 ICON-GUIDELINES「硬性细则」。
 import { getSettings } from '../core/settings.js';
 
 const raw = import.meta.glob('../assets/icons/*.svg', { query: '?raw', import: 'default', eager: true });
+const rawColor = import.meta.glob('../assets/icons-color/*.svg', { query: '?raw', import: 'default', eager: true });
 
 export const ICONS = {};
 for (const [p, svg] of Object.entries(raw)) {
   ICONS[p.split('/').pop().replace(/\.svg$/, '')] = svg;
+}
+
+// 多彩手绘方案（第三套）：缺某个图标时回退到单色版
+export const ICONS_COLOR = {};
+for (const [p, svg] of Object.entries(rawColor)) {
+  ICONS_COLOR[p.split('/').pop().replace(/\.svg$/, '')] = svg;
 }
 
 // 原版 emoji 方案映射（与 SVG 图标 id 一一对应；无对应项时回退 SVG）
@@ -17,7 +26,7 @@ export const EMOJI = {
   text: '📄', images2pdf: '🖼', pdf2images: '🏞', extractimages: '📦', compare: '🔍',
   'theme-moon': '🌙', 'theme-sun': '☀️',
   history: '🕘', settings: '⚙️', upload: '📄', success: '✅', winner: '🏆',
-  doc: '📄', trash: '🗑', warn: '⚠️', image: '🖼', 'more-grid': '🧰',
+  doc: '📄', trash: '🗑', warn: '⚠️', image: '🖼', 'more-grid': '🧰', tray: '📥',
   // 「更多」分组
   rotate: '🔄', removepages: '➖', extractpages: '📤', nup: '🔲', halve: '➗',
   crop: '⬜', pagenumbers: '#️⃣', bookmarks: '🔖', docinfo: 'ℹ️', metaclean: '🧹',
@@ -52,8 +61,18 @@ function useEmoji() {
   try { return getSettings().iconSet === 'emoji'; } catch { return false; }
 }
 
-/** 生成图标节点：SVG 方案返回 <span class="icon-svg"><svg…/></span>，
- *  emoji 方案返回 <span class="icon-emoji">📑</span>（currentColor 随主题仅 SVG 有效） */
+function useColor() {
+  try { return getSettings().iconSet === 'color'; } catch { return false; }
+}
+
+/** 多彩方案取图：icons-color 命中 → 单色兜底 → null（交由调用方走 FALLBACK） */
+function resolveColorIcon(id) {
+  return ICONS_COLOR[id] || (ICON_ALIAS[id] ? ICONS_COLOR[ICON_ALIAS[id]] : null) || null;
+}
+
+/** 生成图标节点：SVG 方案返回 <span class="icon-svg"><svg…/></span>（多彩方案同用
+ *  .icon-svg 容器，仅 svg 内容不同），emoji 方案返回 <span class="icon-emoji">📑</span>
+ *  （currentColor 随主题仅 SVG 有效） */
 export function iconNode(id, className = '') {
   const span = document.createElement('span');
   if (useEmoji() && EMOJI[id]) {
@@ -62,7 +81,7 @@ export function iconNode(id, className = '') {
     return span;
   }
   span.className = `icon-svg${className ? ` ${className}` : ''}`;
-  span.innerHTML = resolveIcon(id);
+  span.innerHTML = (useColor() && resolveColorIcon(id)) || resolveIcon(id);
   return span;
 }
 
@@ -71,5 +90,6 @@ export function iconSvg(id, className = '') {
   if (useEmoji() && EMOJI[id]) {
     return `<span class="icon-emoji${className ? ` ${className}` : ''}">${EMOJI[id]}</span>`;
   }
-  return `<span class="icon-svg${className ? ` ${className}` : ''}">${resolveIcon(id)}</span>`;
+  const body = (useColor() && resolveColorIcon(id)) || resolveIcon(id);
+  return `<span class="icon-svg${className ? ` ${className}` : ''}">${body}</span>`;
 }

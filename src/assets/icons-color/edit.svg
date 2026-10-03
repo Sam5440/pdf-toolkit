@@ -1,0 +1,8 @@
+<!-- 编辑：竖版页面（蓝）右下留缺口，红色铅笔 45° 斜压纸面、笔尖落点即编辑处；灰线为页内已有内容 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <path stroke="#3B82F6" d="M29.9 22.4 Q30.5 16.6 30 11.2 Q30.2 8.4 27.2 8.3 Q19 7.6 11.2 8.2 Q8.2 8.4 8.3 11.3 Q7.8 22 8.2 32.8 Q8.4 35.7 11.2 35.9 Q19 36.6 26.8 35.9"/>
+    <path stroke="#64748B" d="M13.1 15.1 Q17.3 14.6 21.4 15 M13.1 20 Q16 19.7 18.9 20"/>
+    <path stroke="#EF4444" d="M25.6 25.6 L30.8 27.2 L40 36.3 L36.4 40 L27.2 30.9 Z M31.7 26.4 L27.3 30.9"/>
+  </g>
+</svg>

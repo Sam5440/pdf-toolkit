@@ -1,0 +1,13 @@
+<!-- 历史：天蓝表盘留左上缺口即回拨路径，指针加实心中轴点，橙色雪佛龙指示逆时针回拨 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <!-- 表盘：圆环留出左上 90 度缺口 -->
+    <path d="M8 25 A16 16 0 1 0 24 9" stroke="#0EA5E9"/>
+    <!-- 指针：分针指12、时针指向约4点半，两段轻弯 -->
+    <path d="M24 16 Q23.6 20.5 24 25 Q27.4 27.5 30.5 29.3" stroke="#0EA5E9"/>
+    <!-- 逆时针回拨箭头：橙色雪佛龙骑在缺口圆周上 -->
+    <path d="M14.3 6.9 Q13.2 10.3 12.7 13.7 Q16.1 13.3 19.5 12.1" stroke="#F97316"/>
+    <!-- 中轴实心点：指针枢轴 -->
+    <circle cx="24" cy="25" r="1.7" fill="#0EA5E9" stroke="none"/>
+  </g>
+</svg>

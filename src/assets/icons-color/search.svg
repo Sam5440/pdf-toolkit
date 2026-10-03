@@ -1,0 +1,11 @@
+<!-- 搜索：天蓝手绘圆镜配蓝色斜柄，镜内琥珀小弧作玻璃反光，一眼可辨查找 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <!-- 镜片：四段半径微差的圆弧拼成手绘圆 -->
+    <path d="M21.2 9.1 A12.1 12.1 0 0 1 32.9 21.4 A11.9 11.9 0 0 1 20.8 32.9 A12.1 12.1 0 0 1 9.1 20.6 A12 12 0 0 1 21.2 9.1 Z" stroke="#0EA5E9"/>
+    <!-- 镜柄：向右下的轻弯斜杆 -->
+    <path d="M30.3 30.5 Q34.8 35.4 39.8 39.8" stroke="#3B82F6"/>
+    <!-- 玻璃反光：镜内左上平行于镜缘的小弧 -->
+    <path d="M13.5 17.6 A8.5 8.5 0 0 1 16.9 13.6" stroke="#F59E0B"/>
+  </g>
+</svg>

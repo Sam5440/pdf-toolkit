@@ -1,0 +1,12 @@
+<!-- 页码：蓝色折角页面内两行琥珀色实心圆点标记带短横线，抽象表达逐页编号（不用数字字符） -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <path stroke="#3B82F6" d="M15 8.2 Q21 7.7 26.6 8.1 Q31.3 12.8 35.8 17.2 Q36.2 27 36 37.1 Q36.1 40 33 40.1 Q24 40.5 15.1 40.1 Q12 40 12.1 37.2 Q11.8 23 12 10.4 Q12 8.4 15 8.2 Z"/>
+    <path stroke="#3B82F6" d="M26.6 8.1 Q26.5 12.6 26.7 17.2 Q31.2 17.1 35.8 17.2"/>
+    <path stroke="#64748B" d="M16.4 14.3 Q19.5 14 22.6 14.3"/>
+    <circle cx="17.8" cy="21.8" r="1.9" fill="#F59E0B" stroke="none"/>
+    <path stroke="#F59E0B" d="M21.8 21.9 Q25 21.6 28.2 21.9"/>
+    <circle cx="17.8" cy="28.6" r="1.9" fill="#F59E0B" stroke="none"/>
+    <path stroke="#F59E0B" d="M21.8 28.7 Q24.4 28.4 27 28.7"/>
+  </g>
+</svg>

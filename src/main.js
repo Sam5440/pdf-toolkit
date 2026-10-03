@@ -357,7 +357,7 @@ function openSettings() {
     })()),
     field('图标方案', (() => {
       const sel = document.createElement('select');
-      sel.innerHTML = '<option value="svg">手绘线描 SVG（默认）</option><option value="emoji">原版 emoji</option>';
+      sel.innerHTML = '<option value="svg">手绘线描 SVG（默认）</option><option value="color">多彩手绘 SVG</option><option value="emoji">原版 emoji</option>';
       sel.value = s.iconSet || 'svg';
       sel.onchange = () => { setSetting('iconSet', sel.value); navigate(); };
       return sel;

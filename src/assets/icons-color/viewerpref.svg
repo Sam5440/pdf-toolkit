@@ -1,0 +1,11 @@
+<!-- 查看偏好：一只天蓝手绘大眼睛（上下眼睑轻弯闭合），深蓝瞳孔 + 琥珀高光点，表达浏览查看与显示偏好设置 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <!-- 眼睛轮廓：四段轻弯二次曲线，杏仁形微倾 -->
+    <path d="M6.4 24.3 Q11.8 15.1 24 14.7 Q36.2 15.1 41.6 24.3 Q36.2 33.5 24 33.9 Q11.8 33.5 6.4 24.3 Z" stroke="#0EA5E9"/>
+    <!-- 瞳孔：深蓝圆环 -->
+    <circle cx="24" cy="24.3" r="4.6" stroke="#3B82F6"/>
+    <!-- 高光点：琥珀实心小点（光源语义） -->
+    <circle cx="25.8" cy="22.5" r="1.3" fill="#F59E0B" stroke="none"/>
+  </g>
+</svg>

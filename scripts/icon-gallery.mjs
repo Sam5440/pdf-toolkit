@@ -1,14 +1,20 @@
 // 生成图标验收画廊：docs/report-assets/icon-gallery.html
 // 全部图标 × 明/暗主题 × 20/32/48px 三档尺寸，供截图目检。
-// 用法: node scripts/icon-gallery.mjs
+// 用法: node scripts/icon-gallery.mjs [--dir=src/assets/icons-color] [图标id,逗号分隔]
 import fs from 'node:fs';
 import path from 'node:path';
 
-const DIR = 'src/assets/icons';
-const OUT = 'docs/report-assets/icon-gallery.html';
-const arg = process.argv[2] || '';
-const IDS = arg
-  ? arg.split(',').filter(Boolean)
+let DIR = 'src/assets/icons';
+const rest = [];
+for (const a of process.argv.slice(2)) {
+  if (a.startsWith('--dir=')) DIR = a.slice(6);
+  else rest.push(a);
+}
+const OUT = DIR === 'src/assets/icons-color'
+  ? 'docs/report-assets/icon-gallery-color.html'
+  : 'docs/report-assets/icon-gallery.html';
+const IDS = rest.length && rest[0]
+  ? rest[0].split(',').filter(Boolean)
   : fs.readdirSync(DIR).filter((f) => f.endsWith('.svg')).map((f) => f.replace('.svg', '')).sort();
 
 const cards = IDS.map((id) => {

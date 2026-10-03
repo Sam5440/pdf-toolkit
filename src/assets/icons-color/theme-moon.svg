@@ -1,0 +1,9 @@
+<!-- 主题-夜间：紫色弯月（外弧大圆、内弧咬合），配琥珀色实心四角小星，暗夜氛围 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <!-- 弯月：外弧半径16.2微晃、内弧半径12.7回咬，单线闭合 -->
+    <path d="M39.8 25.8 A16.2 16.2 0 1 1 22.3 8.2 A12.7 12.7 0 0 0 39.8 25.8 Z" stroke="#8B5CF6"/>
+    <!-- 四角小星：琥珀实心点缀，悬在月牙咬口处 -->
+    <path fill="#F59E0B" stroke="none" d="M35.6 13.3 L36.7 15.8 39.2 16.9 36.7 18 35.6 20.5 34.5 18 32 16.9 34.5 15.8 Z"/>
+  </g>
+</svg>
