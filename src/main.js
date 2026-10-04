@@ -5,8 +5,10 @@ import './styles/workspace.css';
 
 import { TOOLS, GROUPS, getTool } from './tools/registry.js';
 import { esc, fmtTime2, fmtBytes } from './core/format.js';
-import { toast, openModal, confirmDialog, button, field, favStar } from './components/ui.js';
+import { toast, openModal, confirmDialog, button, field, favStar, checkbox, select, numberInput } from './components/ui.js';
 import { initShadcn } from './components/shadcn.js';
+import { openCommandPalette, commandPaletteButton, githubButton } from './components/search.js';
+import { APP_NAME, APP_VERSION_FULL, APP_REPO, APP_REPO_ISSUES, APP_LICENSE } from './core/version.js';
 import { iconNode } from './components/icons.js';
 import { getSettings, setSetting } from './core/settings.js';
 import { listHistory, getHistory, deleteHistory, clearHistory, historyUsedBytes } from './core/history.js';
@@ -20,9 +22,25 @@ const app = document.getElementById('app');
 let fontAvailability = {};
 
 function applyTheme() {
+  const s = getSettings();
+  const dark = s.theme === 'dark' || (s.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+  const root = document.documentElement;
+  root.classList.toggle('dark', dark);
+  root.dataset.accent = s.accent || 'neutral';
+  if (s.radius && s.radius !== 'default') root.dataset.radius = s.radius;
+  else delete root.dataset.radius;
+  if (s.motion === false) root.dataset.motion = 'off';
+  else delete root.dataset.motion;
+}
+
+function isDarkTheme() {
   const t = getSettings().theme;
-  const dark = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-  document.documentElement.classList.toggle('dark', dark);
+  return t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+}
+
+function toggleTheme() {
+  setSetting('theme', isDarkTheme() ? 'light' : 'dark');
+  applyTheme();
 }
 
 function navigate() {
@@ -110,7 +128,7 @@ function renderApp(toolId) {
     <div class="tb-title">${tool ? `<span class="tb-ico"></span>${esc(tool.name)}<span class="tb-sub">${esc(tool.desc)}</span>` : (location.hash === '#/more' ? '更多工具' : 'PDF 万能工具箱')} </div>`;
   if (tool) topbar.querySelector('.tb-ico').appendChild(iconNode(tool.id));
   const tbBtns = document.createElement('div');
-  tbBtns.style.cssText = 'display:flex;gap:6px';
+  tbBtns.style.cssText = 'display:flex;gap:6px;align-items:center';
   const iconBtn = (id, label, cls, onClick) => {
     const b = button('', cls, onClick);
     b.appendChild(iconNode(id));
@@ -118,17 +136,19 @@ function renderApp(toolId) {
     return b;
   };
   const themeBtn = iconBtn(getSettings().theme === 'dark' ? 'theme-sun' : 'theme-moon', getSettings().theme === 'dark' ? ' 浅色' : ' 深色', 'btn-ghost btn-sm', () => {
-    setSetting('theme', getSettings().theme === 'dark' ? 'light' : 'dark');
-    applyTheme();
+    toggleTheme();
     navigate();
   });
+  const searchCtx = { toggleTheme, openSettings };
+  const searchBtn = commandPaletteButton(searchCtx);
+  const ghBtn = githubButton();
   const histBtn = iconBtn('history', ' 历史', 'btn-ghost btn-sm', () => { location.hash = '#/history'; });
   const setBtn = iconBtn('settings', ' 设置', 'btn-ghost btn-sm', () => openSettings());
-  tbBtns.append(themeBtn, trayToggleButton(), histBtn, setBtn);
+  tbBtns.append(searchBtn, themeBtn, trayToggleButton(), histBtn, ghBtn, setBtn);
   topbar.appendChild(tbBtns);
 
   const content = document.createElement('div');
-  content.className = 'content';
+  content.className = 'content page-enter';
 
   if (tool) {
     const ws = document.createElement('div');
@@ -351,31 +371,92 @@ async function renderHistory(content) {
   }
 }
 
+const ACCENTS = [
+  { id: 'neutral', label: '中性（默认）', swatch: '#18181b', dark: '#fafafa' },
+  { id: 'blue', label: '蓝色', swatch: '#2563eb', dark: '#3b82f6' },
+  { id: 'violet', label: '紫色', swatch: '#7c3aed', dark: '#a78bfa' },
+  { id: 'green', label: '绿色', swatch: '#16a34a', dark: '#22c55e' },
+  { id: 'amber', label: '琥珀', swatch: '#d97706', dark: '#f59e0b' },
+  { id: 'red', label: '红色', swatch: '#dc2626', dark: '#ef4444' },
+];
+
+function secTitle(text) {
+  const d = document.createElement('div');
+  d.className = 'set-sec-title';
+  d.textContent = text;
+  return d;
+}
+
 function openSettings() {
   const s = getSettings();
   const box = document.createElement('div');
-  const rows = [
-    field('主题', (() => {
-      const sel = document.createElement('select');
-      sel.innerHTML = '<option value="light">浅色</option><option value="dark">深色</option><option value="auto">跟随系统</option>';
-      sel.value = s.theme;
-      sel.onchange = () => { setSetting('theme', sel.value); applyTheme(); };
-      return sel;
-    })()),
-    field('图标方案', (() => {
-      const sel = document.createElement('select');
-      sel.innerHTML = '<option value="svg">手绘线描 SVG（默认）</option><option value="color">多彩手绘 SVG</option><option value="emoji">原版 emoji</option>';
-      sel.value = s.iconSet || 'svg';
-      sel.onchange = () => { setSetting('iconSet', sel.value); navigate(); };
-      return sel;
-    })()),
-    field('单文件大小上限（MB）', (() => { const i = document.createElement('input'); i.type = 'number'; i.value = s.maxUploadMB; i.min = 1; i.max = 2048; i.onchange = () => setSetting('maxUploadMB', +i.value || 500); return i; })()),
-    field('历史保留配额（MB）', (() => { const i = document.createElement('input'); i.type = 'number'; i.value = s.historyQuotaMB; i.min = 50; i.max = 10240; i.onchange = () => setSetting('historyQuotaMB', +i.value || 500); return i; })()),
-    field('OCR 识别 DPI', (() => { const i = document.createElement('input'); i.type = 'number'; i.value = s.ocrDpi; i.min = 96; i.max = 300; i.step = 8; i.onchange = () => setSetting('ocrDpi', +i.value || 200); return i; })(), '越高识别越准、越慢'),
-  ];
-  rows.forEach((r) => box.appendChild(r));
+
+  // ---- 外观 ----
+  box.appendChild(secTitle('外观'));
+  box.appendChild(field('主题', (() => {
+    const sel = select([
+      { value: 'light', label: '浅色' },
+      { value: 'dark', label: '深色' },
+      { value: 'auto', label: '跟随系统' },
+    ], s.theme);
+    sel.onchange = () => { setSetting('theme', sel.value); applyTheme(); };
+    return sel;
+  })()));
+  const accentRow = document.createElement('div');
+  accentRow.className = 'accent-row';
+  const dark = isDarkTheme();
+  for (const a of ACCENTS) {
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.className = 'accent-swatch';
+    sw.title = a.label;
+    sw.setAttribute('aria-label', `主题色：${a.label}`);
+    sw.style.background = dark ? a.dark : a.swatch;
+    if ((s.accent || 'neutral') === a.id) sw.setAttribute('data-selected', '');
+    sw.onclick = () => {
+      setSetting('accent', a.id);
+      accentRow.querySelectorAll('.accent-swatch').forEach((x) => x.removeAttribute('data-selected'));
+      sw.setAttribute('data-selected', '');
+      applyTheme();
+    };
+    accentRow.appendChild(sw);
+  }
+  const accentField = field('主题色', accentRow, '按钮、选中态与焦点环的强调色（默认中性黑，对齐 ui.shadcn.com）');
+  accentField.querySelector('div.accent-row').style.marginTop = '2px';
+  box.appendChild(accentField);
+  box.appendChild(field('圆角', (() => {
+    const sel = select([
+      { value: 'none', label: '直角' },
+      { value: 'sm', label: '小' },
+      { value: 'default', label: '默认（0.625rem）' },
+      { value: 'lg', label: '大' },
+      { value: 'xl', label: '特大' },
+    ], s.radius || 'default');
+    sel.onchange = () => { setSetting('radius', sel.value); applyTheme(); };
+    return sel;
+  })()));
+  const motionCb = checkbox('启用界面动画与过渡（页面切换、弹层等）', s.motion !== false);
+  motionCb._input.onchange = () => { setSetting('motion', motionCb._input.checked); applyTheme(); };
+  box.appendChild(motionCb);
+  box.appendChild(field('图标方案', (() => {
+    const sel = select([
+      { value: 'svg', label: '手绘线描 SVG（默认）' },
+      { value: 'color', label: '多彩手绘 SVG' },
+      { value: 'emoji', label: '原版 emoji' },
+    ], s.iconSet || 'svg');
+    sel.onchange = () => { setSetting('iconSet', sel.value); navigate(); };
+    return sel;
+  })()));
+
+  // ---- 处理 ----
+  box.appendChild(secTitle('处理'));
+  box.appendChild(field('单文件大小上限（MB）', (() => { const i = numberInput(s.maxUploadMB); i.min = 1; i.max = 2048; i.onchange = () => setSetting('maxUploadMB', +i.value || 500); return i; })()));
+  box.appendChild(field('历史保留配额（MB）', (() => { const i = numberInput(s.historyQuotaMB); i.min = 50; i.max = 10240; i.onchange = () => setSetting('historyQuotaMB', +i.value || 500); return i; })()));
+  box.appendChild(field('OCR 识别 DPI', (() => { const i = numberInput(s.ocrDpi); i.min = 96; i.max = 300; i.step = 8; i.onchange = () => setSetting('ocrDpi', +i.value || 200); return i; })(), '越高识别越准、越慢'));
+
+  // ---- 收藏 ----
+  box.appendChild(secTitle('收藏'));
   const favRow = document.createElement('div');
-  favRow.className = 'field';
   favRow.appendChild(button('恢复默认收藏', 'btn-outline btn-sm', () => {
     resetFavorites();
     toast(`已恢复默认收藏（${defaultFavoriteIds().length} 个核心工具）`);
@@ -385,9 +466,38 @@ function openSettings() {
   }));
   const favHint = document.createElement('div');
   favHint.className = 'hint';
-  favHint.textContent = '撤销全部星标调整，首页恢复为 15 个核心工具';
+  favHint.style.marginTop = '6px';
+  favHint.textContent = '撤销全部星标调整，首页恢复为默认收藏的工具';
   favRow.appendChild(favHint);
   box.appendChild(favRow);
+
+  // ---- 关于 ----
+  box.appendChild(secTitle('关于'));
+  const about = document.createElement('div');
+  about.style.cssText = 'border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);padding:14px;background:var(--secondary)';
+  const nameRow = document.createElement('div');
+  nameRow.className = 'about-row';
+  nameRow.innerHTML = `<b>${esc(APP_NAME)}</b><span class="ver-mono">${esc(APP_VERSION_FULL)}</span>`;
+  const licRow = document.createElement('div');
+  licRow.className = 'about-row';
+  licRow.innerHTML = `<span class="muted-sm">开源协议 ${esc(APP_LICENSE)} · 全部处理在本地浏览器完成，文件不上传</span>`;
+  const linkRow = document.createElement('div');
+  linkRow.style.cssText = 'display:flex;gap:8px;margin-top:8px;flex-wrap:wrap';
+  const repoBtn = document.createElement('a');
+  repoBtn.className = 'btn btn-outline btn-sm';
+  repoBtn.href = APP_REPO;
+  repoBtn.target = '_blank';
+  repoBtn.rel = 'noopener noreferrer';
+  repoBtn.textContent = 'GitHub 仓库';
+  const issueBtn = document.createElement('a');
+  issueBtn.className = 'btn btn-ghost btn-sm';
+  issueBtn.href = APP_REPO_ISSUES;
+  issueBtn.target = '_blank';
+  issueBtn.rel = 'noopener noreferrer';
+  issueBtn.textContent = '问题反馈 (Issues)';
+  linkRow.append(repoBtn, issueBtn);
+  about.append(nameRow, licRow, linkRow);
+  box.appendChild(about);
   const note = document.createElement('div');
   note.className = 'note';
   note.textContent = '设置仅保存在本机浏览器，不会包含任何密码。';
@@ -401,3 +511,10 @@ applyTheme();
 try { if (localStorage.getItem('pdftoolkit.tray.collapsed') === '1') document.body.classList.add('tray-collapsed'); } catch { /* 忽略 */ }
 probeFonts().then((r) => { fontAvailability = r; setLimitsFromSettings(); navigate(); });
 window.addEventListener('hashchange', navigate);
+// ⌘K / Ctrl+K 打开全局功能搜索（shadcn Command 风格）
+window.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    openCommandPalette({ toggleTheme, openSettings });
+  }
+});

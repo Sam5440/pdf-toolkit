@@ -14,8 +14,8 @@
 }
 .side-brand .logo {
   width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
-  background: linear-gradient(135deg, var(--primary), #7c3aed);
-  color: #fff; display: flex; align-items: center; justify-content: center;
+  background: var(--primary); color: var(--primary-foreground);
+  display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 800;
 }
 .side-group { padding: 10px 10px 2px; font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.06em; }

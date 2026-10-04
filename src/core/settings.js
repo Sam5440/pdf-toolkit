@@ -3,6 +3,9 @@ const KEY = 'pdftoolkit.settings.v1';
 
 const DEFAULTS = {
   theme: 'light',                 // light | dark | auto
+  accent: 'neutral',              // neutral | blue | violet | green | amber | red（强调色）
+  radius: 'default',              // none | sm | default | lg | xl（圆角档位）
+  motion: true,                   // 界面动画与过渡
   iconSet: 'svg',                 // svg（手绘线描，默认）| color（多彩手绘）| emoji（原版 emoji）
   maxUploadMB: 500,               // 单文件上限
   warnUploadMB: 100,              // 提示阈值

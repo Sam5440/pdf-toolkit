@@ -586,3 +586,86 @@ table.data tr:last-child td { border-bottom: none; }
 .dark .mdx-code .hljs-deletion { color: #ffdcd7; }
 .dark .mdx-code .hljs-section { color: #79c0ff; font-weight: 600; }
 .dark .mdx-code .hljs-bullet { color: #f2cc60; }
+
+/* ============================================================
+   shadcn Command 全局搜索（⌘K）+ kbd 键位 + 设置页新控件
+   ============================================================ */
+.kbd {
+  pointer-events: none; display: inline-flex; align-items: center; gap: 2px;
+  border: 1px solid var(--border); background: var(--secondary); color: var(--muted-foreground);
+  border-radius: calc(var(--radius) - 5px); padding: 1px 5px;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 600; line-height: 1.4;
+}
+
+.cmdk-mask {
+  position: fixed; inset: 0; background: rgba(2, 6, 23, 0.55);
+  display: flex; align-items: flex-start; justify-content: center; z-index: 120;
+  padding: 14vh 16px 24px; animation: sc-fade-in 0.16s ease;
+}
+.cmdk {
+  width: min(620px, 94vw); max-height: min(500px, 72vh);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--popover); color: var(--popover-foreground);
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: sc-dialog-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cmdk-input-row { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.cmdk-input-row .cmdk-ico { display: inline-flex; width: 17px; height: 17px; flex-shrink: 0; color: var(--muted-foreground); }
+.cmdk-input-row .cmdk-ico svg { width: 100%; height: 100%; }
+.cmdk-input-row input {
+  flex: 1; height: 48px; border: none; box-shadow: none; background: transparent;
+  font-size: 14.5px; padding: 0;
+}
+.cmdk-input-row input:focus { outline: none; border: none; box-shadow: none; }
+.cmdk-list { overflow-y: auto; overscroll-behavior: contain; padding: 6px; flex: 1; min-height: 60px; }
+.cmdk-group-label {
+  font-size: 11px; font-weight: 600; color: var(--muted-foreground);
+  padding: 8px 10px 3px; letter-spacing: 0.02em;
+}
+.cmdk-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: calc(var(--radius) - 4px);
+  cursor: pointer; user-select: none; outline: none;
+}
+.cmdk-item[data-active] { background: var(--accent); color: var(--accent-foreground); }
+.cmdk-item .ci-ico { display: inline-flex; width: 18px; height: 18px; flex-shrink: 0; color: var(--muted-foreground); }
+.cmdk-item[data-active] .ci-ico { color: var(--accent-foreground); }
+.cmdk-item .ci-ico .icon-svg { width: 18px; height: 18px; }
+.cmdk-item .ci-main { flex: 1; min-width: 0; }
+.cmdk-item .ci-name { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 500; }
+.cmdk-item .ci-name mark {
+  background: color-mix(in srgb, var(--foreground) 12%, transparent);
+  color: inherit; border-radius: 3px; padding: 0 1px;
+}
+.cmdk-item .ci-desc {
+  font-size: 12px; color: var(--muted-foreground); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cmdk-item .ci-group { font-size: 11px; color: var(--muted-foreground); flex-shrink: 0; }
+.cmdk-empty { padding: 30px 16px; text-align: center; color: var(--muted-foreground); font-size: 13px; }
+.cmdk-foot {
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 14px; border-top: 1px solid var(--border);
+  color: var(--muted-foreground); font-size: 11.5px; flex-shrink: 0;
+}
+.cmdk-foot .spacer { flex: 1; }
+
+/* ---- 设置页：分区标题 / 主题色 swatch / 版本卡 ---- */
+.set-sec-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+  color: var(--muted-foreground); margin: 18px 0 8px;
+}
+.set-sec-title:first-child { margin-top: 0; }
+.accent-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.accent-swatch {
+  width: 28px; height: 28px; border-radius: 9999px; cursor: pointer; padding: 0;
+  border: 1px solid rgba(2, 6, 23, 0.15);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.accent-swatch:hover { transform: scale(1.08); }
+.accent-swatch[data-selected] { box-shadow: 0 0 0 2px var(--popover), 0 0 0 4px var(--ring); }
+.accent-swatch:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--popover), 0 0 0 4px var(--ring); }
+.about-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }
+.about-row b { font-weight: 600; }
+.ver-mono { font-family: var(--mono); font-size: 12px; color: var(--muted-foreground); }

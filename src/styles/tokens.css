@@ -1,27 +1,29 @@
 /* ============================================================
-   设计令牌 — shadcn/ui 官方令牌体系（slate 中性色 + 品牌 blue primary）
+   设计令牌 — shadcn/ui 官方默认主题（Neutral 中性色，对齐 ui.shadcn.com）
    旧令牌（--bg/--text/--muted…）作为别名保留，全站存量样式零破坏。
+   可选强调色：html[data-accent=blue|violet|green|amber|red] 覆盖品牌色；
+   圆角档位：html[data-radius=sm|lg|xl]；动效开关：html[data-motion=off]。
    ============================================================ */
 :root {
-  /* ---- shadcn/ui 语义令牌 ---- */
+  /* ---- shadcn/ui 语义令牌（Neutral） ---- */
   --background: #ffffff;
-  --foreground: #0f172a;
+  --foreground: #09090b;
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #09090b;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted-foreground: #64748b;
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
+  --popover-foreground: #09090b;
+  --primary: #18181b;
+  --primary-foreground: #fafafa;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #cbd5e1;
-  --ring: #2563eb;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #71717a;
   --radius: 0.625rem;
   --radius-sm: calc(var(--radius) - 3px);
   --radius-lg: var(--radius);
@@ -32,15 +34,15 @@
   /* ---- 旧令牌别名（映射到 shadcn 语义，存量样式继续生效） ---- */
   --bg: var(--background);
   --bg-soft: var(--secondary);
-  --card-hover: #f8fafc;
+  --card-hover: #fafafa;
   --text: var(--foreground);
   --text-soft: var(--muted-foreground);
   /* 注意：旧 --muted 是"弱化文字色"，等价 shadcn 的 --muted-foreground；
      shadcn 的 --muted（弱化背景）在本项目新样式里一律用 --secondary/--accent 表达 */
   --muted: var(--muted-foreground);
-  --border-strong: #cbd5e1;
-  --primary-hover: #1d4ed8;
-  --primary-soft: #dbeafe;
+  --border-strong: #d4d4d8;
+  --primary-hover: #3f3f46;
+  --primary-soft: #f4f4f5;
   --on-primary: var(--primary-foreground);
   --ok: var(--success);
   --ok-soft: #dcfce7;
@@ -49,37 +51,37 @@
   --no: var(--destructive);
   --no-soft: #fee2e2;
 
-  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.05);
-  --shadow-sm: 0 1px 3px 0 rgb(15 23 42 / 0.1), 0 1px 2px -1px rgb(15 23 42 / 0.1);
-  --shadow: 0 4px 16px rgb(15 23 42 / 0.08);
-  --shadow-lg: 0 12px 40px rgb(15 23 42 / 0.16);
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow: 0 4px 16px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 12px 40px rgb(0 0 0 / 0.16);
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
 }
 .dark {
-  --background: #0b1220;
-  --foreground: #e2e8f0;
-  --card: #111a2c;
-  --card-foreground: #e2e8f0;
-  --popover: #152034;
-  --popover-foreground: #e2e8f0;
-  --primary: #3b82f6;
-  --primary-foreground: #ffffff;
-  --secondary: #1e293b;
-  --secondary-foreground: #e2e8f0;
-  --muted-foreground: #94a3b8;
-  --accent: #1e293b;
-  --accent-foreground: #e2e8f0;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #18181b;
+  --card-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #18181b;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #1e293b;
-  --input: #334155;
-  --ring: #3b82f6;
-  --card-hover: #16203a;
-  --primary-hover: #60a5fa;
-  --primary-soft: #172554;
-  --border-strong: #334155;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #a1a1aa;
+  --card-hover: #1f1f23;
+  --primary-hover: #d4d4d8;
+  --primary-soft: #27272a;
+  --border-strong: #3f3f46;
   --ok: #22c55e;
   --ok-soft: #052e16;
   --warn: #f59e0b;
@@ -90,6 +92,66 @@
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.45), 0 1px 2px -1px rgb(0 0 0 / 0.45);
   --shadow: 0 4px 16px rgb(0 0 0 / 0.45);
   --shadow-lg: 0 12px 40px rgb(0 0 0 / 0.55);
+}
+
+/* ---- 强调色定制（对齐 ui.shadcn.com 主题色选择器；默认 neutral 即上方基础令牌） ---- */
+:root[data-accent="blue"] {
+  --primary: #2563eb; --primary-foreground: #ffffff; --ring: #2563eb;
+  --primary-hover: #1d4ed8; --primary-soft: #dbeafe;
+}
+.dark[data-accent="blue"] {
+  --primary: #3b82f6; --primary-foreground: #ffffff; --ring: #3b82f6;
+  --primary-hover: #60a5fa; --primary-soft: #172554;
+}
+:root[data-accent="violet"] {
+  --primary: #7c3aed; --primary-foreground: #ffffff; --ring: #7c3aed;
+  --primary-hover: #6d28d9; --primary-soft: #ede9fe;
+}
+.dark[data-accent="violet"] {
+  --primary: #a78bfa; --primary-foreground: #2e1065; --ring: #a78bfa;
+  --primary-hover: #c4b5fd; --primary-soft: #2e1065;
+}
+:root[data-accent="green"] {
+  --primary: #16a34a; --primary-foreground: #ffffff; --ring: #16a34a;
+  --primary-hover: #15803d; --primary-soft: #dcfce7;
+}
+.dark[data-accent="green"] {
+  --primary: #22c55e; --primary-foreground: #052e16; --ring: #22c55e;
+  --primary-hover: #4ade80; --primary-soft: #052e16;
+}
+:root[data-accent="amber"] {
+  --primary: #d97706; --primary-foreground: #ffffff; --ring: #d97706;
+  --primary-hover: #b45309; --primary-soft: #fef3c7;
+}
+.dark[data-accent="amber"] {
+  --primary: #f59e0b; --primary-foreground: #451a03; --ring: #f59e0b;
+  --primary-hover: #fbbf24; --primary-soft: #451a03;
+}
+:root[data-accent="red"] {
+  --primary: #dc2626; --primary-foreground: #ffffff; --ring: #dc2626;
+  --primary-hover: #b91c1c; --primary-soft: #fee2e2;
+}
+.dark[data-accent="red"] {
+  --primary: #ef4444; --primary-foreground: #ffffff; --ring: #ef4444;
+  --primary-hover: #f87171; --primary-soft: #450a0a;
+}
+
+/* ---- 圆角档位（对齐 shadcn 主题定制器） ---- */
+:root[data-radius="none"] { --radius: 0rem; }
+:root[data-radius="sm"] { --radius: 0.3rem; }
+:root[data-radius="lg"] { --radius: 0.875rem; }
+:root[data-radius="xl"] { --radius: 1.25rem; }
+
+/* ---- 动效开关 ---- */
+[data-motion="off"] *,
+[data-motion="off"] *::before,
+[data-motion="off"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter { animation: none !important; }
 }
 
 * { box-sizing: border-box; }
@@ -127,7 +189,7 @@ body {
   background-color: color-mix(in srgb, var(--muted-foreground) 65%, transparent);
 }
 
-::selection { background: var(--primary-soft); }
+::selection { background: var(--accent); }
 
 .boot-splash {
   min-height: 100vh; display: flex; flex-direction: column;
@@ -135,8 +197,15 @@ body {
 }
 .boot-logo {
   width: 64px; height: 64px; border-radius: 16px;
-  background: linear-gradient(135deg, var(--primary), #7c3aed);
-  color: #fff; display: flex; align-items: center; justify-content: center;
+  background: var(--primary); color: var(--primary-foreground);
+  display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-size: 20px; letter-spacing: 0.5px;
 }
 .boot-text { color: var(--text-soft); }
+
+/* ---- 页面切换动画（路由渲染时由 main.js 挂 .page-enter） ---- */
+.page-enter { animation: page-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
