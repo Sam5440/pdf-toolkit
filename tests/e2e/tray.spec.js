@@ -114,8 +114,9 @@ test.describe('PDF 暂存区', () => {
   test('清空需确认；左侧编辑区文件不受影响；顶栏开关可收起面板', async ({ page }) => {
     await openTool(page, 'merge');
     await upload(page, ['multi3.pdf']);
-    page.once('dialog', (d) => d.accept());
     await page.locator('.tray-foot').getByRole('button', { name: '移除暂存区全部文件' }).click();
+    // 应用内 shadcn AlertDialog 确认（原生 confirm 已移除）
+    await page.locator('[data-cd-confirm]').click();
     await expect(page.locator('.tray-rail .tray-empty')).toBeVisible();
     await expect(page.locator('.file-list .tag')).toHaveCount(1);
     // 顶栏开关收起/展开右侧栏

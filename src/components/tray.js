@@ -6,7 +6,7 @@ import {
   onTrayChange, TRAY_MIME, getTrayItem,
 } from '../core/tray.js';
 import { sendToActivePanel } from './input.js';
-import { toast, button, openModal } from './ui.js';
+import { toast, button, openModal, confirmDialog } from './ui.js';
 import { iconNode } from './icons.js';
 import { downloadArtifact } from '../core/download.js';
 import { ensureDoc, run } from '../core/engine.js';
@@ -219,7 +219,7 @@ function buildRail() {
       <span class="tray-ico" data-ico></span>
       <span class="tray-title">PDF 暂存区</span>
       <span class="badge badge-primary" data-count>0</span>
-      <button class="btn btn-ghost btn-sm tray-fold" data-fold aria-label="收起/展开暂存区">›</button>
+      <button class="btn btn-ghost btn-sm btn-icon tray-fold" data-fold aria-label="收起/展开暂存区"><span class="tray-fold-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span></button>
     </div>
     <div class="tray-tools" data-tools></div>
     <div class="tray-body" data-body></div>
@@ -242,7 +242,7 @@ function buildRail() {
   };
   function syncFold() {
     const collapsed = document.body.classList.contains('tray-collapsed');
-    foldBtn.textContent = collapsed ? '‹' : '›';
+    foldBtn.querySelector('.tray-fold-ico').style.transform = collapsed ? 'rotate(180deg)' : '';
   }
   syncFold();
 
@@ -272,7 +272,13 @@ function buildRail() {
 
   const clearBtn = button('清空', 'btn-ghost btn-sm', async () => {
     if (!trayCount()) return;
-    if (!confirm(`确定清空暂存区的 ${trayCount()} 个文件？（不影响已下载或已保存的文件）`)) return;
+    const ok = await confirmDialog({
+      title: '清空暂存区',
+      message: `确定清空暂存区的 ${trayCount()} 个文件？（不影响已下载或已保存的文件）`,
+      confirmText: '清空',
+      destructive: true,
+    });
+    if (!ok) return;
     clearTray();
   });
   // 带上下文的 accessible name：可见文字保持简短，且不与工具页自身的「下载/清空」按钮混淆

@@ -5,7 +5,8 @@ import './styles/workspace.css';
 
 import { TOOLS, GROUPS, getTool } from './tools/registry.js';
 import { esc, fmtTime2, fmtBytes } from './core/format.js';
-import { toast, openModal, button, field, favStar } from './components/ui.js';
+import { toast, openModal, confirmDialog, button, field, favStar } from './components/ui.js';
+import { initShadcn } from './components/shadcn.js';
 import { iconNode } from './components/icons.js';
 import { getSettings, setSetting } from './core/settings.js';
 import { listHistory, getHistory, deleteHistory, clearHistory, historyUsedBytes } from './core/history.js';
@@ -284,7 +285,13 @@ async function renderHistory(content) {
   head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
   head.innerHTML = `<b>本地历史记录</b><span class="muted-sm">占用 ${fmtBytes(used)}</span>`;
   const clearBtn = button('清空全部', 'btn-danger btn-sm', async () => {
-    if (!confirm('确定清空全部本地历史记录？此操作不可恢复。')) return;
+    const ok = await confirmDialog({
+      title: '清空本地历史记录',
+      message: '确定清空全部本地历史记录？此操作不可恢复。',
+      confirmText: '清空',
+      destructive: true,
+    });
+    if (!ok) return;
     await clearHistory();
     toast('已清空');
     renderApp(null);
@@ -389,6 +396,7 @@ function openSettings() {
 }
 
 // 启动
+initShadcn();
 applyTheme();
 try { if (localStorage.getItem('pdftoolkit.tray.collapsed') === '1') document.body.classList.add('tray-collapsed'); } catch { /* 忽略 */ }
 probeFonts().then((r) => { fontAvailability = r; setLimitsFromSettings(); navigate(); });

@@ -1,70 +1,133 @@
-/* 设计令牌 — shadcn 风格，继承原压缩工具的明暗主题体系 */
+/* ============================================================
+   设计令牌 — shadcn/ui 官方令牌体系（slate 中性色 + 品牌 blue primary）
+   旧令牌（--bg/--text/--muted…）作为别名保留，全站存量样式零破坏。
+   ============================================================ */
 :root {
-  --bg: #f8fafc;
-  --bg-soft: #f1f5f9;
+  /* ---- shadcn/ui 语义令牌 ---- */
+  --background: #ffffff;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --card-hover: #f8fafc;
-  --text: #0f172a;
-  --text-soft: #475569;
-  --muted: #94a3b8;
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
   --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #cbd5e1;
+  --ring: #2563eb;
+  --radius: 0.625rem;
+  --radius-sm: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --success: #16a34a;
+  --warning: #d97706;
+
+  /* ---- 旧令牌别名（映射到 shadcn 语义，存量样式继续生效） ---- */
+  --bg: var(--background);
+  --bg-soft: var(--secondary);
+  --card-hover: #f8fafc;
+  --text: var(--foreground);
+  --text-soft: var(--muted-foreground);
+  /* 注意：旧 --muted 是"弱化文字色"，等价 shadcn 的 --muted-foreground；
+     shadcn 的 --muted（弱化背景）在本项目新样式里一律用 --secondary/--accent 表达 */
+  --muted: var(--muted-foreground);
+  --border-strong: #cbd5e1;
   --primary-hover: #1d4ed8;
   --primary-soft: #dbeafe;
-  --on-primary: #ffffff;
-  --ok: #16a34a;
+  --on-primary: var(--primary-foreground);
+  --ok: var(--success);
   --ok-soft: #dcfce7;
-  --warn: #d97706;
+  --warn: var(--warning);
   --warn-soft: #fef3c7;
-  --no: #dc2626;
+  --no: var(--destructive);
   --no-soft: #fee2e2;
-  --ring: rgba(37, 99, 235, 0.35);
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.16);
-  --radius: 10px;
-  --radius-sm: 7px;
+
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(15 23 42 / 0.1), 0 1px 2px -1px rgb(15 23 42 / 0.1);
+  --shadow: 0 4px 16px rgb(15 23 42 / 0.08);
+  --shadow-lg: 0 12px 40px rgb(15 23 42 / 0.16);
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
 }
 .dark {
-  --bg: #0b1220;
-  --bg-soft: #0f172a;
+  --background: #0b1220;
+  --foreground: #e2e8f0;
   --card: #111a2c;
-  --card-hover: #16203a;
-  --text: #e2e8f0;
-  --text-soft: #94a3b8;
-  --muted: #64748b;
-  --border: #1e293b;
-  --border-strong: #334155;
+  --card-foreground: #e2e8f0;
+  --popover: #152034;
+  --popover-foreground: #e2e8f0;
   --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
+  --muted-foreground: #94a3b8;
+  --accent: #1e293b;
+  --accent-foreground: #e2e8f0;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #1e293b;
+  --input: #334155;
+  --ring: #3b82f6;
+  --card-hover: #16203a;
   --primary-hover: #60a5fa;
   --primary-soft: #172554;
-  --on-primary: #ffffff;
+  --border-strong: #334155;
   --ok: #22c55e;
   --ok-soft: #052e16;
   --warn: #f59e0b;
   --warn-soft: #451a03;
   --no: #ef4444;
   --no-soft: #450a0a;
-  --ring: rgba(59, 130, 246, 0.45);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.55);
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.45), 0 1px 2px -1px rgb(0 0 0 / 0.45);
+  --shadow: 0 4px 16px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 12px 40px rgb(0 0 0 / 0.55);
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
   font-family: var(--sans);
-  background: var(--bg);
-  color: var(--text);
+  background: var(--background);
+  color: var(--foreground);
   font-size: 14px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
+
+/* ============================================================
+   全局滚动条 — shadcn/ui ScrollArea 规范：
+   细轨透明、拇指 bg-border 圆角胶囊、hover 加深（WebKit + Firefox）
+   ============================================================ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+  border: 2.5px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--muted-foreground) 45%, transparent);
+}
+::-webkit-scrollbar-thumb:active {
+  background-color: color-mix(in srgb, var(--muted-foreground) 65%, transparent);
+}
+
+::selection { background: var(--primary-soft); }
 
 .boot-splash {
   min-height: 100vh; display: flex; flex-direction: column;
@@ -77,5 +140,3 @@ body {
   font-weight: 800; font-size: 20px; letter-spacing: 0.5px;
 }
 .boot-text { color: var(--text-soft); }
-
-::selection { background: var(--primary-soft); }

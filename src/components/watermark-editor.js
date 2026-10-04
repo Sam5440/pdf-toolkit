@@ -640,9 +640,11 @@ function ensureStyles() {
 .wm-li-x { cursor: pointer; color: var(--muted, #8892a4); font-weight: 700; padding: 0 3px; }
 .wm-li-x:hover { color: var(--no, #c02626); }
 .wm-anchor-grid { display: grid; grid-template-columns: repeat(3, 40px); gap: 4px; }
-.wm-anchor-btn { width: 40px; height: 30px; border: 1px solid var(--border, #d8dee8); border-radius: 6px; background: var(--card, #fff);
-  cursor: pointer; font-size: 13px; color: var(--muted, #8892a4); padding: 0; }
-.wm-anchor-btn:hover { border-color: var(--border-strong, #b9c3d3); }
+.wm-anchor-btn { width: 40px; height: 30px; border: 1px solid var(--input, #cbd5e1); border-radius: calc(var(--radius, 10px) - 3px); background: var(--card, #fff);
+  cursor: pointer; font-size: 13px; color: var(--muted-foreground, #64748b); padding: 0; box-shadow: var(--shadow-xs, none);
+  transition: border-color .15s, background .15s, color .15s, box-shadow .15s; }
+.wm-anchor-btn:hover { background: var(--accent, #f1f5f9); color: var(--accent-foreground, #0f172a); }
+.wm-anchor-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring, #2563eb) 35%, transparent); }
 .wm-anchor-btn.sel { border-color: var(--primary, #2563eb); background: var(--primary-soft, #e8effc); color: var(--primary, #2563eb); font-weight: 700; }
 .wm-param-sec { border-top: 1px dashed var(--border, #d8dee8); margin-top: 12px; padding-top: 10px; }
 .wm-sec-title { font-size: 12px; font-weight: 700; color: var(--muted, #8892a4); letter-spacing: .04em; margin-bottom: 8px; }

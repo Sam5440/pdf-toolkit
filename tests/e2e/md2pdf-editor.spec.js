@@ -58,8 +58,9 @@ test.describe('md2pdf 在线编辑器', () => {
     const ta = page.locator('[data-md-text]');
     await ta.fill('# 待清空\n\n内容');
     await expect(page.locator('[data-md-draft-state]')).toContainText('已暂存', { timeout: 10_000 });
-    page.on('dialog', (d) => d.accept());
     await page.getByRole('button', { name: '清空' }).click();
+    // 应用内 shadcn AlertDialog 确认（原生 confirm 已移除）
+    await page.locator('[data-cd-confirm]').click();
     await expect(ta).toHaveValue('');
     await expect(page.locator('[data-md-draft-state]')).toContainText('未暂存');
     await expect(page.getByRole('button', { name: '开始转换' })).toBeDisabled();

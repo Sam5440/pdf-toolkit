@@ -11,7 +11,7 @@ import { registerTool } from '../core.js';
 import { run } from '../../core/engine.js';
 import { addResultArtifacts } from '../../core/tray.js';
 import { inputPanel } from '../../components/input.js';
-import { field, select, button, checkbox, toast } from '../../components/ui.js';
+import { field, select, button, checkbox, toast, confirmDialog } from '../../components/ui.js';
 import { paramsCard, resultCard, runWithProgress } from './common.js';
 import { parseToBlocks, decodeText } from '../../core/importers.js';
 import { parseMarkdownRich, renderRichBlocks, getSelfContainedKatexCss } from '../../core/mdrender.js';
@@ -262,9 +262,14 @@ registerTool({
       draftSave();
       schedulePreview(200);
     });
-    const clearBtn = button('清空', 'btn-ghost btn-xs', () => {
+    const clearBtn = button('清空', 'btn-ghost btn-xs', async () => {
       if (!ta.value && !localStorage.getItem(DRAFT_KEY)) return;
-      if (!confirm('确定清空编辑器内容与暂存草稿？')) return;
+      if (!(await confirmDialog({
+        title: '清空编辑器',
+        message: '确定清空编辑器内容与暂存草稿？',
+        confirmText: '清空',
+        destructive: true,
+      }))) return;
       ta.value = '';
       state.name = '未命名.md';
       try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }

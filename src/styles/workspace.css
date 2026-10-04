@@ -78,7 +78,7 @@
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 15px; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
   text-align: left; font-family: inherit; color: var(--text); display: block; width: 100%;
-  position: relative;
+  position: relative; text-decoration: none;
 }
 .tool-card:hover { border-color: var(--primary); box-shadow: var(--shadow); transform: translateY(-1px); }
 .tool-card .tc-ico {
@@ -210,7 +210,9 @@ body.tray-collapsed .tray-rail { display: none; }
 .tray-head .tray-ico { color: var(--primary); display: inline-flex; }
 .tray-head .tray-ico .icon-svg { width: 18px; height: 18px; }
 .tray-title { flex: 1; min-width: 0; }
-.tray-fold { padding: 2px 8px !important; font-size: 16px; line-height: 1; }
+.tray-fold { padding: 0 !important; }
+.tray-fold-ico { display: inline-flex; width: 16px; height: 16px; transition: transform 0.15s; }
+.tray-fold-ico svg { width: 100%; height: 100%; display: block; }
 .tray-tools {
   display: flex; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--border);
   align-items: center; flex-wrap: wrap;

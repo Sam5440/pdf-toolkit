@@ -1,8 +1,13 @@
-// 轻量 UI 基础组件：toast / modal / 参数表单 helpers
+// 轻量 UI 基础组件：toast / modal / confirmDialog / 参数表单 helpers
 import { esc } from '../core/format.js';
 import { isFavorite, toggleFavorite } from '../core/favorites.js';
 
 const STAR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.85 5.85 6.45.85-4.73 4.5 1.18 6.4L12 17.4l-5.75 3l1.18-6.4l-4.73-4.5l6.45-.85z"/></svg>';
+
+const X_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+const OK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>';
+const ERR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>';
+const INFO_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>';
 
 /** 工具卡片右上角收藏星标：未收藏=白色（灰描边），已收藏=黄色。
  *  onChange(on) 由调用方决定是否重渲染（首页需要即时增删卡片，专项页原位更新）。 */
@@ -42,7 +47,13 @@ export function toast(msg, type = 'ok', ms = 2600) {
   }
   const t = document.createElement('div');
   t.className = `toast toast-${type}`;
-  t.textContent = msg; // textContent 安全渲染
+  const icon = document.createElement('span');
+  icon.className = 'toast-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = type === 'error' ? ERR_SVG : type === 'info' ? INFO_SVG : OK_SVG;
+  const text = document.createElement('span');
+  text.textContent = msg; // textContent 安全渲染
+  t.append(icon, text);
   toastWrap.appendChild(t);
   setTimeout(() => t.remove(), ms);
 }
@@ -60,8 +71,8 @@ export function openModal(title, contentEl) {
   const h = document.createElement('div');
   h.textContent = title;
   const x = document.createElement('button');
-  x.className = 'btn btn-ghost btn-sm';
-  x.textContent = '✕';
+  x.className = 'btn btn-ghost btn-sm btn-icon';
+  x.innerHTML = X_SVG;
   x.setAttribute('aria-label', '关闭');
   head.append(h, x);
   const body = document.createElement('div');
@@ -82,6 +93,45 @@ export function openModal(title, contentEl) {
   document.addEventListener('keydown', onKey);
   document.body.appendChild(mask);
   return { close, box, body, setOnClose: (fn) => { onClose = fn; } };
+}
+
+/** 确认对话框（shadcn AlertDialog 风格，替代原生 confirm()）：Promise<boolean> */
+export function confirmDialog({
+  title = '确认操作',
+  message = '',
+  confirmText = '确定',
+  cancelText = '取消',
+  destructive = false,
+} = {}) {
+  return new Promise((resolve) => {
+    const body = document.createElement('div');
+    if (message) {
+      const p = document.createElement('p');
+      p.style.cssText = 'margin:0;font-size:13.5px;color:var(--text-soft);line-height:1.6';
+      p.textContent = message;
+      body.appendChild(p);
+    }
+    const foot = document.createElement('div');
+    foot.className = 'modal-foot';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn btn-outline';
+    cancelBtn.textContent = cancelText;
+    cancelBtn.setAttribute('data-cd-cancel', '');
+    const okBtn = document.createElement('button');
+    okBtn.className = `btn ${destructive ? 'btn-danger' : 'btn-primary'}`;
+    okBtn.textContent = confirmText;
+    okBtn.setAttribute('data-cd-confirm', '');
+    foot.append(cancelBtn, okBtn);
+    body.appendChild(foot);
+
+    const m = openModal(title, body);
+    let settled = false;
+    const settle = (v) => { if (!settled) { settled = true; resolve(v); } };
+    okBtn.onclick = () => { settle(true); m.close(); };
+    cancelBtn.onclick = () => { settle(false); m.close(); };
+    m.setOnClose(() => settle(false));
+    cancelBtn.focus();
+  });
 }
 
 /** 表单字段构建 helpers（全部安全 DOM 构建） */
