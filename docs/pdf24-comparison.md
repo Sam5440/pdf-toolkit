@@ -96,7 +96,7 @@
 | SVG 转 PDF | SVG转PDF | 浏览器原生解码 → 高分辨率位图嵌入 |
 | TIFF 转 PDF | TIFF转PDF | 自研 TIFF 解码器（LZW/PackBits/Deflate/无压缩） |
 | HEIC 转 PDF | HEIC转PDF | 优先原生解码（Safari 可用），失败给出明确引导 |
-| 网页转 PDF | 网页转PDF | **降级实现**：URL 直取（受 CORS 限制）或上传 .html/.mhtml → 正文抽取 → PDF（隐私模型不允许走服务器抓取） |
+| 网页转 PDF | 网页转PDF | **增强**：粘贴 HTML 源码 / URL 直取（受 CORS 限制）/ 上传 .html 一键产出 HTML 文件 + PDF；双引擎=内置正文重排（可选中文字）或浏览器打印（原样式高保真）。隐私模型不允许走服务器抓取 |
 | 扫描件转 PDF | 用摄像头创建PDF | getUserMedia 拍摄多张 → 图片转 PDF |
 
 ### 3.6 图像工具（3 个）
@@ -135,7 +135,7 @@
 
 | PDF24 工具 | 原因 |
 |---|---|
-| 网页转PDF（URL 直接走服务器抓取） | 隐私模型禁止经第三方服务器；已提供「URL 尝试 + 上传 HTML」降级版（见 3.5） |
+| 网页转PDF（URL 直接走服务器抓取） | 隐私模型禁止经第三方服务器；已提供「粘贴源码 + URL 尝试 + 上传 HTML」增强版（见 3.5） |
 | PDF转PDF/A | 真正的 PDF/A 需 ICC 色彩档案、全字体嵌入与一致性校验，浏览器引擎无法保证合规；出具假 PDF/A 反而有害 |
 | 检查 PDF/A | 同上，需 veraPDF 级校验器 |
 | 创建电子发票 / PDF发票转电子发票 / XML电子发票转PDF / 验证电子发票 | ZUGFeRD/Factur-X/XRechnung 等 EN16931 XML 标准族庞大且强校验，超出浏览器工具合理范围 |

@@ -2,7 +2,7 @@
 // 成功链路全部走真实上传（filechooser）+ 真实下载捕获；失败链路断言错误提示。
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
-import { ensureFixtures, openTool, upload, saveDownload } from './helpers.js';
+import { ensureFixtures, openTool, upload, saveDownload, ARTIFACTS } from './helpers.js';
 
 test.describe('更多 · 创建 PDF / 转换 / 小工具', () => {
   test.beforeEach(() => ensureFixtures());
@@ -109,14 +109,35 @@ test.describe('更多 · 创建 PDF / 转换 / 小工具', () => {
     await expect(page.locator('.result-artifact')).toHaveCount(0);
   });
 
-  // ---- 网页转 PDF（上传 HTML 链路） ----
-  test('webpage：上传 html → 下载 PDF', async ({ page }) => {
+  // ---- 网页转 PDF（上传 HTML → 一键出 HTML 文件 + PDF） ----
+  test('webpage：上传 html → 下载 HTML 文件 + PDF', async ({ page }) => {
     await openTool(page, 'webpage');
     await upload(page, ['sample.html'], false);
-    await page.getByRole('button', { name: '转换上传的 HTML' }).click();
-    await expect(page.getByText('处理完成')).toBeVisible({ timeout: 60_000 });
+    await page.getByRole('button', { name: '一键转换（HTML 文件 + PDF）' }).click();
+    await expect(page.getByText('处理完成：2 个文件')).toBeVisible({ timeout: 60_000 });
+    // 产物顺序 PDF 第一行（基线产物维持 webpage-out.pdf），第二行为 .html 源码快照
     const p = await saveDownload(page, '下载', 'webpage-out.pdf');
     expect(fs.statSync(p).size).toBeGreaterThan(500);
+    await expect(page.locator('.result-artifact').filter({ hasText: '.html' })).toHaveCount(1);
+  });
+
+  // ---- 网页转 PDF（粘贴源码片段的新链路） ----
+  test('webpage：粘贴 HTML 源码片段 → HTML 文件 + PDF', async ({ page }) => {
+    await openTool(page, 'webpage');
+    const ta = page.locator('[data-web-ta]');
+    await ta.fill('<h1>粘贴测试</h1><p>这段代码没有 doctype，转换时自动包壳。</p>');
+    await page.getByRole('button', { name: '一键转换（HTML 文件 + PDF）' }).click();
+    await expect(page.getByText('处理完成：2 个文件')).toBeVisible({ timeout: 60_000 });
+    const htmlRow = page.locator('.result-artifact').filter({ hasText: '.html' });
+    await expect(htmlRow).toHaveCount(1);
+    const dlP = page.waitForEvent('download', { timeout: 60_000 });
+    await htmlRow.getByRole('button', { name: '下载' }).click();
+    const dl = await dlP;
+    const dest = `${ARTIFACTS}/webpage-paste-out.html`;
+    await dl.saveAs(dest);
+    const saved = fs.readFileSync(dest, 'utf8');
+    expect(saved).toContain('<h1>粘贴测试</h1>');
+    expect(saved).toContain('<!doctype html>');
   });
 
   // ---- 扫描件转 PDF（摄像头 mock） ----
