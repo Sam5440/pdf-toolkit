@@ -57,9 +57,11 @@
   border: 1px solid transparent; border-radius: calc(var(--radius) - 2px);
   font-size: 13.5px; font-weight: 500; line-height: 1;
   font-family: inherit; cursor: pointer; user-select: none;
-  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, opacity 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, opacity 0.15s, transform 0.09s ease;
   white-space: nowrap; text-decoration: none; flex-shrink: 0;
 }
+/* 全局按压反馈：所有按钮按下轻微缩放回弹 */
+.btn:active:not(:disabled) { transform: scale(0.96); }
 .btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 35%, transparent);
@@ -664,6 +666,7 @@ table.data tr:last-child td { border-bottom: none; }
   transition: transform 0.12s, box-shadow 0.12s;
 }
 .accent-swatch:hover { transform: scale(1.08); }
+.accent-swatch:active { transform: scale(0.94); }
 .accent-swatch[data-selected] { box-shadow: 0 0 0 2px var(--popover), 0 0 0 4px var(--ring); }
 .accent-swatch:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--popover), 0 0 0 4px var(--ring); }
 .about-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }

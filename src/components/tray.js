@@ -128,6 +128,7 @@ export function openTrayPreview(items, startIndex = 0) {
       const d = document.createElement('button');
       d.type = 'button';
       d.className = 'pv-doc' + (i === cur ? ' active' : '');
+      d.style.setProperty('--stagger-i', Math.min(i, 8));
       d.setAttribute('data-pv-doc', it.id);
       d.innerHTML = `
         <span class="pv-doc-thumb" data-thumb></span>
@@ -201,6 +202,25 @@ export function openTrayPreview(items, startIndex = 0) {
 let railEl = null;
 let viewMode = null;
 
+// ---- 移动端抽屉开合（body.tray-open）：幕布也是 body 级全局单例，点击收起 ----
+let backdropEl = null;
+
+function trayBackdrop() {
+  if (!backdropEl) {
+    backdropEl = document.createElement('div');
+    backdropEl.className = 'tray-backdrop';
+    backdropEl.setAttribute('aria-hidden', 'true');
+    backdropEl.addEventListener('click', () => setTrayOpen(false));
+    document.body.appendChild(backdropEl);
+  }
+  return backdropEl;
+}
+
+/** 抽屉开合唯一入口（桌面收合 tray-collapsed 不走这里） */
+function setTrayOpen(open) {
+  document.body.classList.toggle('tray-open', open);
+}
+
 function readView() {
   if (viewMode) return viewMode;
   try { viewMode = localStorage.getItem(VIEW_KEY) === 'cover' ? 'cover' : 'list'; } catch { viewMode = 'list'; }
@@ -238,6 +258,7 @@ async function pickAndAddToTray() {
 }
 
 function buildRail() {
+  trayBackdrop(); // 幕布单例随面板首次挂载创建
   const el = document.createElement('aside');
   el.className = 'tray-rail';
   el.setAttribute('aria-label', 'PDF 暂存区');
@@ -260,7 +281,7 @@ function buildRail() {
   const foldBtn = el.querySelector('[data-fold]');
   foldBtn.onclick = () => {
     if (matchMedia('(max-width: 1020px)').matches) {
-      document.body.classList.remove('tray-open');
+      setTrayOpen(false);
     } else {
       const collapsed = document.body.classList.toggle('tray-collapsed');
       try { localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : ''); } catch { /* 忽略 */ }
@@ -278,7 +299,14 @@ function buildRail() {
     if (!document.body.classList.contains('tray-open')) return;
     if (el.contains(e.target)) return;
     if (e.target.closest?.('[data-tray-toggle]')) return;
-    document.body.classList.remove('tray-open');
+    setTrayOpen(false);
+  });
+
+  // Esc 收起抽屉（弹窗打开时让位给弹窗的 Esc 关闭）
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !document.body.classList.contains('tray-open')) return;
+    if (document.querySelector('.modal-mask')) return;
+    setTrayOpen(false);
   });
 
   const uploadBtn = button('', 'btn-outline btn-sm', pickAndAddToTray);
@@ -387,13 +415,13 @@ function buildRail() {
     if (readView() === 'cover') {
       const grid = document.createElement('div');
       grid.className = 'tray-grid';
-      for (const it of items) grid.appendChild(coverCard(it));
+      items.forEach((it, i) => grid.appendChild(coverCard(it, i)));
       body.appendChild(grid);
       grid.querySelectorAll('.tray-card').forEach((c) => observeCover(c.querySelector('.tray-cover'), c._trayItem));
     } else {
       const list = document.createElement('div');
       list.className = 'tray-list';
-      for (const it of items) list.appendChild(listRow(it));
+      items.forEach((it, i) => list.appendChild(listRow(it, i)));
       body.appendChild(list);
     }
   }
@@ -428,9 +456,10 @@ function buildRail() {
     return wrap;
   }
 
-  function listRow(it) {
+  function listRow(it, index) {
     const row = document.createElement('div');
     row.className = 'tray-item';
+    row.style.setProperty('--stagger-i', Math.min(index, 8)); // 入场交错（CSS tray-item-in）
     row.draggable = true;
     row.setAttribute('data-tray-item', it.id);
     row.innerHTML = `
@@ -450,9 +479,10 @@ function buildRail() {
     return row;
   }
 
-  function coverCard(it) {
+  function coverCard(it, index) {
     const card = document.createElement('div');
     card.className = 'tray-card';
+    card.style.setProperty('--stagger-i', Math.min(index, 8));
     card.draggable = true;
     card.setAttribute('data-tray-item', it.id);
     card._trayItem = it;
@@ -503,7 +533,7 @@ export function trayToggleButton() {
     }
   };
   toggleBtn.onclick = () => {
-    if (matchMedia('(max-width: 1020px)').matches) document.body.classList.toggle('tray-open');
+    if (matchMedia('(max-width: 1020px)').matches) setTrayOpen(!document.body.classList.contains('tray-open'));
     else document.body.classList.toggle('tray-collapsed');
   };
   onTrayChange(sync);

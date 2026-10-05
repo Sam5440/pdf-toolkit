@@ -176,4 +176,23 @@ test.describe('PDF 暂存区', () => {
     await expect(rail.locator('.ti-name')).toHaveText('dropped.pdf');
     await expect(rail).not.toHaveClass(/tray-drag/);
   });
+
+  test('移动端抽屉：滑入开合，幕布点击与 Esc 均可收起', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/');
+    const rail = page.locator('.tray-rail');
+    const backdrop = page.locator('.tray-backdrop');
+    await page.locator('[data-tray-toggle]').click();
+    await expect(rail).toBeVisible();
+    await expect(backdrop).toBeVisible();
+    // 点击幕布收起
+    await backdrop.click({ position: { x: 20, y: 300 } });
+    await expect(rail).toBeHidden();
+    await expect(backdrop).toBeHidden();
+    // 再开 → Esc 收起
+    await page.locator('[data-tray-toggle]').click();
+    await expect(rail).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(rail).toBeHidden();
+  });
 });

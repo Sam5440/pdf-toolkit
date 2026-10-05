@@ -40,9 +40,66 @@ function isDarkTheme() {
   return t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
 }
 
-function toggleTheme() {
-  setSetting('theme', isDarkTheme() ? 'light' : 'dark');
-  applyTheme();
+// ---- 主题/强调色切换动效 ------------------------------------------------
+// 支持 View Transitions 时把改动包进 startViewTransition，新状态从触发控件
+// 位置做 clip-path 圆形扫掠（样式见 tokens.css ::view-transition-*）；
+// 不支持时回退 .theme-anim 短窗全站颜色渐变。motion 关 / 系统减动效直接切换。
+// navigator.webdriver（自动化）跳过扫掠走同步路径，保证 e2e 时序确定。
+let themeVTBusy = false;
+let themeAnimTimer = 0;
+
+function addThemeAnimWindow() {
+  const root = document.documentElement;
+  root.classList.add('theme-anim');
+  clearTimeout(themeAnimTimer);
+  themeAnimTimer = setTimeout(() => root.classList.remove('theme-anim'), 520);
+}
+
+function animateThemeChange(updateFn, origin) {
+  const motionOff = getSettings().motion === false
+    || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (motionOff) { updateFn(); return; }
+  const vtOk = typeof document.startViewTransition === 'function' && !navigator.webdriver;
+  if (vtOk && !themeVTBusy) {
+    const rect = origin?.getBoundingClientRect?.();
+    themeVTBusy = true;
+    const vt = document.startViewTransition(updateFn);
+    vt.ready.then(() => {
+      const x = rect ? rect.left + rect.width / 2 : window.innerWidth - 80;
+      const y = rect ? rect.top + rect.height / 2 : 40;
+      const r = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+      document.documentElement.animate(
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${r}px at ${x}px ${y}px)`] },
+        { duration: 440, easing: 'cubic-bezier(0.33, 0, 0.2, 1)', pseudoElement: '::view-transition-new(root)' },
+      );
+    }).catch(() => { /* 过渡被跳过即无妨 */ });
+    vt.finished.catch(() => {}).finally(() => { themeVTBusy = false; });
+    return;
+  }
+  if (!themeVTBusy) addThemeAnimWindow(); // 扫掠进行中再触发：直接切换，避免旧快照上的渐变穿帮
+  updateFn();
+}
+
+/** 原位同步顶栏主题按钮（图标/文案/可访问名），免去整页重渲染打断扫掠 */
+function syncThemeButton() {
+  const btn = document.querySelector('.topbar .tb-actions button[aria-label="深色"], .topbar .tb-actions button[aria-label="浅色"]');
+  if (!btn) return;
+  const dark = isDarkTheme();
+  btn.innerHTML = '';
+  btn.appendChild(iconNode(dark ? 'theme-sun' : 'theme-moon'));
+  const span = document.createElement('span');
+  span.className = 'btn-label';
+  span.textContent = dark ? '浅色' : '深色';
+  btn.appendChild(span);
+  btn.setAttribute('aria-label', dark ? '浅色' : '深色');
+}
+
+function toggleTheme(origin) {
+  animateThemeChange(() => {
+    setSetting('theme', isDarkTheme() ? 'light' : 'dark');
+    applyTheme();
+    syncThemeButton();
+  }, origin);
 }
 
 function navigate() {
@@ -159,10 +216,8 @@ function renderApp(toolId) {
     b.setAttribute('aria-label', label);
     return b;
   };
-  const themeBtn = iconBtn(getSettings().theme === 'dark' ? 'theme-sun' : 'theme-moon', getSettings().theme === 'dark' ? '浅色' : '深色', 'btn-ghost btn-sm', () => {
-    toggleTheme();
-    navigate();
-  });
+  const dark0 = isDarkTheme();
+  const themeBtn = iconBtn(dark0 ? 'theme-sun' : 'theme-moon', dark0 ? '浅色' : '深色', 'btn-ghost btn-sm', (ev) => toggleTheme(ev.currentTarget));
   const searchCtx = { toggleTheme, openSettings };
   const searchBtn = commandPaletteButton(searchCtx);
   const ghBtn = githubButton();
@@ -437,7 +492,7 @@ function openSettings() {
       { value: 'dark', label: '深色' },
       { value: 'auto', label: '跟随系统' },
     ], s.theme);
-    sel.onchange = () => { setSetting('theme', sel.value); applyTheme(); };
+    sel.onchange = () => { animateThemeChange(() => { setSetting('theme', sel.value); applyTheme(); syncThemeButton(); }, sel); };
     return sel;
   })()));
   const accentRow = document.createElement('div');
@@ -452,10 +507,12 @@ function openSettings() {
     sw.style.background = dark ? a.dark : a.swatch;
     if ((s.accent || 'neutral') === a.id) sw.setAttribute('data-selected', '');
     sw.onclick = () => {
-      setSetting('accent', a.id);
-      accentRow.querySelectorAll('.accent-swatch').forEach((x) => x.removeAttribute('data-selected'));
-      sw.setAttribute('data-selected', '');
-      applyTheme();
+      animateThemeChange(() => {
+        setSetting('accent', a.id);
+        accentRow.querySelectorAll('.accent-swatch').forEach((x) => x.removeAttribute('data-selected'));
+        sw.setAttribute('data-selected', '');
+        applyTheme();
+      }, sw);
     };
     accentRow.appendChild(sw);
   }
@@ -622,6 +679,12 @@ probeFonts().then((r) => {
   dismissBootSplash(BOOT_MIN_MS - (performance.now() - bootT0));
 });
 window.addEventListener('hashchange', navigate);
+// 跟随系统主题（auto）：系统深浅变化时带过渡切换
+try {
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (getSettings().theme === 'auto') animateThemeChange(applyTheme);
+  });
+} catch { /* 旧浏览器无 matchMedia addEventListener */ }
 // ⌘K / Ctrl+K 打开全局功能搜索（shadcn Command 风格）
 window.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {

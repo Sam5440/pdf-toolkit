@@ -152,6 +152,18 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .page-enter { animation: none !important; }
+  /* 系统级减动效：新增交互动画逐项关闭（色彩过渡保留，不算运动） */
+  .page-enter .tool-card,
+  .topbar .tb-title,
+  .tray-list .tray-item,
+  .tray-grid .tray-card,
+  .pv-side .pv-doc { animation: none !important; }
+  .btn:active:not(:disabled),
+  .tool-card:active,
+  .side-link:active,
+  .accent-swatch:active { transform: none; }
+  .tray-rail,
+  .tray-backdrop { transition: none !important; }
 }
 
 * { box-sizing: border-box; }
@@ -198,4 +210,25 @@ body {
 @keyframes page-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+   主题/强调色切换动画（main.js animateThemeChange 消费）
+   支持 View Transitions 的浏览器：主题改动包进 startViewTransition，
+   新状态由 JS 在 ::view-transition-new(root) 上从触发控件位置做
+   clip-path 圆形扫掠铺开；不支持的浏览器回退为 .theme-anim 短窗内
+   全站颜色渐变（挂类后立即改主题，520ms 后由 JS 摘类）。
+   motion=false / prefers-reduced-motion 下 JS 直接切换，两者都不走。
+   ============================================================ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.theme-anim,
+html.theme-anim *,
+html.theme-anim *::before,
+html.theme-anim *::after {
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease,
+    fill 0.4s ease, stroke 0.4s ease, box-shadow 0.4s ease !important;
 }
