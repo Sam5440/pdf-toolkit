@@ -1,7 +1,8 @@
 // 右侧 PDF 暂存区 e2e：上传镜像、生成结果入架、拖拽到左侧、加入回填、
-// 列表/封面双视图、单件与一键预览全部、清空确认
+// 列表/封面双视图、单件与一键预览全部、清空确认、直接在暂存区上传
 import { test, expect } from '@playwright/test';
-import { ensureFixtures, openTool, upload } from './helpers.js';
+import path from 'node:path';
+import { ensureFixtures, openTool, upload, FIXTURES } from './helpers.js';
 
 test.describe('PDF 暂存区', () => {
   test.beforeEach(async ({ page }) => {
@@ -124,5 +125,55 @@ test.describe('PDF 暂存区', () => {
     await expect(page.locator('.tray-rail')).toBeHidden();
     await page.locator('[data-tray-toggle]').click();
     await expect(page.locator('.tray-rail')).toBeVisible();
+  });
+
+  test('直接在暂存区上传：按钮走真实文件选择入架，非 PDF 跳过', async ({ page }) => {
+    // 无需进入工具页：首页即可直接给暂存区添加 PDF
+    const rail = page.locator('.tray-rail');
+    await expect(rail.locator('[data-tray-upload]')).toBeEnabled();
+    // 空架时预览/加入置灰
+    await expect(rail.getByRole('button', { name: '一键预览暂存区全部 PDF' })).toBeDisabled();
+    const chooserP = page.waitForEvent('filechooser');
+    await rail.locator('[data-tray-upload]').click();
+    const chooser = await chooserP;
+    await chooser.setFiles([path.join(FIXTURES, 'multi3.pdf'), path.join(FIXTURES, 'photo_l.jpg')]);
+    await expect(rail.locator('[data-tray-item]')).toHaveCount(1);
+    await expect(rail.locator('.ti-name')).toHaveText('multi3.pdf');
+    await expect(page.locator('[data-tray-toggle] .tray-toggle-n')).toHaveText('1');
+    // 非 PDF 被跳过并有提示
+    await expect(page.getByText('跳过 1 个非 PDF')).toBeVisible();
+    // 入架后预览/加入恢复可用；同一文件再次加入不重复
+    await expect(rail.getByRole('button', { name: '一键预览暂存区全部 PDF' })).toBeEnabled();
+    const chooserP2 = page.waitForEvent('filechooser');
+    await rail.locator('[data-tray-upload]').click();
+    (await chooserP2).setFiles([path.join(FIXTURES, 'multi3.pdf')]);
+    await expect(rail.locator('[data-tray-item]')).toHaveCount(1);
+  });
+
+  test('暂存区空态可点击上传；外部文件拖入面板直接入架', async ({ page }) => {
+    const rail = page.locator('.tray-rail');
+    // 空态整块是一个上传入口（点击打开真实文件选择器）
+    const empty = rail.locator('[data-tray-empty]');
+    await expect(empty).toBeVisible();
+    const chooserP = page.waitForEvent('filechooser');
+    await empty.click();
+    (await chooserP).setFiles([path.join(FIXTURES, 'multi3.pdf')]);
+    await expect(rail.locator('[data-tray-item]')).toHaveCount(1);
+    // 清空回到空态
+    await rail.getByRole('button', { name: '移除暂存区全部文件' }).click();
+    await page.locator('[data-cd-confirm]').click();
+    await expect(empty).toBeVisible();
+    // 外部文件拖入面板：合成 DataTransfer 仅测事件接线（真实上传路径已由上方 filechooser 用例覆盖）
+    const dt = await page.evaluateHandle(() => {
+      const d = new DataTransfer();
+      d.items.add(new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])], 'dropped.pdf', { type: 'application/pdf' }));
+      return d;
+    });
+    await rail.dispatchEvent('dragenter', { dataTransfer: dt });
+    await expect(rail).toHaveClass(/tray-drag/);
+    await rail.dispatchEvent('drop', { dataTransfer: dt });
+    await expect(rail.locator('[data-tray-item]')).toHaveCount(1);
+    await expect(rail.locator('.ti-name')).toHaveText('dropped.pdf');
+    await expect(rail).not.toHaveClass(/tray-drag/);
   });
 });

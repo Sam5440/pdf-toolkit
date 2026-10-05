@@ -34,7 +34,7 @@ function showPickerHelp() {
   }));
   actions.appendChild(button('重试选择文件', 'btn-outline btn-sm', () => {
     box.closest('.modal-mask')?.querySelector('.modal-head button')?.click();
-    const dz = document.querySelector('.dropzone');
+    const dz = document.querySelector('.dropzone') || document.querySelector('[data-tray-upload]');
     if (dz) dz.click();
   }));
   box.appendChild(actions);
@@ -58,7 +58,8 @@ function bindPasteOnce() {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('pdftoolkit:picker-blocked', () => {
-    if (document.querySelector('.dropzone')) showPickerHelp();
+    // 工具页上传区或暂存区上传按钮触发的选择器被内嵌浏览器拦截时都给引导
+    if (document.querySelector('.dropzone') || document.querySelector('[data-tray-upload]')) showPickerHelp();
   });
 }
 

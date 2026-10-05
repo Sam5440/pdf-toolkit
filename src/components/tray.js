@@ -3,8 +3,9 @@
 import { esc, fmtBytes, sanitizeFilename } from '../core/format.js';
 import {
   trayItems, trayCount, trayBytes, removeFromTray, clearTray,
-  onTrayChange, TRAY_MIME, getTrayItem,
+  onTrayChange, TRAY_MIME, getTrayItem, isPdf, addPdfsToTray,
 } from '../core/tray.js';
+import { pickFiles, validateFile } from '../core/files.js';
 import { sendToActivePanel } from './input.js';
 import { toast, button, openModal, confirmDialog } from './ui.js';
 import { iconNode } from './icons.js';
@@ -210,6 +211,32 @@ function sourceBadge(source) {
   return source === 'result' ? '<span class="badge badge-primary">生成</span>' : '<span class="badge badge-muted">上传</span>';
 }
 
+/**
+ * 直接向暂存区添加文件：只收 PDF（跳过其他类型并提示），过大小上限校验。
+ * 与工具页上传镜像共用同一数据入口（addPdfsToTray），同一 File 去重不产生二份。
+ */
+function uploadToTray(files) {
+  const list = [...(files || [])];
+  if (!list.length) return;
+  const pdfs = [];
+  let skipped = 0;
+  for (const f of list) {
+    if (!isPdf(f.name, f.type)) { skipped++; continue; }
+    const err = validateFile(f);
+    if (err) { toast(err, 'error'); continue; }
+    pdfs.push(f);
+  }
+  const added = addPdfsToTray(pdfs, { source: 'upload' });
+  if (added.length && skipped) toast(`已添加 ${added.length} 个 PDF，跳过 ${skipped} 个非 PDF 文件`);
+  else if (added.length) toast(`已添加 ${added.length} 个 PDF 到暂存区`);
+  else if (skipped === list.length) toast('暂存区只收 PDF 文件', 'error');
+}
+
+/** 打开文件选择器（真实 input[file]）并把所选文件加入暂存区 */
+async function pickAndAddToTray() {
+  uploadToTray(await pickFiles({ multiple: true }));
+}
+
 function buildRail() {
   const el = document.createElement('aside');
   el.className = 'tray-rail';
@@ -246,6 +273,24 @@ function buildRail() {
   }
   syncFold();
 
+  // 移动端抽屉（tray-open）：点击抽屉外任意区域关闭（标准 drawer 行为）
+  document.addEventListener('click', (e) => {
+    if (!document.body.classList.contains('tray-open')) return;
+    if (el.contains(e.target)) return;
+    if (e.target.closest?.('[data-tray-toggle]')) return;
+    document.body.classList.remove('tray-open');
+  });
+
+  const uploadBtn = button('', 'btn-outline btn-sm', pickAndAddToTray);
+  uploadBtn.setAttribute('data-tray-upload', '');
+  uploadBtn.setAttribute('aria-label', '上传 PDF 到暂存区');
+  uploadBtn.title = '选择 PDF 加入暂存区（也可把文件拖到此面板）';
+  uploadBtn.appendChild(iconNode('upload'));
+  const uploadLbl = document.createElement('span');
+  uploadLbl.className = 'btn-label';
+  uploadLbl.textContent = '上传';
+  uploadBtn.appendChild(uploadLbl);
+
   const previewAllBtn = button('预览全部', 'btn-primary btn-sm', () => {
     const items = trayItems();
     if (!items.length) { toast('暂存区还没有 PDF', 'error'); return; }
@@ -268,7 +313,29 @@ function buildRail() {
   const viewWrap = document.createElement('div');
   viewWrap.className = 'tray-view-toggle';
   viewWrap.append(listBtn, coverBtn);
-  tools.append(previewAllBtn, addAllBtn, viewWrap);
+  tools.append(uploadBtn, previewAllBtn, addAllBtn, viewWrap);
+
+  // 外部文件拖入面板直接入架；内部暂存项拖动（TRAY_MIME）不响应
+  let extDragDepth = 0;
+  const hasExtFiles = (e) => !!e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  el.addEventListener('dragenter', (e) => {
+    if (!hasExtFiles(e)) return;
+    e.preventDefault();
+    extDragDepth++;
+    el.classList.add('tray-drag');
+  });
+  el.addEventListener('dragover', (e) => { if (hasExtFiles(e)) e.preventDefault(); });
+  el.addEventListener('dragleave', () => {
+    extDragDepth = Math.max(0, extDragDepth - 1);
+    if (!extDragDepth) el.classList.remove('tray-drag');
+  });
+  el.addEventListener('drop', (e) => {
+    extDragDepth = 0;
+    el.classList.remove('tray-drag');
+    if (!hasExtFiles(e)) return;
+    e.preventDefault();
+    uploadToTray([...(e.dataTransfer?.files || [])]);
+  });
 
   const clearBtn = button('清空', 'btn-ghost btn-sm', async () => {
     if (!trayCount()) return;
@@ -298,17 +365,23 @@ function buildRail() {
     const items = trayItems();
     countEl.textContent = String(items.length);
     foot.querySelector('[data-size]').textContent = items.length ? `共 ${items.length} 个 · ${fmtBytes(trayBytes())}` : '';
+    // 空架时预览/加入无意义，置灰引导上传
+    previewAllBtn.disabled = !items.length;
+    addAllBtn.disabled = !items.length;
     coverIO?.disconnect();
     coverIO = null;
     body.innerHTML = '';
     if (!items.length) {
       body.innerHTML = `
-        <div class="tray-empty">
+        <div class="tray-empty" role="button" tabindex="0" aria-label="上传 PDF 到暂存区" data-tray-empty>
           <span class="tray-empty-ico" data-ico></span>
           暂无暂存文件
-          <span class="muted-sm">上传或生成的 PDF 会自动出现在这里，可拖到左侧编辑区继续处理</span>
+          <span class="muted-sm">点击选择 PDF，或把文件拖到这里；工具页上传 / 生成的 PDF 也会自动出现在这里</span>
         </div>`;
       body.querySelector('[data-ico]').appendChild(iconNode('tray'));
+      const dz = body.querySelector('[data-tray-empty]');
+      dz.onclick = pickAndAddToTray;
+      dz.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickAndAddToTray(); } };
       return;
     }
     if (readView() === 'cover') {
@@ -412,11 +485,15 @@ export function trayToggleButton() {
   toggleBtn.className = 'btn btn-ghost btn-sm tray-toggle';
   toggleBtn.type = 'button';
   toggleBtn.title = 'PDF 暂存区';
+  toggleBtn.setAttribute('aria-label', 'PDF 暂存区');
   toggleBtn.setAttribute('data-tray-toggle', '');
   const sync = () => {
     toggleBtn.innerHTML = '';
     toggleBtn.appendChild(iconNode('tray'));
-    toggleBtn.appendChild(document.createTextNode(' 暂存区'));
+    const label = document.createElement('span');
+    label.className = 'btn-label';
+    label.textContent = '暂存区';
+    toggleBtn.appendChild(label);
     const n = trayCount();
     if (n) {
       const b = document.createElement('span');
