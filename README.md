@@ -3,6 +3,8 @@
 一个**纯前端**的 PDF 万能工具箱：15 个核心工具 + 49 个「更多」工具，所有文件处理都在你的浏览器内通过 WebAssembly/JS 完成，
 **文件字节绝不发送到任何服务器**。部署方只需提供静态资源服务，服务器上不留任何用户文件。
 
+> 🌐 **在线使用：<https://pdftools.isam.top/>** —— 已上线（Vercel 静态托管，`push` main 自动部署，1-2 分钟生效）
+
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FSam5440%2Fpdf-toolkit&project-name=pdf-toolkit)
 
 ![主界面（浅色）](docs/screenshots/home-light.png)
