@@ -30,11 +30,23 @@ function assetBase() {
 }
 
 let pdfjs = null;
+// 懒加载引擎状态上报 → 主线程转发至 wasm-registry（设置面板「引擎状态」展示）
+function notifyEngine(engine, status, detail) {
+  self.postMessage({ type: 'engine-status', engine, status, detail });
+}
+
 async function getPdfjs() {
   if (!pdfjs) {
-    pdfjs = await import('pdfjs-dist');
-    const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
-    pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+    notifyEngine('pdfjs', 'loading');
+    try {
+      pdfjs = await import('pdfjs-dist');
+      const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
+      pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+    } catch (err) {
+      notifyEngine('pdfjs', 'error', err?.message || String(err));
+      throw err;
+    }
+    notifyEngine('pdfjs', 'ready', `v${pdfjs.version || '?'}`);
   }
   return pdfjs;
 }
@@ -75,7 +87,16 @@ class NoDomFilterFactory {
 
 let mupdfMod = null;
 async function getMupdf() {
-  if (!mupdfMod) mupdfMod = await import('mupdf');
+  if (!mupdfMod) {
+    notifyEngine('mupdf', 'loading');
+    try {
+      mupdfMod = await import('mupdf');
+    } catch (err) {
+      notifyEngine('mupdf', 'error', err?.message || String(err));
+      throw err;
+    }
+    notifyEngine('mupdf', 'ready');
+  }
   return mupdfMod;
 }
 
@@ -544,6 +565,24 @@ function node_Contents(page) {
 // ---------------------------------------------------------------------------
 
 const handlers = {};
+
+// 引擎预热探测（设置面板「引擎状态」按需加载）：只触发懒加载，不碰文档
+handlers['engine.warm'] = async ({ engine }) => {
+  if (engine === 'pdfjs') {
+    await getPdfjs();
+    return { ok: true };
+  }
+  if (engine === 'mupdf') {
+    await getMupdf();
+    return { ok: true };
+  }
+  if (engine === 'tesseract') {
+    await getTessWorker('eng', () => {});
+    return { ok: true };
+  }
+  throw toolkitError('ERR_BAD_ARGS', `未知引擎 ${engine}`);
+};
+
 Object.assign(handlers, moreHandlers);
 
 handlers['doc.open'] = async ({ docId, name, bytes }) => {
@@ -1694,17 +1733,24 @@ let tessWorker = null;
 let tessLangs = '';
 
 async function getTessWorker(langs, progressCb) {
+  if (!tessWorker || tessLangs !== langs) notifyEngine('tesseract', 'loading', `加载 OCR 引擎与语言包（${langs}）…`);
   const T = await import('tesseract.js');
   if (tessWorker && tessLangs === langs) return tessWorker;
   if (tessWorker) { try { await tessWorker.terminate(); } catch { /* noop */ } }
-  tessWorker = await T.createWorker(langs, 1, {
-    langPath: `${assetBase()}tessdata/`,
-    gzip: false, // 本地语言包为未压缩 .traineddata（tessdata_fast 原样分发）
-    logger: (m) => {
-      if (m.status === 'recognizing text') progressCb?.(Math.round(m.progress * 100));
-    },
-  });
+  try {
+    tessWorker = await T.createWorker(langs, 1, {
+      langPath: `${assetBase()}tessdata/`,
+      gzip: false, // 本地语言包为未压缩 .traineddata（tessdata_fast 原样分发）
+      logger: (m) => {
+        if (m.status === 'recognizing text') progressCb?.(Math.round(m.progress * 100));
+      },
+    });
+  } catch (err) {
+    notifyEngine('tesseract', 'error', err?.message || String(err));
+    throw err;
+  }
   tessLangs = langs;
+  notifyEngine('tesseract', 'ready', `语言包 ${langs} 已就绪`);
   return tessWorker;
 }
 

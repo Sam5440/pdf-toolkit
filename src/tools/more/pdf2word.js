@@ -7,6 +7,7 @@ import { field, select, button } from '../../components/ui.js';
 import { paramsCard, resultCard, runWithProgress } from './common.js';
 import { buildOffice } from '../../core/officewriters.js';
 import { PDFJS_ASSET_OPTS } from '../../core/pdfjs-assets.js';
+import { setEngineStatus } from '../../core/wasm-registry.js';
 
 const NOTE = '文本级转换：保留文字与段落结构，不还原排版';
 
@@ -20,6 +21,7 @@ function getPdfjsMain() {
       const pjs = await import('pdfjs-dist');
       const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
       pjs.GlobalWorkerOptions.workerSrc = workerUrl;
+      setEngineStatus('pdfjs', 'ready', `v${pjs.version || '?'} · 主线程转换`);
       return pjs;
     })();
   }

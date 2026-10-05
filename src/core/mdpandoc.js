@@ -3,6 +3,7 @@
 // - wasm：public/engines/pandoc/pandoc.wasm（pandoc 3.10，scripts/fetch-engines.mjs 重建）
 // 实例化即初始化 Haskell RTS（数秒），之后 convert 可反复调用。
 import { createPandocInstance } from '../vendor-pandoc-core.js';
+import { setEngineStatus } from './wasm-registry.js';
 
 let instancePromise = null;
 
@@ -51,14 +52,21 @@ const mb = (n) => `${(n / 1048576).toFixed(0)}MB`;
 /** 获取（并缓存）pandoc 实例。onStage(stageText) 汇报阶段。 */
 export async function getPandoc({ onStage } = {}) {
   if (!instancePromise) {
+    setEngineStatus('pandoc', 'loading', '准备下载…');
     instancePromise = (async () => {
       const url = new URL('engines/pandoc/pandoc.wasm', document.baseURI).href;
       const bytes = await fetchWithProgress(url, (loaded, total) => {
-        onStage?.(`下载 pandoc.wasm ${mb(loaded)}${total ? ` / ${mb(total)}` : ''}（首次加载，之后走浏览器缓存）…`);
+        const stage = `下载 pandoc.wasm ${mb(loaded)}${total ? ` / ${mb(total)}` : ''}（首次加载，之后走浏览器缓存）…`;
+        onStage?.(stage);
+        setEngineStatus('pandoc', 'loading', stage);
       });
-      onStage?.('初始化 pandoc 引擎（首次需数秒）…');
+      const initStage = '初始化 pandoc 引擎（首次需数秒）…';
+      onStage?.(initStage);
+      setEngineStatus('pandoc', 'loading', initStage);
       return createPandocInstance(bytes);
-    })().catch((err) => { instancePromise = null; throw err; });
+    })()
+      .then((p) => { setEngineStatus('pandoc', 'ready', 'pandoc 3.10'); return p; })
+      .catch((err) => { setEngineStatus('pandoc', 'error', err?.message || String(err)); instancePromise = null; throw err; });
   }
   return instancePromise;
 }

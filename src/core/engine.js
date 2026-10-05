@@ -1,6 +1,7 @@
 // 引擎池（主线程侧）：管理 worker 池、op 调度、进度/取消、文档字节装载与驱逐重试。
 import { uid } from './format.js';
 import { addResultArtifacts } from './tray.js';
+import { setEngineStatus } from './wasm-registry.js';
 import EngineWorkerCtor from './engine-worker.js?worker';
 
 class EnginePool {
@@ -16,6 +17,11 @@ class EnginePool {
     w.jobs = new Map();
     w.onmessage = (ev) => {
       const msg = ev.data;
+      if (msg.type === 'engine-status') {
+        // worker 内懒加载引擎（pdf.js / mupdf / tesseract）的状态上报 → 设置面板
+        setEngineStatus(msg.engine, msg.status, msg.detail);
+        return;
+      }
       const job = w.jobs.get(msg.id);
       if (!job) return;
       if (msg.type === 'progress') {
@@ -40,6 +46,8 @@ class EnginePool {
       this._pump();
     };
     this.workers.push(w);
+    // pdf-lib 静态打包进 worker bundle：worker 起来即就绪
+    setEngineStatus('pdflib', 'ready', 'Worker 已就绪');
     return w;
   }
 
@@ -210,3 +218,9 @@ export async function run(op, args = {}, opts = {}, docs = new Map()) {
 
 export function abort(opId) { if (opId) getPool().abort(opId); }
 export function destroyEngine() { pool?.destroy(); pool = null; }
+
+/** 预热：确保引擎池已建立至少一个 Worker（设置面板「pdf-lib」探测用） */
+export function warmEngine() {
+  const p = getPool();
+  if (!p.workers.length) p._spawn();
+}

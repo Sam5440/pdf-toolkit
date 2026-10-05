@@ -7,6 +7,7 @@
 import { $typst } from '@myriaddreamin/typst.ts';
 import { loadFonts, disableDefaultFontAssets } from '@myriaddreamin/typst.ts/options.init';
 import { pandocToTypst, getPandoc } from './mdpandoc.js';
+import { setEngineStatus } from './wasm-registry.js';
 
 // 资产基址惰性求值（模块可能被 node 环境测试链路引入，不能在顶层触碰 document）
 const fontUrl = (name) => new URL(`fonts/${name}`, document.baseURI).href;
@@ -60,11 +61,16 @@ async function fetchWasm(url, onProgress) {
 async function ensureTypst(onStage) {
   if (initDone) return;
   if (!initPromise) {
+    setEngineStatus('typst', 'loading', '准备下载…');
     initPromise = (async () => {
       const wasmBytes = await fetchWasm(engineUrl('typst_ts_web_compiler_bg.wasm'), (loaded, total) => {
-        onStage?.(`下载 Typst 引擎 ${(loaded / 1048576).toFixed(0)}MB / ${(total / 1048576).toFixed(0)}MB（首次加载，之后走浏览器缓存）…`);
+        const stage = `下载 Typst 引擎 ${(loaded / 1048576).toFixed(0)}MB / ${(total / 1048576).toFixed(0)}MB（首次加载，之后走浏览器缓存）…`;
+        onStage?.(stage);
+        setEngineStatus('typst', 'loading', stage);
       });
-      onStage?.('初始化 Typst 编译器…');
+      const initStage = '初始化 Typst 编译器…';
+      onStage?.(initStage);
+      setEngineStatus('typst', 'loading', initStage);
       $typst.setCompilerInitOptions({
         getModule: () => wasmBytes,
         beforeBuild: [
@@ -83,7 +89,9 @@ async function ensureTypst(onStage) {
       const ok = await $typst.pdf({ mainContent: '#set page(width: 10pt, height: 10pt, margin: 0pt)\nX' });
       if (!ok || !ok.length) throw new Error('Typst 引擎自检失败');
       initDone = true;
-    })().catch((err) => { initPromise = null; throw err; });
+    })()
+      .then(() => { setEngineStatus('typst', 'ready', 'typst 0.14.2'); })
+      .catch((err) => { setEngineStatus('typst', 'error', err?.message || String(err)); initPromise = null; throw err; });
   }
   return initPromise;
 }

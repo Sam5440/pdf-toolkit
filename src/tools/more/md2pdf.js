@@ -20,6 +20,7 @@ import { markdownToDocx } from '../../core/mddocx.js';
 import { pandocToDocx } from '../../core/mdpandoc.js';
 import { markdownToPdfTypst } from '../../core/mdtypst.js';
 import { PDFJS_ASSET_OPTS } from '../../core/pdfjs-assets.js';
+import { setEngineStatus } from '../../core/wasm-registry.js';
 
 const PAPER_OPTS = [
   { value: 'a4', label: 'A4' },
@@ -123,6 +124,7 @@ async function getPdfjs() {
     pdfjsLib = await import('pdfjs-dist');
     const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
     pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+    setEngineStatus('pdfjs', 'ready', `v${pdfjsLib.version || '?'} · 主线程预览`);
   }
   return pdfjsLib;
 }
