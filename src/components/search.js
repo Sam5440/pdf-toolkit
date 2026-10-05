@@ -269,7 +269,7 @@ export function commandPaletteButton(ctx = {}) {
 /** GitHub 仓库图标按钮（对齐 shadcn.com 顶栏） */
 export function githubButton() {
   const a = document.createElement('a');
-  a.className = 'btn btn-ghost btn-sm btn-icon';
+  a.className = 'btn btn-ghost btn-sm btn-icon tb-github';
   a.href = 'https://github.com/Sam5440/pdf-toolkit';
   a.target = '_blank';
   a.rel = 'noopener noreferrer';

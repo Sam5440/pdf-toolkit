@@ -26,6 +26,7 @@ export const EMOJI = {
   text: '📄', images2pdf: '🖼', pdf2images: '🏞', extractimages: '📦', compare: '🔍',
   'theme-moon': '🌙', 'theme-sun': '☀️',
   history: '🕘', settings: '⚙️', upload: '📄', success: '✅', winner: '🏆',
+  home: '🏠',
   doc: '📄', trash: '🗑', warn: '⚠️', image: '🖼', 'more-grid': '🧰', tray: '📥',
   // 「更多」分组
   rotate: '🔄', removepages: '➖', extractpages: '📤', nup: '🔲', halve: '➗',

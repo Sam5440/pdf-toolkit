@@ -669,3 +669,50 @@ table.data tr:last-child td { border-bottom: none; }
 .about-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }
 .about-row b { font-weight: 600; }
 .ver-mono { font-family: var(--mono); font-size: 12px; color: var(--muted-foreground); }
+
+/* ============================================================
+   设置 · 引擎状态（WASM）面板：状态点 + 名称 + 描述 + 探测按钮
+   ============================================================ */
+.engine-list {
+  border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px);
+  background: var(--secondary); padding: 4px;
+}
+.engine-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: calc(var(--radius) - 5px);
+}
+.engine-row + .engine-row { border-top: 1px solid var(--border); }
+.engine-dot {
+  width: 9px; height: 9px; border-radius: 9999px; flex-shrink: 0;
+  background: var(--muted-foreground); opacity: 0.5;
+}
+.engine-row.st-ready .engine-dot { background: var(--ok); opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+.engine-row.st-loading .engine-dot { background: var(--primary); opacity: 1; animation: engine-pulse 1s ease-in-out infinite; }
+.engine-row.st-error .engine-dot { background: var(--no); opacity: 1; }
+@keyframes engine-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent); }
+  50% { box-shadow: 0 0 0 5px transparent; }
+}
+.engine-info { flex: 1; min-width: 0; }
+.engine-name { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+.engine-name b { font-weight: 600; }
+.engine-desc { font-size: 11.5px; color: var(--muted-foreground); margin-top: 1px; line-height: 1.45; }
+.engine-detail { font-size: 11.5px; color: var(--muted-foreground); margin-top: 3px; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.engine-row.st-loading .engine-detail, .engine-row.st-error .engine-detail { white-space: normal; }
+.engine-row.st-error .engine-detail { color: var(--no); }
+.engine-state { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.engine-state .spinner { color: var(--primary); }
+
+/* ---- 工具卡片入场交错（首页/更多页；main.js 逐卡设置 --stagger-i） ---- */
+/* fill 用 backwards：动画结束后交还控制权，卡片 hover 位移不被 to 帧钉死 */
+.page-enter .tool-card {
+  animation: card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--stagger-i, 0) * 35ms);
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter .tool-card { animation: none; }
+}

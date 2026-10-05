@@ -5,14 +5,144 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="PDF 万能工具箱 — 全部处理在您的浏览器内完成，文件不上传服务器" />
   <title>PDF 万能工具箱</title>
+  <style>
+    /* ============================================================
+       开场动画（内联：JS bundle 加载前即播，遮蔽首屏白屏）
+       - 主题：脚本按设置补 boot-dark（深色）；auto 跟随系统媒体查询
+       - 动效：三页纸张扇形展开 + Logo 弹跳浮起 + 进度光条循环
+       - 退出：main.js 就绪后加 .boot-done → 整体淡出放大消散
+       - 关闭动画：设置 motion=false → html.boot-static；系统 reduced-motion 同效
+       ============================================================ */
+    .boot-splash {
+      --boot-bg: #ffffff;
+      --boot-fg: #18181b;
+      --boot-sub: #71717a;
+      --boot-line: #e4e4e7;
+      --boot-page: #fafafa;
+      position: fixed; inset: 0; z-index: 999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; background: var(--boot-bg); color: var(--boot-fg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+      transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+    .boot-splash.boot-dark {
+      --boot-bg: #09090b; --boot-fg: #fafafa; --boot-sub: #a1a1aa;
+      --boot-line: #27272a; --boot-page: #18181b;
+    }
+    @media (prefers-color-scheme: dark) {
+      .boot-splash:not(.boot-light) {
+        --boot-bg: #09090b; --boot-fg: #fafafa; --boot-sub: #a1a1aa;
+        --boot-line: #27272a; --boot-page: #18181b;
+      }
+    }
+    .boot-stage { position: relative; width: 150px; height: 130px; }
+    /* 三页纸张：扇形展开后持续轻浮 */
+    .boot-sheet {
+      position: absolute; left: 50%; top: 50%; width: 58px; height: 76px;
+      border-radius: 8px; background: var(--boot-page);
+      border: 1.5px solid var(--boot-line); box-shadow: 0 6px 18px rgba(2, 6, 23, 0.08);
+    }
+    .boot-sheet::before {
+      content: ''; position: absolute; top: 0; right: 0; width: 14px; height: 14px;
+      border-left: 1.5px solid var(--boot-line); border-bottom: 1.5px solid var(--boot-line);
+      border-bottom-left-radius: 7px; background: var(--boot-bg);
+      clip-path: polygon(0 0, 100% 100%, 100% 0, 0 0); opacity: 0.9;
+    }
+    .boot-sheet.s1 { animation: sheet-1 0.7s cubic-bezier(0.16, 1, 0.3, 1) both, sheet-float 3.2s 0.9s ease-in-out infinite alternate; }
+    .boot-sheet.s2 { animation: sheet-2 0.7s 0.12s cubic-bezier(0.16, 1, 0.3, 1) both, sheet-float 3.2s 1.15s ease-in-out infinite alternate; }
+    .boot-sheet.s3 { animation: sheet-3 0.7s 0.24s cubic-bezier(0.16, 1, 0.3, 1) both, sheet-float 3.2s 1.4s ease-in-out infinite alternate; }
+    @keyframes sheet-1 { from { opacity: 0; transform: translate(-50%, -50%) translate(26px, 30px) rotate(24deg) scale(0.7); } to { opacity: 0.55; transform: translate(-50%, -50%) translate(-44px, -2px) rotate(-14deg); } }
+    @keyframes sheet-2 { from { opacity: 0; transform: translate(-50%, -50%) translateY(38px) scale(0.7); } to { opacity: 0.8; transform: translate(-50%, -50%) translate(-22px, -8px) rotate(-6deg); } }
+    @keyframes sheet-3 { from { opacity: 0; transform: translate(-50%, -50%) translate(-26px, 34px) rotate(-26deg) scale(0.7); } to { opacity: 1; transform: translate(-50%, -50%) translate(8px, -4px) rotate(7deg); } }
+    @keyframes sheet-float { from { margin-top: 0; } to { margin-top: -5px; } }
+    /* 中央 Logo：弹跳登场 + 呼吸浮起 + 外圈脉冲 */
+    .boot-logo {
+      position: absolute; left: 50%; top: 50%; translate: -50% -50%;
+      width: 64px; height: 64px; border-radius: 17px;
+      background: var(--boot-fg); color: var(--boot-bg);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 19px; letter-spacing: 0.5px;
+      box-shadow: 0 10px 30px rgba(2, 6, 23, 0.22);
+      animation: logo-in 0.55s 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both, logo-float 2.6s 1s ease-in-out infinite alternate;
+      z-index: 2;
+    }
+    .boot-logo::after {
+      content: ''; position: absolute; inset: -9px; border-radius: 22px;
+      border: 2px solid var(--boot-fg); opacity: 0;
+      animation: logo-ring 2.2s 1.1s ease-out infinite;
+    }
+    @keyframes logo-in { from { opacity: 0; transform: scale(0.4) rotate(-8deg); } to { opacity: 1; transform: none; } }
+    @keyframes logo-float { from { margin-top: 0; } to { margin-top: -6px; } }
+    @keyframes logo-ring { 0% { opacity: 0.5; transform: scale(0.92); } 70%, 100% { opacity: 0; transform: scale(1.28); } }
+    .boot-name { font-size: 17px; font-weight: 700; animation: boot-rise 0.5s 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    /* 进度光条：不定进度循环（加载完成即整体退场） */
+    .boot-bar {
+      width: 148px; height: 4px; border-radius: 9999px; overflow: hidden;
+      background: var(--boot-line); animation: boot-rise 0.5s 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    .boot-bar i {
+      display: block; width: 40%; height: 100%; border-radius: 9999px;
+      background: var(--boot-fg); animation: boot-slide 1.1s ease-in-out infinite;
+    }
+    @keyframes boot-slide { from { transform: translateX(-110%); } to { transform: translateX(280%); } }
+    .boot-sub { font-size: 12px; color: var(--boot-sub); animation: boot-rise 0.5s 0.82s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    @keyframes boot-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    /* 退场 */
+    .boot-splash.boot-done { opacity: 0; transform: scale(1.04); pointer-events: none; }
+    /* 动效关闭（设置 motion=false 或系统减弱动态）：直接呈现静态首屏 */
+    .boot-splash.boot-static .boot-sheet,
+    .boot-splash.boot-static .boot-logo,
+    .boot-splash.boot-static .boot-logo::after,
+    .boot-splash.boot-static .boot-name,
+    .boot-splash.boot-static .boot-bar,
+    .boot-splash.boot-static .boot-bar i,
+    .boot-splash.boot-static .boot-sub { animation: none !important; }
+    .boot-splash.boot-static .boot-sheet { opacity: 1; }
+    .boot-splash.boot-static .boot-sheet.s1 { opacity: 0.55; transform: translate(-50%, -50%) translate(-44px, -2px) rotate(-14deg); }
+    .boot-splash.boot-static .boot-sheet.s2 { opacity: 0.8; transform: translate(-50%, -50%) translate(-22px, -8px) rotate(-6deg); }
+    .boot-splash.boot-static .boot-sheet.s3 { opacity: 1; transform: translate(-50%, -50%) translate(8px, -4px) rotate(7deg); }
+    .boot-splash.boot-static .boot-bar i { transform: translateX(80%); }
+    @media (prefers-reduced-motion: reduce) {
+      .boot-splash .boot-sheet, .boot-splash .boot-logo, .boot-splash .boot-logo::after,
+      .boot-splash .boot-name, .boot-splash .boot-bar, .boot-splash .boot-bar i, .boot-splash .boot-sub {
+        animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+      }
+    }
+  </style>
 </head>
 <body>
-  <div id="app">
-    <div class="boot-splash">
+  <div class="boot-splash" aria-hidden="true">
+    <div class="boot-stage">
+      <div class="boot-sheet s1"></div>
+      <div class="boot-sheet s2"></div>
+      <div class="boot-sheet s3"></div>
       <div class="boot-logo">PDF</div>
-      <div class="boot-text">正在加载工具箱…</div>
     </div>
+    <div class="boot-name">PDF 万能工具箱</div>
+    <div class="boot-bar"><i></i></div>
+    <div class="boot-sub">全部处理在本地浏览器完成 · 文件不上传</div>
   </div>
+  <div id="app"></div>
+  <script>
+    // 首帧内联装配：按本机设置对齐主题与动效开关（bundle 加载前即生效）
+    (function () {
+      var splash = document.querySelector('.boot-splash');
+      if (!splash) return;
+      try {
+        var s = JSON.parse(localStorage.getItem('pdftoolkit.settings.v1') || '{}');
+        if (s.theme === 'dark') splash.classList.add('boot-dark');
+        if (s.theme === 'light') splash.classList.add('boot-light');
+        if (s.motion === false) splash.classList.add('boot-static');
+      } catch (e) { /* 默认主题 */ }
+      // 兜底：主线程异常时 splash 不永久遮挡（10s 后允许点击穿透关闭）
+      setTimeout(function () {
+        if (document.querySelector('.boot-splash')) {
+          splash.style.pointerEvents = 'none';
+          splash.style.opacity = '0.06';
+        }
+      }, 10000);
+    })();
+  </script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

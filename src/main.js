@@ -16,6 +16,8 @@ import { probeFonts } from './core/fonts.js';
 import { setLimitsFromSettings } from './core/limits.js';
 import { isMoreGroup, getFavorites, resetFavorites, defaultFavoriteIds } from './core/favorites.js';
 import { trayRail, trayToggleButton } from './components/tray.js';
+import { engineList, onEngines, probeEngine, setEngineStatus } from './core/wasm-registry.js';
+import { setupEngineRegistry } from './core/wasm-probes.js';
 
 const app = document.getElementById('app');
 
@@ -49,8 +51,20 @@ function navigate() {
   renderApp(m ? m[1] : null);
 }
 
-/** 侧边栏：核心分组逐组列出；hiddenOnHome 分组统一收进「更多」区（专项页链接 + 全部工具） */
+/** 侧边栏：首页入口 + 核心分组逐组列出；hiddenOnHome 分组统一收进「更多」区（专项页链接 + 全部工具） */
 function buildSidebar(sidebar, toolId) {
+  // 首页入口（工具页/更多页/历史页均可见；窄屏图标栏下是唯一回首页入口之一）
+  const homeNav = document.createElement('nav');
+  homeNav.className = 'side-nav side-nav-home';
+  const onHome = !toolId && location.hash !== '#/more' && location.hash !== '#/history';
+  const homeLink = document.createElement('a');
+  homeLink.className = 'side-link' + (onHome ? ' active' : '');
+  homeLink.href = '#/';
+  homeLink.innerHTML = `<span class="ico"></span><span class="link-text">首页</span>`;
+  homeLink.querySelector('.ico').appendChild(iconNode('home'));
+  homeNav.appendChild(homeLink);
+  sidebar.appendChild(homeNav);
+
   const moreGroups = GROUPS.filter((g) => g.hiddenOnHome);
   const emitGroup = (gh, items) => {
     const head = document.createElement('div');
@@ -106,11 +120,16 @@ function renderApp(toolId) {
   const shell = document.createElement('div');
   shell.className = 'app';
 
-  // 侧边栏
+  // 侧边栏（左上角品牌 = 回首页入口）
   const sidebar = document.createElement('aside');
   sidebar.className = 'sidebar';
-  sidebar.innerHTML = `
-    <div class="side-brand"><div class="logo">PDF</div><span class="brand-text">万能工具箱</span></div>`;
+  const brand = document.createElement('a');
+  brand.className = 'side-brand';
+  brand.href = '#/';
+  brand.title = '回到首页';
+  brand.setAttribute('aria-label', 'PDF 万能工具箱 · 回到首页');
+  brand.innerHTML = `<div class="logo">PDF</div><span class="brand-text">万能工具箱</span>`;
+  sidebar.appendChild(brand);
   buildSidebar(sidebar, toolId);
   const foot = document.createElement('div');
   foot.className = 'side-foot';
@@ -128,22 +147,27 @@ function renderApp(toolId) {
     <div class="tb-title">${tool ? `<span class="tb-ico"></span>${esc(tool.name)}<span class="tb-sub">${esc(tool.desc)}</span>` : (location.hash === '#/more' ? '更多工具' : 'PDF 万能工具箱')} </div>`;
   if (tool) topbar.querySelector('.tb-ico').appendChild(iconNode(tool.id));
   const tbBtns = document.createElement('div');
-  tbBtns.style.cssText = 'display:flex;gap:6px;align-items:center';
+  tbBtns.className = 'tb-actions';
   const iconBtn = (id, label, cls, onClick) => {
     const b = button('', cls, onClick);
     b.appendChild(iconNode(id));
-    b.appendChild(document.createTextNode(label));
+    // 标签包一层 span：窄屏 CSS 隐藏 .btn-label 后按钮退化为纯图标（aria-label 保可访问名）
+    const span = document.createElement('span');
+    span.className = 'btn-label';
+    span.textContent = label;
+    b.appendChild(span);
+    b.setAttribute('aria-label', label);
     return b;
   };
-  const themeBtn = iconBtn(getSettings().theme === 'dark' ? 'theme-sun' : 'theme-moon', getSettings().theme === 'dark' ? ' 浅色' : ' 深色', 'btn-ghost btn-sm', () => {
+  const themeBtn = iconBtn(getSettings().theme === 'dark' ? 'theme-sun' : 'theme-moon', getSettings().theme === 'dark' ? '浅色' : '深色', 'btn-ghost btn-sm', () => {
     toggleTheme();
     navigate();
   });
   const searchCtx = { toggleTheme, openSettings };
   const searchBtn = commandPaletteButton(searchCtx);
   const ghBtn = githubButton();
-  const histBtn = iconBtn('history', ' 历史', 'btn-ghost btn-sm', () => { location.hash = '#/history'; });
-  const setBtn = iconBtn('settings', ' 设置', 'btn-ghost btn-sm', () => openSettings());
+  const histBtn = iconBtn('history', '历史', 'btn-ghost btn-sm', () => { location.hash = '#/history'; });
+  const setBtn = iconBtn('settings', '设置', 'btn-ghost btn-sm', () => openSettings());
   tbBtns.append(searchBtn, themeBtn, trayToggleButton(), histBtn, ghBtn, setBtn);
   topbar.appendChild(tbBtns);
 
@@ -198,7 +222,11 @@ function appendSection(content, name, items, countNote) {
   content.appendChild(head);
   const grid = document.createElement('div');
   grid.className = 'tool-grid';
-  for (const t of items) grid.appendChild(toolCard(t));
+  items.forEach((t, i) => {
+    const card = toolCard(t);
+    card.style.setProperty('--stagger-i', Math.min(i, 12)); // 入场交错（CSS card-in）；封顶防长列表拖尾
+    grid.appendChild(card);
+  });
   content.appendChild(grid);
 }
 
@@ -371,6 +399,16 @@ async function renderHistory(content) {
   }
 }
 
+/** 收起开场动画（index.html 内联 splash）：等最短展示时长后淡出移除 */
+function dismissBootSplash(delay = 0) {
+  const splash = document.querySelector('.boot-splash');
+  if (!splash) return;
+  setTimeout(() => {
+    splash.classList.add('boot-done');
+    setTimeout(() => splash.remove(), 500);
+  }, Math.max(0, delay));
+}
+
 const ACCENTS = [
   { id: 'neutral', label: '中性（默认）', swatch: '#18181b', dark: '#fafafa' },
   { id: 'blue', label: '蓝色', swatch: '#2563eb', dark: '#3b82f6' },
@@ -454,6 +492,69 @@ function openSettings() {
   box.appendChild(field('历史保留配额（MB）', (() => { const i = numberInput(s.historyQuotaMB); i.min = 50; i.max = 10240; i.onchange = () => setSetting('historyQuotaMB', +i.value || 500); return i; })()));
   box.appendChild(field('OCR 识别 DPI', (() => { const i = numberInput(s.ocrDpi); i.min = 96; i.max = 300; i.step = 8; i.onchange = () => setSetting('ocrDpi', +i.value || 200); return i; })(), '越高识别越准、越慢'));
 
+  // ---- 引擎状态（WASM）----
+  box.appendChild(secTitle('引擎状态（WASM）'));
+  const engineNote = document.createElement('div');
+  engineNote.className = 'hint';
+  engineNote.style.marginBottom = '8px';
+  engineNote.textContent = '全部引擎为按需加载的本地 WASM：首次使用对应功能时才下载/初始化，之后走浏览器缓存。';
+  box.appendChild(engineNote);
+  const engineListEl = document.createElement('div');
+  engineListEl.className = 'engine-list';
+  box.appendChild(engineListEl);
+  const renderEngines = () => {
+    engineListEl.innerHTML = '';
+    for (const e of engineList()) {
+      const row = document.createElement('div');
+      row.className = `engine-row st-${e.status}`;
+      const dot = document.createElement('span');
+      dot.className = 'engine-dot';
+      dot.setAttribute('aria-hidden', 'true');
+      const info = document.createElement('div');
+      info.className = 'engine-info';
+      const nameLine = document.createElement('div');
+      nameLine.className = 'engine-name';
+      nameLine.innerHTML = `<b>${esc(e.label)}</b><span class="muted-sm">${esc(e.size || '')}</span>`;
+      const descLine = document.createElement('div');
+      descLine.className = 'engine-desc';
+      descLine.textContent = e.desc || '';
+      info.append(nameLine, descLine);
+      const right = document.createElement('div');
+      right.className = 'engine-state';
+      if (e.status === 'ready') {
+        const b = document.createElement('span');
+        b.className = 'badge badge-ok';
+        b.textContent = '✓ 就绪';
+        right.appendChild(b);
+      } else if (e.status === 'loading') {
+        const s = document.createElement('span');
+        s.className = 'spinner';
+        right.appendChild(s);
+      } else if (e.status === 'error') {
+        const b = document.createElement('span');
+        b.className = 'badge badge-no';
+        b.textContent = '失败';
+        right.appendChild(b);
+      }
+      if (e.status !== 'loading' && e.probe) {
+        right.appendChild(button(e.status === 'idle' ? '加载' : '重新检测', 'btn-outline btn-xs', (ev) => {
+          ev.currentTarget.disabled = true;
+          probeEngine(e.id);
+        }));
+      }
+      const detail = document.createElement('div');
+      detail.className = 'engine-detail';
+      if (e.status === 'loading') detail.textContent = e.detail || '加载中…';
+      else if (e.status === 'error') detail.textContent = e.detail || '加载失败';
+      else if (e.status === 'ready' && e.detail) detail.textContent = e.detail;
+      if (detail.textContent) info.appendChild(detail);
+      row.append(dot, info, right);
+      engineListEl.appendChild(row);
+    }
+  };
+  renderEngines();
+  const unsubEngines = onEngines(renderEngines);
+
   // ---- 收藏 ----
   box.appendChild(secTitle('收藏'));
   const favRow = document.createElement('div');
@@ -502,14 +603,24 @@ function openSettings() {
   note.className = 'note';
   note.textContent = '设置仅保存在本机浏览器，不会包含任何密码。';
   box.appendChild(note);
-  openModal('设置', box);
+  const modal = openModal('设置', box);
+  modal.setOnClose(unsubEngines);
 }
 
 // 启动
 initShadcn();
 applyTheme();
+setupEngineRegistry();
 try { if (localStorage.getItem('pdftoolkit.tray.collapsed') === '1') document.body.classList.add('tray-collapsed'); } catch { /* 忽略 */ }
-probeFonts().then((r) => { fontAvailability = r; setLimitsFromSettings(); navigate(); });
+const BOOT_MIN_MS = 700; // 开场动画最短展示时长（首访加载慢时由加载时间自然接管）
+const bootT0 = performance.now();
+probeFonts().then((r) => {
+  fontAvailability = r;
+  setLimitsFromSettings();
+  navigate();
+  setEngineStatus('fonts', r['noto-sc'] ? 'ready' : 'error', r['noto-sc'] ? '已部署 · 中文水印可用' : '未部署（水印功能受限）');
+  dismissBootSplash(BOOT_MIN_MS - (performance.now() - bootT0));
+});
 window.addEventListener('hashchange', navigate);
 // ⌘K / Ctrl+K 打开全局功能搜索（shadcn Command 风格）
 window.addEventListener('keydown', (e) => {
