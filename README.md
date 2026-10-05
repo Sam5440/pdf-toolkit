@@ -48,7 +48,8 @@
 ## 更多工具（49 个，对齐 PDF24）
 
 在 15 个核心工具之外，另有一组「更多」工具，集中在**「更多工具页」**（侧边栏「更多 → 更多工具页」，
-或首页底部入口）。**收藏系统**：首页只显示已收藏的工具（默认 = 15 个核心工具），每张卡片右上角
+或首页底部入口）。**收藏系统**：首页只显示已收藏的工具（默认 = 15 个核心工具 +
+Markdown 转 PDF + PDF 转图片型 PPT，共 17 个），每张卡片右上角
 有 ★ 星标——白色为未收藏、黄色为已收藏，点击即收藏/取消并保存在本机浏览器；「更多工具页」按
 9 个功能分类展示全部扩展工具（核心工具也列在页尾目录，方便随时调整收藏），首页与专项页均按
 分类分区显示。设置里可一键恢复默认收藏。与 PDF24（tools.pdf24.org/zh）的完整功能对照见
@@ -85,15 +86,54 @@
 > - 重型 WASM 引擎二进制不进 git，用 `node scripts/fetch-engines.mjs` 重建到
 >   `public/engines/`（构建 dist 时随 public/ 拷贝，之后完全离线可用）。
 >
+> **网页转 PDF**：粘贴 HTML 源码 / 输入网址抓取 / 上传 .html 三种来源进同一编辑器，
+> 一键产出 **HTML 文件 + PDF** 双产物；内置引擎正文重排（文字可选中），可选「打印引擎」
+> 走浏览器打印排版。粘贴源码在沙箱 iframe 中安全预览（全禁脚本）。
+>
 > 文本转 PDF、生成 PDF、RTF/EPUB/ODF/Excel 转 PDF 等全部文本类工具同样输出文本型
 > PDF。字库再生成见 `scripts/build_text_fonts.py`。
 
-## 界面图标
+## 界面与交互
 
-界面图标默认使用 27 个按统一规范手工绘制的单色线描 SVG（`src/assets/icons/`，
-viewBox 48、2.5 线宽、currentColor 随主题）。设置页提供「图标方案」切换：
-**手绘线描 SVG（默认）** / **原版 emoji**，偏好保存在本机浏览器。
-规范见 [docs/ICON-GUIDELINES.md](docs/ICON-GUIDELINES.md)。
+### 三套图标方案
+
+界面图标默认使用 **78 个**按统一规范手工绘制的单色线描 SVG（`src/assets/icons/`，
+viewBox 48、2.5 线宽、currentColor 随主题）。设置页提供「图标方案」切换，三套语义一一对应：
+
+| 方案 | 说明 |
+|---|---|
+| **手绘线描 SVG**（默认） | 单色线描，currentColor 随明暗主题 |
+| **多彩手绘 SVG** | 78 个同构图多彩版本（固定 10 色调色板、微倾手绘技法） |
+| **原版 emoji** | 系统 emoji 字符 |
+
+规范与「新功能必须三套齐备」的硬性细则见 [docs/ICON-GUIDELINES.md](docs/ICON-GUIDELINES.md)。
+
+### 壳层功能
+
+- **首页收藏制**：首页只显示已收藏的工具（默认 17 个），卡片右上角 ★ 收藏/取消；
+  左上角「PDF」品牌与侧边栏「首页」随时回到首页。
+- **⌘K 全局搜索**：任意页面按 `⌘K` / `Ctrl+K`（或点顶栏「搜索工具…」）唤起命令面板，
+  覆盖全部 64 个工具的名称/介绍/关键词，含主题切换、历史、设置等快捷操作；
+  多关键词 AND 匹配、命中高亮、↑↓/Enter 键盘导航。
+- **右侧 PDF 暂存区**：可直接在暂存区上传 PDF（「上传」按钮 / 空态点击 / 把文件
+  拖到面板上），工具页上传与处理生成的 PDF 也会自动入架（跨工具持久，内存态）；
+  可拖回左侧编辑区继续处理，列表/封面双视图，支持单件预览与一键预览全部；
+  窄屏自动变为右侧抽屉（点外部关闭）。
+- **本地历史记录**：处理完成后可「保存到历史」（IndexedDB，有配额管理），
+  「历史」页随时查看/重新下载/删除，设置里可调配额。
+- **移动端适配**：窄屏下侧边栏收为图标栏、顶栏按钮图标化、弹窗转为底部贴边面板，
+  手机浏览器可直接使用；输入框字号已规避 iOS 聚焦缩放。
+- **开场动画**：启动时展示纸张扇形 + Logo 动画（纯 CSS，包体加载前即播），
+  可在设置中关闭全部界面动效。
+
+### 设置
+
+主题（浅色/深色/跟随系统）· 主题色（中性/蓝/紫/绿/琥珀/红）· 圆角档位 · 动效开关 ·
+图标方案 · 单文件大小上限 · 历史配额 · OCR DPI · 引擎状态（WASM）。
+
+**引擎状态（WASM）**面板列出全部本地引擎（pdf-lib / pdf.js / MuPDF / Tesseract.js /
+Pandoc / Typst / 中文字体包）的实时加载状态与体积，可手动「加载/重新检测」——
+全部引擎按需加载、首次使用对应功能时才下载，之后走浏览器缓存，面板让这一过程可见可控。
 
 ## 快速开始
 
@@ -107,12 +147,19 @@ python3 scripts/serve.py dist 8137   # 本地预览（也可用任意静态服�
 
 macOS 可双击 `启动PDF工具箱.command`；旧版命令行压缩工具用 `启动PDF寻优工具.command`。
 
-首次构建前需下载运行资产（约 40 MB：中文字体、OCR 语言包、pdf.js 资源）：
+运行资产分两类：**字体/OCR 语言包/pdf.js 资源已随仓库分发**（`public/fonts`、
+`public/tessdata`、`public/pdfjs`，约 40 MB，克隆即用）；**重型 WASM 引擎不进 git**，
+首次构建前需重建到 `public/engines/`（缺了它只有 Markdown 转 PDF 的 Typst/Pandoc
+引擎会 404，其余 63 个工具不受影响）：
 
 ```bash
-python3 scripts/fetch_assets.py
-bash scripts/build_fonts.sh   # 可选：从 Google Fonts 可变字体生成中文字体子集
+node scripts/fetch-engines.mjs       # pandoc.wasm 58MB + typst wasm 28MB
+python3 scripts/fetch_assets.py      # 可选：重下字体/语言包等运行资产
+bash scripts/build_fonts.sh          # 可选：从 Google Fonts 可变字体生成中文字体子集
 ```
+
+> 想参与开发？AI 编码代理请先读 [AGENTS.md](AGENTS.md)（架构/契约/踩坑清单），
+> 引擎 op 协议见 [docs/CONTRACTS.md](docs/CONTRACTS.md)。
 
 ## 部署（任意静态托管）
 
@@ -156,18 +203,23 @@ Caddy 更简单：静态文件服务默认带正确 MIME，直接 `pdftool.examp
 
 ```
 压缩PDF/
-  index.html + src/            Vite + 原生 ES modules（无框架）
-    core/                      引擎 worker（全部 PDF 操作在 Web Worker 执行）
-                               几何/页范围/模板/SSIM/diff 纯逻辑模块，
-                               documents/history(IndexedDB)/fonts/files/download/zip
-    components/                上传面板/页面工作台/水印编辑器/比较视图/UI 基件/SVG 图标装载器
-    tools/                     15 个工具控制器（每工具独立文件）+ 注册表
-    assets/icons/              27 个手绘 SVG 图标（构建期内联）
-  public/fonts/                中文字体子集（水印/编辑用，构建期生成）
+  index.html + src/            Vite + 原生 ES modules（无框架，内联开场动画）
+    main.js                    应用壳：路由/侧边栏/顶栏/首页/历史页/设置（含引擎状态面板）
+    core/                      engine.js ↔ engine-worker.js（引擎池与全部 PDF op，Web Worker 执行）
+                               engine-more.js（扩展 op）/ md*.*（Markdown→PDF/Word 多引擎链路）
+                               wasm-registry.js（引擎加载状态中心）/ geometry/pagerange/ssim/
+                               history(IndexedDB)/settings/fonts/files/download 等纯逻辑模块
+    components/                ui.js（shadcn 风格基件）/ shadcn.js（控件自动增强）/ search.js（⌘K）/
+                               tray.js（暂存区）/ input.js / icons.js（三套图标装载器）等
+    tools/                     15 个核心工具控制器 + registry 注册表
+    tools/more/                49 个扩展工具 + common.js 公共件
+    assets/icons/              78 个手绘单色 SVG（构建期内联；icons-color/ 为多彩版）
+  public/engines/              重型 WASM 引擎（不进 git，fetch-engines.mjs 重建）
+  public/fonts/                中文字体子集（水印/编辑/Typst 用）
   public/tessdata/             Tesseract 语言包（本地分发，处理不联网）
-  public/pdfjs/                pdf.js cmaps 与 standard fonts
-  scripts/                     构建/服务/测试/图标脚本（serve.py、fetch_assets.py 等）
-  tests/                       unit(vitest) / e2e(Playwright) / verify(pytest 独立校验)
+  public/pdfjs/                pdf.js cmaps / standard fonts / wasm
+  scripts/                     构建/服务/测试/图标脚本（serve.py、fetch-engines.mjs 等）
+  tests/                       unit(vitest 168) / e2e(Playwright 151) / verify(pytest 112 独立校验)
   pdf_optimizer.py             旧版 Python 压缩工具（独立保留可用）
 ```
 
@@ -179,10 +231,11 @@ bash scripts/run_tests.sh
 
 三层架构（详见 [tests/README.md](tests/README.md)）：
 
-1. **vitest 单元测试**：页范围/几何/平铺与全屏布局/模板变量/SSIM/文本 diff 等；
-2. **Playwright 真实浏览器 e2e**：15 个工具的成功与关键失败链路 + 严格断网套件
+1. **vitest 单元测试（168 条）**：页范围/几何/平铺与全屏布局/模板变量/SSIM/文本 diff/
+   收藏/搜索数据/引擎状态注册表等；
+2. **Playwright 真实浏览器 e2e（151 条）**：全部工具的成功与关键失败链路 + 严格断网套件
    （真实 filechooser 上传、真实下载捕获，禁止 DOM 注入伪造）；
-3. **pytest 独立校验**：pypdf / PyMuPDF / Pillow 用不同引擎交叉验证浏览器产物
+3. **pytest 独立校验（112 条）**：pypdf / PyMuPDF / Pillow 用不同引擎交叉验证浏览器产物
    （页数/顺序/加密/文字层/图像像素），「浏览器生产、Python 独立验证」。
 
 另保留旧版压缩工具 `pdf_optimizer.py` 及其回归测试。
