@@ -4,7 +4,8 @@ const KEY = 'pdftoolkit.settings.v1';
 const DEFAULTS = {
   theme: 'light',                 // light | dark | auto
   accent: 'neutral',              // neutral | blue | violet | green | amber | red（强调色）
-  dopamine: '',                   // '' | candy|citrus|lime|sky|grape|coral|teal|mango（右下角浮钮的随机多巴胺配色，双击浮钮恢复）
+  dopamine: '',                   // '' | 最近一次多巴胺随机的 seed（右下角浮钮；双击恢复默认）
+  palette: null,                  // null=跟随主题；否则 {primary,side,top,bg,card,hi} 六槽 hex（core/palette.js 派生全局配色）
   viewMode: 'cards',              // cards（工具卡片网格，默认）| list（列表视图，首页/更多页/首页内联展开共用）
   radius: 'default',              // none | sm | default | lg | xl（圆角档位）
   motion: true,                   // 界面动画与过渡

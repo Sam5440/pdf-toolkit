@@ -11,6 +11,7 @@ import { openCommandPalette, commandPaletteButton, githubButton } from './compon
 import { APP_NAME, APP_VERSION, APP_VERSION_FULL, APP_REPO, APP_REPO_ISSUES, APP_LICENSE, BUILD_COMMIT } from './core/version.js';
 import { iconNode } from './components/icons.js';
 import { getSettings, setSetting } from './core/settings.js';
+import { randomizePalette, paletteCssVars, PALETTE_VAR_KEYS } from './core/palette.js';
 import { pickFiles } from './core/files.js';
 import { listHistory, getHistory, deleteHistory, clearHistory, historyUsedBytes } from './core/history.js';
 import { probeFonts } from './core/fonts.js';
@@ -52,6 +53,12 @@ function applyTheme() {
   else delete root.dataset.radius;
   if (s.motion === false) root.dataset.motion = 'off';
   else delete root.dataset.motion;
+  // 区块调色板（六槽）：以 inline 变量全量覆盖语义令牌（inline 特异性高于任何预设属性块）
+  if (s.palette) {
+    for (const [k, v] of Object.entries(paletteCssVars(s.palette, dark))) root.style.setProperty(k, v);
+  } else {
+    for (const k of PALETTE_VAR_KEYS) root.style.removeProperty(k);
+  }
 }
 
 function isDarkTheme() {
@@ -121,20 +128,16 @@ function toggleTheme(origin) {
   }, origin);
 }
 
-// ---- 多巴胺随机配色（右下角浮钮） --------------------------------------
-// 池子 = tokens.css 里 html[data-dopamine=<id>] 定义的 8 套鲜艳配色（亮/暗各对应一版）。
-// 单击：随机换一套（避开当前）+ 圆形扫掠过渡；选中态持续到再次点击或双击恢复。
-const DOPAMINE_POOL = ['candy', 'citrus', 'lime', 'sky', 'grape', 'coral', 'teal', 'mango'];
-
-function pickDopamine() {
-  const cur = getSettings().dopamine || '';
-  const pool = DOPAMINE_POOL.filter((id) => id !== cur);
-  return pool[Math.floor(Math.random() * pool.length)];
-}
+// ---- 多巴胺随机配色（右下角浮钮 + 设置弹窗「配色」区共用） ----------------
+// 一键随机 = 为六个区块（主色/侧边栏/顶栏/背景/卡片/高亮）生成一套协调的鲜艳配色，
+// 由 core/palette.js 派生为全套语义变量并派生暗色版。seed 记录在 settings.dopamine
+// （也挂 html[data-dopamine]，便于调试与测试断言）；双击浮钮或「恢复默认」清除。
 
 function randomDopamine(origin) {
   animateThemeChange(() => {
-    setSetting('dopamine', pickDopamine());
+    const { seed, slots } = randomizePalette(getSettings().dopamine || '');
+    setSetting('palette', slots);
+    setSetting('dopamine', seed);
     applyTheme();
   }, origin);
 }
@@ -142,18 +145,19 @@ function randomDopamine(origin) {
 function clearDopamine(origin) {
   animateThemeChange(() => {
     setSetting('dopamine', '');
+    setSetting('palette', null);
     applyTheme();
   }, origin);
 }
 
-/** 右下角浮动圆钮：单击随机切换多巴胺配色，双击恢复默认配色 */
+/** 右下角浮动圆钮：单击一键随机全部区块配色，双击恢复默认 */
 function dopamineButton() {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'btn btn-outline dopa-btn';
   btn.appendChild(iconNode('dopamine'));
-  btn.setAttribute('aria-label', '多巴胺随机配色（单击切换，双击恢复默认）');
-  btn.title = '单击换一套多巴胺随机配色，双击恢复默认';
+  btn.setAttribute('aria-label', '多巴胺随机配色（单击随机全部区块，双击恢复默认）');
+  btn.title = '单击换一套多巴胺随机配色（主色/侧边栏/顶栏/背景/卡片/高亮整体随机），双击恢复默认';
   let clickTimer = 0;
   btn.addEventListener('click', (ev) => {
     // 单击/双击复用：单击延迟触发等 dblclick 判定，避免连换两套后又被重置
@@ -724,9 +728,16 @@ async function openSettings() {
     sel.onchange = () => { animateThemeChange(() => { setSetting('theme', sel.value); applyTheme(); syncThemeButton(); }, sel); };
     return sel;
   })()));
+  // ---- 配色（预设主题色 + 多巴胺随机 + 六区块自定义，与右下角浮钮同一体系） ----
   const accentRow = document.createElement('div');
   accentRow.className = 'accent-row';
   const dark = isDarkTheme();
+  const curPalette = s.palette;
+  const selectedId = (() => {
+    if (!curPalette || !curPalette.primary) return s.accent || 'neutral';
+    const hit = ACCENTS.find((a) => a.id !== 'neutral' && a.swatch.toLowerCase() === String(curPalette.primary).toLowerCase());
+    return hit ? hit.id : '';
+  })();
   for (const a of ACCENTS) {
     const sw = document.createElement('button');
     sw.type = 'button';
@@ -734,20 +745,70 @@ async function openSettings() {
     sw.title = a.label;
     sw.setAttribute('aria-label', `主题色：${a.label}`);
     sw.style.background = dark ? a.dark : a.swatch;
-    if ((s.accent || 'neutral') === a.id) sw.setAttribute('data-selected', '');
+    if (selectedId === a.id) sw.setAttribute('data-selected', '');
     sw.onclick = () => {
       animateThemeChange(() => {
         setSetting('accent', a.id);
+        if (a.id === 'neutral') {
+          setSetting('palette', null);
+          setSetting('dopamine', '');
+        } else {
+          // 预设主色 = 只染主色系，其余区块跟随主题默认
+          setSetting('palette', { primary: a.swatch, side: null, top: null, bg: null, card: null, hi: null });
+        }
+        applyTheme();
         accentRow.querySelectorAll('.accent-swatch').forEach((x) => x.removeAttribute('data-selected'));
         sw.setAttribute('data-selected', '');
-        applyTheme();
       }, sw);
     };
     accentRow.appendChild(sw);
   }
-  const accentField = field('主题色', accentRow, '按钮、选中态与焦点环的强调色（默认中性黑，对齐 ui.shadcn.com）');
+  const accentField = field('主题色', accentRow, '按钮、选中态与焦点环的强调色（中性 = 恢复主题默认）');
   accentField.querySelector('div.accent-row').style.marginTop = '2px';
   box.appendChild(accentField);
+
+  // 多巴胺随机 / 恢复默认（与右下角 🎨 浮钮完全同源）
+  const dopaRow = document.createElement('div');
+  dopaRow.style.cssText = 'display:flex;gap:8px;margin-top:2px';
+  dopaRow.appendChild(button('多巴胺随机配色', 'btn-outline', (e) => randomDopamine(e.currentTarget)));
+  dopaRow.appendChild(button('恢复默认配色', 'btn-outline', (e) => clearDopamine(e.currentTarget)));
+  box.appendChild(field('一键配色', dopaRow, '随机为全部区块生成一套协调的鲜艳配色，双击右下角 🎨 浮钮同样可恢复默认'));
+
+  // 六区块自定义颜色（改哪槽染哪槽，未动的槽跟随主题默认；暗色自动适配）
+  const SLOT_DEFS = [
+    { key: 'primary', label: '主色' },
+    { key: 'side', label: '侧边栏' },
+    { key: 'top', label: '顶栏' },
+    { key: 'bg', label: '页面背景' },
+    { key: 'card', label: '卡片' },
+    { key: 'hi', label: '高亮底' },
+  ];
+  const SLOT_DEMO = { primary: '#18181b', side: '#ffffff', top: '#ffffff', bg: '#ffffff', card: '#ffffff', hi: '#f4f4f5' };
+  const grid = document.createElement('div');
+  grid.className = 'palette-grid';
+  for (const sd of SLOT_DEFS) {
+    const cell = document.createElement('label');
+    cell.className = 'palette-cell';
+    const cap = document.createElement('span');
+    cap.textContent = sd.label;
+    const inp = document.createElement('input');
+    inp.type = 'color';
+    inp.value = (curPalette && curPalette[sd.key]) || SLOT_DEMO[sd.key];
+    inp.setAttribute('aria-label', `区块配色：${sd.label}`);
+    const applySlot = () => {
+      const p = { ...(getSettings().palette || {}) };
+      p[sd.key] = inp.value;
+      for (const k of ['primary', 'side', 'top', 'bg', 'card', 'hi']) if (!p[k]) p[k] = null;
+      setSetting('palette', p);
+      applyTheme();
+      accentRow.querySelectorAll('.accent-swatch').forEach((x) => x.removeAttribute('data-selected'));
+    };
+    inp.addEventListener('input', applySlot);
+    inp.addEventListener('change', applySlot);
+    cell.append(cap, inp);
+    grid.appendChild(cell);
+  }
+  box.appendChild(field('区块配色', grid, '逐区块自定义颜色；只改动设置过的区块，暗色模式按同色相自动适配深色'));
   box.appendChild(field('圆角', (() => {
     const sel = select([
       { value: 'none', label: '直角' },

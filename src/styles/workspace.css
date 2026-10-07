@@ -3,7 +3,7 @@
 
 /* 侧边栏 */
 .sidebar {
-  width: 224px; flex-shrink: 0; background: var(--card);
+  width: 224px; flex-shrink: 0; background: var(--side-bg);
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column; position: sticky; top: 0;
   height: 100vh; overflow-y: auto;
@@ -71,7 +71,7 @@
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar {
   display: flex; align-items: center; gap: 10px; padding: 10px 20px;
-  border-bottom: 1px solid var(--border); background: var(--card);
+  border-bottom: 1px solid var(--border); background: var(--top-bg);
   position: sticky; top: 0; z-index: 20;
 }
 .topbar .tb-title { font-weight: 700; font-size: 15px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; animation: tb-title-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
