@@ -133,7 +133,7 @@ registerTool({
           onSpawn(id) { opId = id; },
         }, docsMap);
         pc.done();
-        renderResult(res, doc, Date.now() - t0, targetBytes);
+        renderResult(res, doc, Date.now() - t0, targetBytes, modes);
       } catch (e) {
         pc.error(e.message);
         if (e.code !== 'ERR_CANCELLED') toast(e.message, 'error');
@@ -148,7 +148,7 @@ registerTool({
       return res.artifacts.find((a) => a.id === rowId) || null;
     }
 
-    function renderResult(res, doc, ms, targetBytes) {
+    function renderResult(res, doc, ms, targetBytes, modes) {
       const src = res.srcSize;
       const best = res.rows.find((r) => r.id === res.bestId);
       const bestArt = best && artifactOf(res, best.id);
