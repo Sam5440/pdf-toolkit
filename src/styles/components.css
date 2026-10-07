@@ -722,18 +722,24 @@ table.data tr:last-child td { border-bottom: none; }
 
 /* ============================================================
    设置 · 引擎下载进度条（大体积 WASM 包：pandoc / Typst 等）
+   外观参考 msime.app 顶部 route-progress：2px 发丝轨 +
+   transparent→主题色渐变拖尾（彗尾）+ 头部微光。
+   注意：renderEngines 每个进度分块都会重建整列表，进度条元素
+   生命周期极短——过渡/入场动画都会被打断（动画永远播不完=
+   隐形），所以只做即时跳格；width 仍由 main.js 写入，此处仅
+   改观感不改机制。
    ============================================================ */
 .engine-progress {
-  height: 5px; margin-top: 6px; border-radius: 9999px;
-  background: color-mix(in srgb, var(--primary) 14%, var(--secondary));
+  height: 2px; margin-top: 7px; border-radius: 9999px;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
   overflow: hidden;
 }
 .engine-progress-fill {
-  height: 100%; border-radius: 9999px; background: var(--primary);
-  transition: width 0.25s ease;
+  height: 100%; border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, var(--primary) 72%);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--primary) 45%, transparent);
 }
-html[data-motion=off] .engine-progress-fill { transition: none; }
-.engine-progress-text { font-size: 11px; color: var(--muted-foreground); margin-top: 2px; font-family: var(--mono); }
+.engine-progress-text { font-size: 11px; color: var(--muted-foreground); margin-top: 3px; font-family: var(--mono); }
 
 /* ============================================================
    设置 · 外挂字体（上传/远程订阅，IndexedDB 持久化）
