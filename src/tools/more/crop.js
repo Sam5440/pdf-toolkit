@@ -18,6 +18,7 @@ registerTool({
   desc: '页面预览上拖拽裁剪线框选区域，自动识别白边/黑边',
   accepts: 'pdf',
   multiple: false,
+  defaultFav: true,
   render(container) {
     const state = {
       doc: null, pageCount: 0, cur: 0,

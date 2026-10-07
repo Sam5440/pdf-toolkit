@@ -19,6 +19,7 @@ export function defaultFavoriteIds() {
 const MIGRATIONS = [
   { key: 'pdftoolkit.favorites.mig-md2pdf', tool: 'md2pdf' },
   { key: 'pdftoolkit.favorites.mig-pdf2pptimg', tool: 'pdf2pptimg' },
+  { key: 'pdftoolkit.favorites.mig-crop', tool: 'crop' },
 ];
 
 function loadStoredIds() {
