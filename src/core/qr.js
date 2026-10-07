@@ -1,6 +1,9 @@
 // 二维码生成（主线程）：包装 qrcode-generator（MIT），产出模块矩阵 / canvas / PNG bytes。
 import qrcode from 'qrcode-generator';
 
+// 库默认的 Byte 模式把 charCodeAt 截断为单字节，中文会损坏（扫码出乱码）——启用内置 UTF-8 编码器
+qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+
 /**
  * 生成 QR 模块矩阵
  * @param {string} text 内容（自动 UTF-8 编码为 Byte 模式）
