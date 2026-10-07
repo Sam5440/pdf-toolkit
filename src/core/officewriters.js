@@ -9,6 +9,11 @@ const esc = (s) => String(s ?? '')
   // 去掉 XML 非法控制字符
   .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
 
+// 生成物显式声明东亚字体：主题/运行级都留空的 OOXML 在部分查看器（WPS /
+// LibreOffice 特定版本 / 旧版 PowerPoint）里会以纯西文字体渲染中文 → 豆腐块。
+// 微软雅黑覆盖 Windows/WPS 主流环境；macOS PowerPoint 缺字时自动替换为苹方。
+const EA_FONT = '微软雅黑';
+
 const HEAD_SIZE = { 1: 32, 2: 26, 3: 22 }; // 半磅单位用不到，直接用 pt
 
 /** 供 docx/odt 使用的段落 XML 生成器家族 */
@@ -19,7 +24,8 @@ function docxParagraph(line) {
   const bold = heading || line.bold;
   if (!text.trim()) return '<w:p/>';
   return `<w:p><w:pPr>${heading ? `<w:outlineLvl w:val="${heading - 1}"/>` : ''}</w:pPr>` +
-    `<w:r><w:rPr>${bold ? '<w:b/>' : ''}<w:sz w:val="${sizeHalfPt}"/></w:rPr>` +
+    `<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="${EA_FONT}"/>` +
+    `${bold ? '<w:b/>' : ''}<w:sz w:val="${sizeHalfPt}"/></w:rPr>` +
     `<w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`;
 }
 
@@ -38,9 +44,9 @@ export function buildDocx(pages, { title = '' } = {}) {
   });
 }
 
-// 文本型与图片型 PPTX 共用的 theme 部件（OOXML 固定骨架）
+// 文本型与图片型 PPTX 共用的 theme 部件（OOXML 固定骨架；ea 声明东亚字体防豆腐块）
 const PPTX_THEME_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office"><a:themeElements><a:clrScheme name="Office"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="44546A"/></a:dk2><a:lt2><a:srgbClr val="E7E6E6"/></a:lt2><a:accent1><a:srgbClr val="4472C4"/></a:accent1><a:accent2><a:srgbClr val="ED7D31"/></a:accent2><a:accent3><a:srgbClr val="A5A5A5"/></a:accent3><a:accent4><a:srgbClr val="FFC000"/></a:accent4><a:accent5><a:srgbClr val="5B9BD5"/></a:accent5><a:accent6><a:srgbClr val="70AD47"/></a:accent6><a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme><a:fontScheme name="Office"><a:majorFont><a:latin typeface="Calibri Light"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="Office"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`;
+<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office"><a:themeElements><a:clrScheme name="Office"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="44546A"/></a:dk2><a:lt2><a:srgbClr val="E7E6E6"/></a:lt2><a:accent1><a:srgbClr val="4472C4"/></a:accent1><a:accent2><a:srgbClr val="ED7D31"/></a:accent2><a:accent3><a:srgbClr val="A5A5A5"/></a:accent3><a:accent4><a:srgbClr val="FFC000"/></a:accent4><a:accent5><a:srgbClr val="5B9BD5"/></a:accent5><a:accent6><a:srgbClr val="70AD47"/></a:accent6><a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme><a:fontScheme name="Office"><a:majorFont><a:latin typeface="Calibri Light"/><a:ea typeface="${EA_FONT}"/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/><a:ea typeface="${EA_FONT}"/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="Office"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`;
 
 /** PPTX：每页一帧，一个文本框容纳全部行 */
 export function buildPptx(pages) {
@@ -50,7 +56,8 @@ export function buildPptx(pages) {
     const body = paras.map((l) => {
       const heading = l.heading || 0;
       const sz = Math.round((heading ? HEAD_SIZE[heading] : (l.size || 14)) * 100);
-      return `<a:p><a:pPr/><a:r><a:rPr lang="zh-CN" sz="${Math.min(40000, Math.max(900, sz))}"${heading || l.bold ? ' b="1"' : ''}/><a:t>${esc(l.text)}</a:t></a:r></a:p>`;
+      const rpr = `<a:rPr lang="zh-CN" sz="${Math.min(40000, Math.max(900, sz))}"${heading || l.bold ? ' b="1"' : ''}><a:latin typeface="Calibri"/><a:ea typeface="${EA_FONT}"/></a:rPr>`;
+      return `<a:p><a:pPr/><a:r>${rpr}<a:t>${esc(l.text)}</a:t></a:r></a:p>`;
     }).join('');
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/><p:sp><p:nvSpPr><p:cNvPr id="2" name="文本框"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="457200" y="457200"/><a:ext cx="7772400" cy="4114800"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr wrap="square" rtlCol="0"><a:normAutofit/></a:bodyPr><a:lstStyle/>${body}</p:txBody></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;

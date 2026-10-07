@@ -83,23 +83,52 @@ function tokenLines(tokens) {
 // 页面操作
 // ---------------------------------------------------------------------------
 
-handlers['pages.rotate'] = async ({ docId, pages = 'all', angle = 90, mode = 'relative' }) => {
+/**
+ * 内容流首尾包装 `q <矩阵> cm … Q` 实现镜像：只变换内容坐标，
+ * 保留矢量/文字/注释（无损），与 pdf-lib translateContent/scaleContent 同一手法。
+ * rotation 必须传该页最终 /Rotate（本轮旋转之后），视觉方向映射才正确。
+ */
+function applyMirror(page, rotation, mirrorX, mirrorY) {
+  const matrix = geometry.mirrorMatrix(page.getCropBox(), rotation, mirrorX, mirrorY);
+  if (!matrix) return;
+  page.node.normalize();
+  page.getContentStream(); // 页面可能没有内容流，先确保 Contents 为数组且非空
+  const [a, b, c, d, e, f] = matrix;
+  const start = page.createContentStream(
+    pdfLib.pushGraphicsState(),
+    pdfLib.concatTransformationMatrix(a, b, c, d, e, f),
+  );
+  const end = page.createContentStream(pdfLib.popGraphicsState());
+  page.node.wrapContentStreams(page.doc.context.register(start), page.doc.context.register(end));
+}
+
+handlers['pages.rotate'] = async ({ docId, pages = 'all', angle = 90, mode = 'relative', mirrorX = false, mirrorY = false }) => {
   const e = getDoc(docId);
   const list = rangePages(e, pages);
-  const step = ((Number(angle) % 360) + 360) % 360;
+  const step = ((Math.round(Number(angle)) % 360) + 360) % 360;
   if (step % 90 !== 0) throw toolkitError('ERR_BAD_ARGS', '旋转角度需为 90 的倍数');
+  if (!step && !mirrorX && !mirrorY) throw toolkitError('ERR_BAD_ARGS', '请选择旋转角度或镜像方式');
   const doc = e.pdfLibDoc;
   for (let i = 0; i < list.length; i++) {
     checkAbort();
     const page = doc.getPage(list[i]);
     const cur = ((page.getRotation().angle % 360) + 360) % 360;
-    const next = mode === 'absolute' ? step : geometry.normalizeRotationStep(cur + step);
-    page.setRotation(pdfLib.degrees(next));
-    progress({ done: i + 1, total: list.length, stage: `旋转第 ${list[i] + 1} 页` });
+    const next = mode === 'absolute' ? step : geometry.composeRotation(cur, step);
+    if (next !== cur) page.setRotation(pdfLib.degrees(next));
+    if (mirrorX || mirrorY) applyMirror(page, next, mirrorX, mirrorY);
+    progress({ done: i + 1, total: list.length, stage: `处理第 ${list[i] + 1} 页` });
   }
   const bytes = await doc.save({ useObjectStreams: true });
   syncEntryBytes(e, doc, bytes);
-  return { artifacts: [{ name: withSuffix(e.name, '已旋转'), mime: 'application/pdf', bytes }], summary: { pages: list.length, angle: step } };
+  const suffix = step && (mirrorX || mirrorY) ? '已旋转镜像' : step ? '已旋转' : '已镜像';
+  return {
+    artifacts: [{ name: withSuffix(e.name, suffix), mime: 'application/pdf', bytes }],
+    summary: {
+      pages: list.length,
+      angle: step,
+      mirror: mirrorX && mirrorY ? '左右+上下' : mirrorX ? '左右' : mirrorY ? '上下' : '无',
+    },
+  };
 };
 
 handlers['pages.remove'] = async ({ docId, pages }) => {
@@ -211,21 +240,24 @@ handlers['pages.crop'] = async ({ docId, mode = 'margin', values = {}, pages = '
     if (mode === 'reset') {
       box = { x0: mediaBox.x0, y0: mediaBox.y0, x1: mediaBox.x1, y1: mediaBox.y1 };
     } else {
+      // 视觉空间（y 向下、/Rotate 已换向）计算裁剪框，再映射回用户空间；
+      // 直接用 pm.crop.width/height 会在 rot=90/270 时把右/下边距落错边
+      const vis = geometry.visualSize(pm.crop, pm.rot);
       let v;
       if (mode === 'margin') {
         const { left = 0, top = 0, right = 0, bottom = 0 } = values;
-        v = { x: left, y: top, w: Math.max(1, pm.crop.width - left - right), h: Math.max(1, pm.crop.height - top - bottom) };
+        v = { x: left, y: top, w: Math.max(1, vis.w - left - right), h: Math.max(1, vis.h - top - bottom) };
       } else if (mode === 'percent') {
         const pl = Math.min(49, Math.max(0, values.left ?? 0));
         const pt = Math.min(49, Math.max(0, values.top ?? 0));
         const pr = Math.min(49, Math.max(0, values.right ?? 0));
         const pb = Math.min(49, Math.max(0, values.bottom ?? 0));
         v = {
-          x: pm.crop.width * pl / 100, y: pm.crop.height * pt / 100,
-          w: pm.crop.width * (100 - pl - pr) / 100, h: pm.crop.height * (100 - pt - pb) / 100,
+          x: vis.w * pl / 100, y: vis.h * pt / 100,
+          w: vis.w * (100 - pl - pr) / 100, h: vis.h * (100 - pt - pb) / 100,
         };
       } else { // box：绝对视觉坐标
-        v = { x: values.x ?? 0, y: values.y ?? 0, w: values.w ?? pm.crop.width, h: values.h ?? pm.crop.height };
+        v = { x: values.x ?? 0, y: values.y ?? 0, w: values.w ?? vis.w, h: values.h ?? vis.h };
       }
       const p1 = geometry.visualToUser(v.x, v.y, pm.crop, pm.rot);
       const p2 = geometry.visualToUser(v.x + v.w, v.y + v.h, pm.crop, pm.rot);
@@ -1751,7 +1783,8 @@ handlers['pdf.exportOffice'] = async ({ docId, pages = 'all', format = 'docx', t
   const base = e.name.replace(/\.pdf$/i, '');
   return {
     artifacts: [{ name: `${base}.${built.ext}`, mime: built.mime, bytes: built.bytes }],
-    summary: { format, pages: list.length },
+    // lines：提取到的总行数（0 = 无文本层/扫描件，工具层据此降级图片型或给出 OCR 引导）
+    summary: { format, pages: list.length, lines: pagesData.reduce((s, p) => s + p.lines.length, 0) },
   };
 };
 

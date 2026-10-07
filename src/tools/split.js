@@ -202,6 +202,7 @@ registerTool({
       const t0 = Date.now();
       try {
         const out = await run('pages.split', { docId: doc.id, mode: res.mode, baseName: base }, {
+          trayFolder: `拆分 · ${base}`,
           onProgress: (p) => pc.set(p.total ? (p.done / p.total) * 100 : 0, p.stage || '拆分中…'),
         }, docsMap);
         pc.done();

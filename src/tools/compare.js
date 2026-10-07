@@ -7,6 +7,7 @@ import {
 } from '../components/ui.js';
 import { createCompareView } from '../components/compare-view.js';
 import { addHistory } from '../core/history.js';
+import { buildOutputName, paramsToken } from '../core/naming.js';
 
 registerTool({
   id: 'compare',
@@ -174,7 +175,7 @@ registerTool({
           tool: 'compare', toolName: 'PDF 比较',
           docNames: [docA.name, docB.name],
           options: { dpi, threshold, pagesA: pagesAInp.value.trim() || 'all', pagesB: pagesBInp.value.trim() || 'all' },
-          outputs: [{ name: '比较报告.txt', mime: 'text/plain;charset=utf-8', size: bytes.byteLength, blob: new Blob([bytes], { type: 'text/plain;charset=utf-8' }) }],
+          outputs: [{ name: `${buildOutputName({ name: docA.name, op: '对比', params: paramsToken({ dpi, threshold }) })}.txt`, mime: 'text/plain;charset=utf-8', size: bytes.byteLength, blob: new Blob([bytes], { type: 'text/plain;charset=utf-8' }) }],
         });
         toast('已保存到历史');
       }));

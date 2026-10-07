@@ -3,6 +3,8 @@ import { registerTool } from '../core.js';
 import { inputPanel } from '../../components/input.js';
 import { field, select, numberInput, button } from '../../components/ui.js';
 import { paramsCard, resultCard, runWithProgress } from './common.js';
+import { addResultArtifacts } from '../../core/tray.js';
+import { buildOutputName, paramsToken } from '../../core/naming.js';
 
 registerTool({
   id: 'webpconvert',
@@ -71,7 +73,7 @@ registerTool({
           const blob = await new Promise((r) => canvas.toBlob(r, type, quality));
           if (!blob) throw new Error('画布导出失败');
           artifacts.push({
-            name: `${doc.name.replace(/\.webp$/i, '')}.${fmt === 'png' ? 'png' : 'jpg'}`,
+            name: `${buildOutputName({ name: doc.name, op: '格式转换', params: paramsToken({ fmt, quality }) })}.${fmt === 'png' ? 'png' : 'jpg'}`,
             mime: type,
             bytes: new Uint8Array(await blob.arrayBuffer()),
           });
@@ -82,6 +84,8 @@ registerTool({
       if (!artifacts.length) {
         throw new Error(`没有可转换的文件：${warnings.join('；') || '未知原因'}`);
       }
+      // 本地构建的产物（不走引擎 run()）显式入暂存区：多产物归档到文件夹
+      addResultArtifacts(artifacts, { folder: `WebP 转换 · ${docs.length > 1 ? `${docs.length} 个文件` : docs[0].name.replace(/\.webp$/i, '')}` });
       resultBox.appendChild(resultCard({
         arts: artifacts,
         summary: { 转换: artifacts.length, 格式: fmt.toUpperCase() },

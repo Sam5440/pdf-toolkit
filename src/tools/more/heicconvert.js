@@ -3,6 +3,8 @@ import { registerTool } from '../core.js';
 import { inputPanel } from '../../components/input.js';
 import { field, select, numberInput, button } from '../../components/ui.js';
 import { paramsCard, resultCard, runWithProgress } from './common.js';
+import { addResultArtifacts } from '../../core/tray.js';
+import { buildOutputName, paramsToken } from '../../core/naming.js';
 
 const HEIC_HINT = '当前浏览器不支持 HEIC 解码，请用 Safari 或先转换格式';
 
@@ -73,13 +75,17 @@ registerTool({
           const blob = await new Promise((r) => canvas.toBlob(r, type, quality));
           if (!blob) throw new Error('画布导出失败');
           artifacts.push({
-            name: `${doc.name.replace(/\.(heic|heif)$/i, '')}.${fmt === 'png' ? 'png' : 'jpg'}`,
+            name: `${buildOutputName({ name: doc.name, op: '格式转换', params: paramsToken({ fmt, quality }) })}.${fmt === 'png' ? 'png' : 'jpg'}`,
             mime: type,
             bytes: new Uint8Array(await blob.arrayBuffer()),
           });
         } finally {
           bmp.close();
         }
+      }
+      // 本地构建的产物（不走引擎 run()）显式入暂存区：多产物归档到文件夹
+      if (artifacts.length) {
+        addResultArtifacts(artifacts, { folder: `HEIC 转换 · ${docs.length > 1 ? `${docs.length} 个文件` : docs[0].name.replace(/\.(heic|heif)$/i, '')}` });
       }
       resultBox.appendChild(resultCard({
         arts: artifacts,

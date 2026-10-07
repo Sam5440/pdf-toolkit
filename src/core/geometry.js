@@ -92,6 +92,24 @@ export function composeRotation(current, delta) {
 }
 
 /**
+ * 视觉镜像 → 内容流变换矩阵 [a,b,c,d,e,f]（PDF cm 语义），轴心取可视框（CropBox）中心。
+ * mirrorX=左右镜像（视觉水平翻转）、mirrorY=上下镜像（视觉垂直翻转），可叠加（叠加=点对称）。
+ * rotation 为页面最终 /Rotate：视觉水平方向在用户空间由 x（rot 0/180）或 y（rot 90/270）承载，
+ * 据此把视觉翻转映射为对应内容轴翻转，保证带 /Rotate 的页镜像方向仍符合视觉直觉。
+ * 返回 null 表示无需镜像。
+ */
+export function mirrorMatrix(box, rotation, mirrorX, mirrorY) {
+  if (!mirrorX && !mirrorY) return null;
+  const b = normBox(box);
+  const r = ((rotation % 360) + 360) % 360;
+  const swap = r === 90 || r === 270; // 视觉水平轴 ↔ 用户 y 轴
+  const tx = b.x0 + b.x1, ty = b.y0 + b.y1;
+  if (mirrorX && mirrorY) return [-1, 0, 0, -1, tx, ty];
+  if (mirrorX) return swap ? [1, 0, 0, -1, 0, ty] : [-1, 0, 0, 1, tx, 0];
+  return swap ? [-1, 0, 0, 1, tx, 0] : [1, 0, 0, -1, 0, ty];
+}
+
+/**
  * 九宫格锚点 → 视觉坐标（相对可视区）。
  * anchors: tl tc tr / ml mc mr / bl bc br
  */

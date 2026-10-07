@@ -303,6 +303,13 @@ let fontBytesCache = new Map();
 async function fetchFontBytes(fontId, bold) {
   const key = `${fontId}:${bold ? 'b' : 'r'}`;
   if (fontBytesCache.has(key)) return fontBytesCache.get(key);
+  // 外挂字体（设置面板上传/远程订阅）：IndexedDB 读取（worker 内可用）
+  if (String(fontId || '').startsWith('user-')) {
+    const { getUserFontBytes } = await import('./userfonts.js');
+    const buf = await getUserFontBytes(fontId);
+    fontBytesCache.set(key, buf);
+    return buf;
+  }
   const url = `${assetBase()}fonts/${fontId === 'noto-sc' ? 'NotoSansSC' : fontId}-${bold ? 'Bold' : 'Regular'}.ttf`;
   let resp;
   try { resp = await fetch(url); } catch { throw toolkitError('ERR_FONT', '字体文件获取失败'); }
@@ -380,18 +387,38 @@ export async function ensureWorkerCJKFont() {
   return workerCjkFontPromise;
 }
 
-export function workerFontSpec(fontSizePt, bold) {
-  return `${bold ? 700 : 400} ${fontSizePt * W_RASTER_SCALE}px 'pdftoolkit-cjk', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif`;
+/** 外挂字体注册为 worker FontFace（栅格化路径用；族名 = pdftoolkit-user-<id>） */
+export async function ensureWorkerUserFont(fontId) {
+  if (!userFontFaces) userFontFaces = new Map();
+  if (!userFontFaces.has(fontId)) {
+    userFontFaces.set(fontId, (async () => {
+      try {
+        const bytes = await fetchFontBytes(fontId, false);
+        const face = new FontFace(`pdftoolkit-user-${fontId}`, bytes);
+        await face.load();
+        self.fonts.add(face);
+        return true;
+      } catch {
+        return false;
+      }
+    })());
+  }
+  return userFontFaces.get(fontId);
+}
+let userFontFaces = null;
+
+export function workerFontSpec(fontSizePt, bold, family = 'pdftoolkit-cjk') {
+  return `${bold ? 700 : 400} ${fontSizePt * W_RASTER_SCALE}px '${family}', 'pdftoolkit-cjk', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif`;
 }
 
-async function workerRasterLinePng(text, { fontSize, bold, color01 }) {
-  const key = `${text}|${fontSize}|${bold ? 'b' : 'r'}|${color01.r},${color01.g},${color01.b}`;
+async function workerRasterLinePng(text, { fontSize, bold, color01, family = 'pdftoolkit-cjk' }) {
+  const key = `${text}|${fontSize}|${bold ? 'b' : 'r'}|${color01.r},${color01.g},${color01.b}|${family}`;
   if (wRasterCache.has(key)) return wRasterCache.get(key);
-  await ensureWorkerCJKFont();
+  await (family === 'pdftoolkit-cjk' ? ensureWorkerCJKFont() : ensureWorkerUserFont(family.replace(/^pdftoolkit-user-/, '')));
   const K = W_RASTER_SCALE;
   const probe = new OffscreenCanvas(8, 8);
   const pctx = probe.getContext('2d');
-  pctx.font = workerFontSpec(fontSize, bold);
+  pctx.font = workerFontSpec(fontSize, bold, family);
   const m = pctx.measureText(text);
   const ascent = Math.ceil(m.actualBoundingBoxAscent || fontSize * K * 0.8) + 2;
   const descent = Math.ceil(m.actualBoundingBoxDescent || fontSize * K * 0.25) + 2;
@@ -399,7 +426,7 @@ async function workerRasterLinePng(text, { fontSize, bold, color01 }) {
   const h = ascent + descent;
   const canvas = new OffscreenCanvas(w, h);
   const ctx = canvas.getContext('2d');
-  ctx.font = workerFontSpec(fontSize, bold);
+  ctx.font = workerFontSpec(fontSize, bold, family);
   ctx.fillStyle = `rgb(${Math.round(color01.r * 255)},${Math.round(color01.g * 255)},${Math.round(color01.b * 255)})`;
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(text, 2, ascent);
@@ -410,9 +437,11 @@ async function workerRasterLinePng(text, { fontSize, bold, color01 }) {
   return entry;
 }
 
-export async function drawTextRaster(page, doc, lines, { cx, cy, fontSize, color01, opacity, angleUser, align }) {
+export async function drawTextRaster(page, doc, lines, { cx, cy, fontSize, color01, opacity, angleUser, align, fontId = '' }) {
+  // fontId = 'user-…' 时用外挂字体（CSS 族名 pdftoolkit-user-<fontId>），否则内置 CJK 族
+  const family = String(fontId || '').startsWith('user-') ? `pdftoolkit-user-${fontId}` : 'pdftoolkit-cjk';
   const widthOf = async (s) => {
-    const e = await workerRasterLinePng(s, { fontSize, bold: false, color01 });
+    const e = await workerRasterLinePng(s, { fontSize, bold: false, color01, family });
     return e.wPt;
   };
   const widths = [];
@@ -427,7 +456,7 @@ export async function drawTextRaster(page, doc, lines, { cx, cy, fontSize, color
       : align === 'right' ? (maxW / 2 - widths[i] / 2) : 0;
     // worker 侧无页面旋转上下文转换：行偏移按未旋转页面近似（编辑对象 rotation 常为 0）
     const ux = cx + offVx, uy = cy + (i - (n - 1) / 2) * lh;
-    const entry = await workerRasterLinePng(line, { fontSize, bold: false, color01 });
+    const entry = await workerRasterLinePng(line, { fontSize, bold: false, color01, family });
     const img = await doc.embedPng(entry.bytes);
     const rad = (angleUser * Math.PI) / 180;
     const cos = Math.cos(rad), sin = Math.sin(rad);
@@ -746,6 +775,7 @@ handlers['page.addContent'] = async ({ docId, edits }) => {
         const lines = String(obj.text ?? '').split('\n');
         const c = geometry.visualToUser(obj.x + (obj.w || 0) / 2, obj.y + (obj.h || lines.length * obj.fontSize * 1.3) / 2, pm.crop, rot);
         const useRaster = obj.fontId === 'noto-sc'
+          || String(obj.fontId || '').startsWith('user-')
           || ((obj.fontId === 'auto' || !obj.fontId) && /[\u3400-\u4DBF\u4E00-\u9FFF\u3000-\u303F\uFF00-\uFFEF]/.test(obj.text ?? ''));
         if (useRaster) {
           await drawTextRaster(page, doc, lines, {
@@ -754,6 +784,7 @@ handlers['page.addContent'] = async ({ docId, edits }) => {
             opacity: obj.opacity ?? 1,
             angleUser: geometry.userAngleForVisual(obj.rotation || 0, rot),
             align: obj.align || 'left',
+            fontId: obj.fontId || '',
           });
         } else {
           const font = await resolveFont(doc, obj.fontId, obj.bold, obj.text);

@@ -5,6 +5,7 @@ import { inputPanel } from '../../components/input.js';
 import { field, select, button } from '../../components/ui.js';
 import { paramsCard, resultCard, runWithProgress } from './common.js';
 import { decodeTiff } from '../../core/tiff.js';
+import { buildOutputName, paramsToken } from '../../core/naming.js';
 
 registerTool({
   id: 'tiffpdf',
@@ -79,7 +80,7 @@ registerTool({
       }, {
         onProgress: (p) => setP(p.total ? 60 + (p.done / p.total) * 40 : 80, p.stage),
       }, new Map());
-      res.artifacts = res.artifacts.map((a) => ({ ...a, name: `${doc.name.replace(/\.(tif|tiff)$/i, '') || 'TIFF'}.pdf` }));
+      res.artifacts = res.artifacts.map((a) => ({ ...a, name: `${buildOutputName({ name: doc.name, op: 'TIFF转PDF', params: paramsToken({ paper: paperSel.value }) })}.pdf` }));
       resultBox.appendChild(resultCard({
         arts: res.artifacts,
         summary: { 页数: res.summary.pages },

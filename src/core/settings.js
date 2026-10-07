@@ -4,6 +4,8 @@ const KEY = 'pdftoolkit.settings.v1';
 const DEFAULTS = {
   theme: 'light',                 // light | dark | auto
   accent: 'neutral',              // neutral | blue | violet | green | amber | red（强调色）
+  dopamine: '',                   // '' | candy|citrus|lime|sky|grape|coral|teal|mango（右下角浮钮的随机多巴胺配色，双击浮钮恢复）
+  viewMode: 'cards',              // cards（工具卡片网格，默认）| list（列表视图，首页/更多页/首页内联展开共用）
   radius: 'default',              // none | sm | default | lg | xl（圆角档位）
   motion: true,                   // 界面动画与过渡
   iconSet: 'svg',                 // svg（手绘线描，默认）| color（多彩手绘）| emoji（原版 emoji）
@@ -14,9 +16,13 @@ const DEFAULTS = {
   maxRenderPixels: 4096 * 4096,   // 单页渲染像素上限
   ocrDpi: 200,
   historyQuotaMB: 500,            // 历史输出保留配额
+  trayQuotaMB: 1024,              // 暂存区持久化配额（超出自动逐出最旧条目）
   workerCount: 0,                 // 0=自动
   compareDpi: 110,
   previewDebounceMs: 350,
+  namingTemplate: '{name}-{op}-{params}-{time}', // 产物命名模板（{name}{op}{params}{time}{i}）
+  recentEnabled: true,            // 首页第一行「最近使用」+ 使用记录
+  remoteFontUrls: [],             // 远程外挂字体 URL（每次启动自动下载并持久化到本机）
 };
 
 let cache = null;

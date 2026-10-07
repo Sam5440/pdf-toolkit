@@ -7,6 +7,8 @@
 const engines = new Map(); // id → { id, label, desc, size, status, detail, probe }
 const listeners = new Set();
 
+import { log } from './logs.js';
+
 function notify() {
   for (const fn of listeners) {
     try { fn(); } catch { /* 单个订阅者异常不影响其他 */ }
@@ -30,12 +32,22 @@ export function defineEngine(def) {
  * 更新引擎状态。
  * ready → loading 允许通过：Worker 池内多个 worker 各自懒加载（mupdf、tesseract
  * 换语言包重载）是真实的加载阶段，如实展示短促的 loading 回摆。
+ * @param {string} id
+ * @param {string} status
+ * @param {string} [detail]
+ * @param {{progress?:{loaded:number,total:number}|null}} [opts] 下载进度（设置面板进度条）
  */
-export function setEngineStatus(id, status, detail = '') {
+export function setEngineStatus(id, status, detail = '', opts = {}) {
   const e = engines.get(id);
   if (!e) return;
   e.status = status;
   e.detail = detail || '';
+  e.progress = status === 'loading'
+    ? (opts.progress !== undefined ? opts.progress : (e.progress || null))
+    : null;
+  // 引擎加载是故障排查的高频现场：全量进运行日志（错误升 warn）
+  log('engine', `引擎 ${e.label || id} ${status === 'ready' ? '就绪' : status === 'loading' ? '加载中' : status === 'error' ? '加载失败' : status}`,
+    { level: status === 'error' ? 'warn' : 'info', detail: status === 'error' ? detail : '' });
   notify();
 }
 

@@ -1,7 +1,7 @@
 // 输入文档面板：文件选择/拖拽/列表管理（安全渲染文件名）
 import { esc, fmtBytes, baseName } from '../core/format.js';
 import { addDocument, getDocument, removeDocument, pickFiles, bindDropzone, validateFile, warnFile } from '../core/files.js';
-import { addPdfsToTray } from '../core/tray.js';
+import { addFilesToTray } from '../core/tray.js';
 import { toast, openModal, button } from './ui.js';
 import { iconNode } from './icons.js';
 
@@ -137,8 +137,9 @@ export function inputPanel(opts = {}) {
         added.push(doc);
       }
       renderList();
-      // 上传镜像：PDF 默认在右侧暂存区创建一份副本（同一 File 引用，不复制字节）
-      if (added.length) addPdfsToTray(added.map((d) => d.file), { source: 'upload' });
+      // 上传镜像：上传的文件默认在右侧暂存区创建一份副本（同一 File 引用，不复制字节），
+      // 全类型入架 + 持久化，刷新后可从暂存区恢复
+      if (added.length) addFilesToTray(added.map((d) => d.file), { source: 'upload' });
       opts.onAdd?.(added);
       return added;
     },

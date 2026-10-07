@@ -168,6 +168,18 @@ describe('officewriters · 字符串族', () => {
     const doc = strFromU8(zip['word/document.xml']);
     expect(doc).toContain('a&lt;b&gt;&amp;&quot;c&quot;');
   });
+
+  it('东亚字体声明：docx rFonts 与 pptx run/theme 均显式声明中文字体（防部分查看器豆腐块）', () => {
+    const docx = unzipSync(buildDocx([{ lines: [{ text: '中文正文', size: 12 }] }]));
+    const doc = strFromU8(docx['word/document.xml']);
+    expect(doc).toContain('w:eastAsia="微软雅黑"');
+    const pptx = unzipSync(buildPptx([{ lines: [{ text: '中文标题', size: 20 }] }]));
+    const s1 = strFromU8(pptx['ppt/slides/slide1.xml']);
+    expect(s1).toContain('<a:ea typeface="微软雅黑"/>');
+    expect(s1).not.toContain('/><a:t>'); // rPr 不再自闭合（需包住 latin/ea 子元素）
+    const theme = strFromU8(pptx['ppt/theme/theme1.xml']);
+    expect(theme.match(/<a:ea typeface="微软雅黑"\/>/g)).toHaveLength(2); // major + minor
+  });
 });
 
 describe('tiff roundtrip', () => {

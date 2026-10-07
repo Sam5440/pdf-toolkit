@@ -136,6 +136,90 @@
   --primary-hover: #f87171; --primary-soft: #450a0a;
 }
 
+/* ---- 多巴胺随机配色（右下角浮钮；id 与 main.js DOPAMINE_POOL 一致维护） ----
+   鲜艳主色 + 焦点环 + 柔和底 + 背景微染色（color-mix 在浅色上叠 5-6%、暗色叠 9-10%）。
+   放在 data-accent 块之后：选中强调色 + 多巴胺时，多巴胺以同特异性靠源序取胜。 */
+:root[data-dopamine="candy"] {
+  --primary: #ec4899; --primary-hover: #db2777; --primary-foreground: #ffffff; --ring: #f472b6;
+  --primary-soft: #fce7f3; --accent: #fce7f3; --accent-foreground: #831843;
+  --background: color-mix(in srgb, #ec4899 5%, #ffffff);
+}
+html.dark[data-dopamine="candy"] {
+  --primary: #f472b6; --primary-hover: #f9a8d4; --primary-foreground: #500724; --ring: #f472b6;
+  --primary-soft: #500724; --accent: #2a0c18; --accent-foreground: #fbcfe8;
+  --background: color-mix(in srgb, #ec4899 9%, #09090b);
+}
+:root[data-dopamine="citrus"] {
+  --primary: #f97316; --primary-hover: #ea580c; --primary-foreground: #ffffff; --ring: #fb923c;
+  --primary-soft: #ffedd5; --accent: #ffedd5; --accent-foreground: #7c2d12;
+  --background: color-mix(in srgb, #f97316 5%, #ffffff);
+}
+html.dark[data-dopamine="citrus"] {
+  --primary: #fb923c; --primary-hover: #fdba74; --primary-foreground: #431407; --ring: #fb923c;
+  --primary-soft: #431407; --accent: #29100a; --accent-foreground: #fdba74;
+  --background: color-mix(in srgb, #f97316 9%, #09090b);
+}
+:root[data-dopamine="lime"] {
+  --primary: #65a30d; --primary-hover: #4d7c0f; --primary-foreground: #f7fee7; --ring: #84cc16;
+  --primary-soft: #ecfccb; --accent: #ecfccb; --accent-foreground: #365314;
+  --background: color-mix(in srgb, #84cc16 5%, #ffffff);
+}
+html.dark[data-dopamine="lime"] {
+  --primary: #a3e635; --primary-hover: #bef264; --primary-foreground: #1a2e05; --ring: #a3e635;
+  --primary-soft: #1a2e05; --accent: #14200a; --accent-foreground: #bef264;
+  --background: color-mix(in srgb, #84cc16 9%, #09090b);
+}
+:root[data-dopamine="sky"] {
+  --primary: #0ea5e9; --primary-hover: #0284c7; --primary-foreground: #ffffff; --ring: #38bdf8;
+  --primary-soft: #e0f2fe; --accent: #e0f2fe; --accent-foreground: #075985;
+  --background: color-mix(in srgb, #0ea5e9 5%, #ffffff);
+}
+html.dark[data-dopamine="sky"] {
+  --primary: #38bdf8; --primary-hover: #7dd3fc; --primary-foreground: #082f49; --ring: #38bdf8;
+  --primary-soft: #082f49; --accent: #0a2138; --accent-foreground: #bae6fd;
+  --background: color-mix(in srgb, #0ea5e9 9%, #09090b);
+}
+:root[data-dopamine="grape"] {
+  --primary: #8b5cf6; --primary-hover: #7c3aed; --primary-foreground: #ffffff; --ring: #a78bfa;
+  --primary-soft: #ede9fe; --accent: #ede9fe; --accent-foreground: #4c1d95;
+  --background: color-mix(in srgb, #8b5cf6 5%, #ffffff);
+}
+html.dark[data-dopamine="grape"] {
+  --primary: #a78bfa; --primary-hover: #c4b5fd; --primary-foreground: #2e1065; --ring: #a78bfa;
+  --primary-soft: #2e1065; --accent: #221041; --accent-foreground: #ddd6fe;
+  --background: color-mix(in srgb, #8b5cf6 9%, #09090b);
+}
+:root[data-dopamine="coral"] {
+  --primary: #f43f5e; --primary-hover: #e11d48; --primary-foreground: #ffffff; --ring: #fb7185;
+  --primary-soft: #ffe4e6; --accent: #ffe4e6; --accent-foreground: #881337;
+  --background: color-mix(in srgb, #f43f5e 5%, #ffffff);
+}
+html.dark[data-dopamine="coral"] {
+  --primary: #fb7185; --primary-hover: #fda4af; --primary-foreground: #4c0519; --ring: #fb7185;
+  --primary-soft: #4c0519; --accent: #38101c; --accent-foreground: #fecdd3;
+  --background: color-mix(in srgb, #f43f5e 9%, #09090b);
+}
+:root[data-dopamine="teal"] {
+  --primary: #14b8a6; --primary-hover: #0d9488; --primary-foreground: #ffffff; --ring: #2dd4bf;
+  --primary-soft: #ccfbf1; --accent: #ccfbf1; --accent-foreground: #134e4a;
+  --background: color-mix(in srgb, #14b8a6 5%, #ffffff);
+}
+html.dark[data-dopamine="teal"] {
+  --primary: #2dd4bf; --primary-hover: #5eead4; --primary-foreground: #042f2e; --ring: #2dd4bf;
+  --primary-soft: #042f2e; --accent: #0a2522; --accent-foreground: #99f6e4;
+  --background: color-mix(in srgb, #14b8a6 9%, #09090b);
+}
+:root[data-dopamine="mango"] {
+  --primary: #eab308; --primary-hover: #ca8a04; --primary-foreground: #422006; --ring: #eab308;
+  --primary-soft: #fef9c3; --accent: #fef9c3; --accent-foreground: #713f12;
+  --background: color-mix(in srgb, #eab308 5%, #ffffff);
+}
+html.dark[data-dopamine="mango"] {
+  --primary: #facc15; --primary-hover: #fde047; --primary-foreground: #422006; --ring: #facc15;
+  --primary-soft: #422006; --accent: #2c2004; --accent-foreground: #fde047;
+  --background: color-mix(in srgb, #eab308 9%, #09090b);
+}
+
 /* ---- 圆角档位（对齐 shadcn 主题定制器） ---- */
 :root[data-radius="none"] { --radius: 0rem; }
 :root[data-radius="sm"] { --radius: 0.3rem; }

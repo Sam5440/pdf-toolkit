@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normBox, visualSize, visualToUser, userToVisual, userAngleForVisual, visualVecToUser, anchorPoint, clampCrop, composeRotation } from '../../src/core/geometry.js';
+import { normBox, visualSize, visualToUser, userToVisual, userAngleForVisual, visualVecToUser, anchorPoint, clampCrop, composeRotation, mirrorMatrix } from '../../src/core/geometry.js';
 
 describe('geometry 坐标变换', () => {
   const box = { x0: 0, y0: 0, x1: 100, y1: 50 };
@@ -71,5 +71,42 @@ describe('geometry 坐标变换', () => {
     expect(composeRotation(270, 90)).toBe(0);
     expect(composeRotation(90, 180)).toBe(270);
     expect(composeRotation(0, -90)).toBe(270);
+  });
+
+  it('mirrorMatrix 无镜像返回 null', () => {
+    expect(mirrorMatrix(box, 0, false, false)).toBeNull();
+  });
+
+  it('mirrorMatrix rot=0：x/y/双轴翻转的显式矩阵', () => {
+    // 盒 {0,0,100,50}：左右镜像 x→100-x，上下镜像 y→50-y
+    expect(mirrorMatrix(box, 0, true, false)).toEqual([-1, 0, 0, 1, 100, 0]);
+    expect(mirrorMatrix(box, 0, false, true)).toEqual([1, 0, 0, -1, 0, 50]);
+    expect(mirrorMatrix(box, 0, true, true)).toEqual([-1, 0, 0, -1, 100, 50]);
+  });
+
+  it('mirrorMatrix 非零原点盒轴心取盒中心', () => {
+    const b2 = { x0: 10, y0: 20, x1: 110, y1: 70 };
+    const m = mirrorMatrix(b2, 0, true, false);
+    // x → (10+110) - x
+    const [a, , , d, e, f] = m;
+    expect([a, d, e, f]).toEqual([-1, 1, 120, 0]);
+    const px = a * 20 + e, py = d * 30 + f;
+    expect(px).toBe(100); expect(py).toBe(30);
+  });
+
+  it('mirrorMatrix 与「视觉翻转→回用户空间」语义一致（全部 rot × 组合）', () => {
+    for (const r of [0, 90, 180, 270]) {
+      const { w, h } = visualSize(box, r);
+      for (const [mx, my] of [[true, false], [false, true], [true, true]]) {
+        const [a, b2, c, d, e, f] = mirrorMatrix(box, r, mx, my);
+        for (const [x, y] of [[0, 0], [100, 50], [20, 30], [37, 42], [100, 0], [0, 50]]) {
+          const mapped = { x: a * x + c * y + e, y: b2 * x + d * y + f };
+          const v = userToVisual(x, y, box, r);
+          const back = visualToUser(mx ? w - v.vx : v.vx, my ? h - v.vy : v.vy, box, r);
+          expect(mapped.x).toBeCloseTo(back.x, 6);
+          expect(mapped.y).toBeCloseTo(back.y, 6);
+        }
+      }
+    }
   });
 });

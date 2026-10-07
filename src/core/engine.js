@@ -1,7 +1,9 @@
 // 引擎池（主线程侧）：管理 worker 池、op 调度、进度/取消、文档字节装载与驱逐重试。
 import { uid } from './format.js';
+import { log } from './logs.js';
 import { addResultArtifacts } from './tray.js';
 import { setEngineStatus } from './wasm-registry.js';
+import { applyNamingToArtifacts } from './naming.js';
 import EngineWorkerCtor from './engine-worker.js?worker';
 
 class EnginePool {
@@ -40,6 +42,7 @@ class EnginePool {
     };
     w.onerror = (ev2) => {
       // worker 崩溃：拒绝所有在途任务
+      log('engine', '引擎 Worker 崩溃，正在重试', { level: 'error', detail: ev2.message || '未知错误' });
       for (const [, job] of w.jobs) job.reject(new Error(`引擎崩溃：${ev2.message || '未知错误'}`));
       w.jobs.clear();
       this.workers = this.workers.filter((x) => x !== w);
@@ -191,10 +194,17 @@ export async function run(op, args = {}, opts = {}, docs = new Map()) {
     if (d) await ensureDoc(d);
   }
   let jobId = null;
+  // 运行日志：只记 op 名 / 文档数 / 耗时 / 产物数，绝不记参数值（含密码）
+  const t0 = Date.now();
+  log('engine', `▶ ${op}${ids.size ? `（${ids.size} 个文档）` : ''}`);
   const exec = () => getPool().run(op, limitsArg(args), { ...opts, onSpawn: (id) => { jobId = id; opts.onSpawn?.(id); } });
-  // 生成的 PDF 产物默认镜像到右侧暂存区（中间步骤用 {tray:false} 关闭）
+  // 生成的产物默认镜像到右侧暂存区（中间步骤用 {tray:false} 关闭；trayFolder 归档到文件夹）
   const finish = (r) => {
-    if (opts.tray !== false) addResultArtifacts(r?.artifacts);
+    let n = 0;
+    // 默认命名规则（原名-操作-参数-时间）：入暂存区/结果卡/历史前统一改名
+    try { applyNamingToArtifacts(r?.artifacts, { op, args, docs }); } catch { /* 命名失败不影响产物 */ }
+    if (opts.tray !== false) n = addResultArtifacts(r?.artifacts, { folder: opts.trayFolder || '' });
+    log('engine', `✓ ${op} 完成，用时 ${((Date.now() - t0) / 1000).toFixed(1)}s${r?.artifacts?.length ? `，产物 ${r.artifacts.length} 个${n ? `（${n} 个入暂存区）` : ''}` : ''}`);
     return r;
   };
   try {
@@ -204,6 +214,7 @@ export async function run(op, args = {}, opts = {}, docs = new Map()) {
   } catch (e) {
     if (e.code === 'ERR_NO_INPUT' && /引擎/.test(e.message)) {
       // worker 内存驱逐：强制重装所有文档后重试一次
+      log('engine', `${op} 因内存驱逐重试（重装文档后）`, { level: 'warn' });
       for (const id of ids) {
         const d = docs.get(id);
         if (d) await ensureDoc(d, { force: true });
@@ -212,6 +223,7 @@ export async function run(op, args = {}, opts = {}, docs = new Map()) {
       result._opId = jobId;
       return finish(result);
     }
+    log('engine', `✗ ${op} 失败`, { level: 'error', detail: `${e.code || ''} ${e.message}`.trim() });
     throw e;
   }
 }

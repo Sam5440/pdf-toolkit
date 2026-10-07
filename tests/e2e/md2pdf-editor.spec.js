@@ -50,7 +50,8 @@ test.describe('md2pdf 在线编辑器', () => {
     await expect(page.locator('[data-md-pv-status]')).toContainText('共 2 页');
     await page.getByRole('button', { name: '开始转换' }).click();
     await expect(page.getByText('处理完成')).toBeVisible({ timeout: 90_000 });
-    await expect(page.locator('.result-artifact .ra-name')).toContainText('rich.pdf');
+    // 默认命名规则：原名-操作-参数-时间（产物名以源文件名 rich 开头）
+    await expect(page.locator('.result-artifact .ra-name')).toHaveText(/^rich-.+\.pdf$/);
   });
 
   test('清空按钮：清内容与暂存（确认弹窗）', async ({ page }) => {

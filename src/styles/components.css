@@ -719,3 +719,84 @@ table.data tr:last-child td { border-bottom: none; }
 @media (prefers-reduced-motion: reduce) {
   .page-enter .tool-card { animation: none; }
 }
+
+/* ============================================================
+   设置 · 引擎下载进度条（大体积 WASM 包：pandoc / Typst 等）
+   ============================================================ */
+.engine-progress {
+  height: 5px; margin-top: 6px; border-radius: 9999px;
+  background: color-mix(in srgb, var(--primary) 14%, var(--secondary));
+  overflow: hidden;
+}
+.engine-progress-fill {
+  height: 100%; border-radius: 9999px; background: var(--primary);
+  transition: width 0.25s ease;
+}
+html[data-motion=off] .engine-progress-fill { transition: none; }
+.engine-progress-text { font-size: 11px; color: var(--muted-foreground); margin-top: 2px; font-family: var(--mono); }
+
+/* ============================================================
+   设置 · 外挂字体（上传/远程订阅，IndexedDB 持久化）
+   ============================================================ */
+.userfont-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.userfont-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px); background: var(--secondary);
+}
+.userfont-row .uf-info { flex: 1; min-width: 0; }
+.userfont-row .uf-name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.userfont-row .uf-meta { font-size: 11.5px; color: var(--muted-foreground); margin-top: 1px; }
+.remote-font-urls {
+  width: 100%; resize: vertical; font-family: var(--mono); font-size: 12px;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px);
+  background: var(--background); color: var(--foreground);
+}
+
+/* ============================================================
+   设置 · 关于 · 更新日志（构建期从 git log 生成，含提交时间）
+   ============================================================ */
+.changelog-box { margin-top: 8px; }
+.changelog-box .cl-head { font-size: 12px; color: var(--muted-foreground); margin-bottom: 6px; }
+.changelog-list {
+  max-height: 300px; overflow: auto; border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px); padding: 8px 10px; background: var(--secondary);
+  font-size: 12px; line-height: 1.8;
+}
+.changelog-list .cl-row { display: flex; gap: 8px; align-items: baseline; }
+.changelog-list .cl-date { color: var(--muted-foreground); flex-shrink: 0; font-family: var(--mono); }
+.changelog-list .cl-hash { color: var(--primary); flex-shrink: 0; }
+.changelog-list .cl-subject { min-width: 0; word-break: break-all; }
+
+/* ============================================================
+   首页第一行 · 最近使用（最多 10 条，行内可删）
+   ============================================================ */
+.recent-sec { margin-bottom: 14px; }
+.recent-row {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.recent-chip {
+  display: inline-flex; align-items: center; gap: 2px;
+  border: 1px solid var(--border); border-radius: 9999px;
+  background: var(--card); padding-left: 4px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.recent-chip:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+html[data-motion=off] .recent-chip { transition: none; }
+.recent-chip .recent-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 6px 5px 4px; color: var(--foreground); text-decoration: none;
+  font-size: 12.5px; font-weight: 500;
+}
+.recent-chip .rc-ico { display: inline-flex; width: 18px; height: 18px; }
+.recent-chip .rc-ico svg, .recent-chip .rc-ico img { width: 100%; height: 100%; }
+.recent-chip .rc-name { max-width: 11em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-chip .recent-del {
+  border: 0; background: transparent; color: var(--muted-foreground);
+  width: 20px; height: 20px; border-radius: 9999px; padding: 0;
+  font-size: 13px; line-height: 1; cursor: pointer; margin-right: 4px;
+}
+.recent-chip .recent-del:hover { background: color-mix(in srgb, var(--no) 14%, transparent); color: var(--no); }
+@media (prefers-reduced-motion: reduce) {
+  .recent-chip { transition: none; }
+}

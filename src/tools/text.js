@@ -5,6 +5,7 @@ import { run, abort } from '../core/engine.js';
 import { inputPanel } from '../components/input.js';
 import { progressCard, warningsBox, toast, field, textInput, checkbox, button } from '../components/ui.js';
 import { baseName } from '../core/format.js';
+import { buildOutputName, paramsToken } from '../core/naming.js';
 import { addHistory } from '../core/history.js';
 import { downloadArtifact } from '../core/download.js';
 
@@ -68,7 +69,7 @@ registerTool({
         }, docsMap);
         pc.done();
         lastResult = { res, doc, sep };
-        renderText(res, doc, sep);
+        renderText(res, doc, sep, pages);
       } catch (e) {
         pc.error(e.message);
         if (e.code !== 'ERR_CANCELLED') toast(e.message, 'error');
@@ -84,7 +85,7 @@ registerTool({
       return chunks.join(sep ? '\n\n' : '\n');
     }
 
-    function renderText(res, doc, sep) {
+    function renderText(res, doc, sep, pages = 'all') {
       const total = res.pages.reduce((s, p) => s + p.chars, 0);
       const full = buildTxt(res, sep);
       const card = document.createElement('div');
@@ -114,7 +115,7 @@ registerTool({
       const actions = document.createElement('div');
       actions.style.cssText = 'display:flex;gap:8px;margin-top:10px';
       const art = {
-        name: `${baseName(doc.name)}.txt`,
+        name: `${buildOutputName({ name: doc.name, op: '提取文字', params: paramsToken({ pages, sep }) })}.txt`,
         mime: 'text/plain;charset=utf-8',
         bytes: new TextEncoder().encode(full),
       };

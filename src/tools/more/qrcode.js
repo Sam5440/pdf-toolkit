@@ -2,6 +2,7 @@
 import { registerTool } from '../core.js';
 import { field, select, numberInput, textInput, button, toast } from '../../components/ui.js';
 import { paramsCard, resultCard } from './common.js';
+import { addResultArtifacts } from '../../core/tray.js';
 import { qrMatrix, qrToCanvas } from '../../core/qr.js';
 
 registerTool({
@@ -56,6 +57,7 @@ registerTool({
           mime: 'image/png',
           bytes: new Uint8Array(await blob.arrayBuffer()),
         };
+        addResultArtifacts([art]); // 本地构建的图片产物入暂存区
         resultBox.replaceChildren(resultCard({
           arts: [art],
           summary: { 版本: matrix.version, 纠错: ecSel.value },

@@ -1,4 +1,5 @@
 // 字体加载：CJK 字体按需获取 + Cache API 缓存。子集化在 worker 内由 fontkit 完成。
+// 外挂字体（user-* 前缀）来自设置面板上传/远程订阅，字节存本机 IndexedDB。
 import { toolkitError } from './errors.js';
 
 export const FONTS = [
@@ -28,6 +29,13 @@ export const BUILTIN_FONTS = [
 export async function getFontBytes(fontId, { bold = false } = {}) {
   const key = `${fontId}:${bold ? 'b' : 'r'}`;
   if (cache.has(key)) return cache.get(key);
+  // 外挂字体：IndexedDB 读取（无粗体变体，bold 复用同一份）
+  if (String(fontId || '').startsWith('user-')) {
+    const { getUserFontBytes } = await import('./userfonts.js');
+    const bytes = await getUserFontBytes(fontId);
+    cache.set(key, bytes);
+    return bytes;
+  }
   const def = FONTS.find((f) => f.id === fontId);
   if (!def) throw toolkitError('ERR_FONT', `未知字体 ${fontId}`);
   const url = bold && def.boldUrl ? def.boldUrl : def.url;
@@ -62,14 +70,33 @@ export async function probeFonts() {
 }
 
 let cjkFontFaceReady = null;
+const userFontFaceReady = new Map(); // fontId → Promise<boolean>
 
 /**
- * 把 CJK 字体注册为 document FontFace（供 Canvas 栅格化水印文字用）。
- * 成功返回字体族名；失败（离线且无缓存）返回系统字体栈——Canvas 仍能渲染。
+ * 把字体注册为 document FontFace（供 Canvas 栅格化水印/文字预览用），返回字体族 CSS 前缀。
+ * - noto-sc：注册为 'pdftoolkit-cjk'（成功返回 "'pdftoolkit-cjk', "，失败返回 ''——回退系统字体栈）
+ * - user-*：外挂字体，注册为 'pdftoolkit-user-<id>'
  * 背景：pdf-lib subset:true 对大型 CJK 字体产出损坏字形（社区已知缺陷），
  * 全量嵌入又使产物 +6MB，故 CJK 水印走 Canvas→PNG 栅格路径。
  */
-export async function ensureCJKFontFace() {
+export async function ensureCJKFontFace(fontId = 'noto-sc') {
+  if (String(fontId || '').startsWith('user-')) {
+    if (!userFontFaceReady.has(fontId)) {
+      userFontFaceReady.set(fontId, (async () => {
+        try {
+          const bytes = await getFontBytes(fontId);
+          const face = new FontFace(`pdftoolkit-user-${fontId}`, bytes);
+          await face.load();
+          document.fonts.add(face);
+          return true;
+        } catch {
+          return false;
+        }
+      })());
+    }
+    const ok = await userFontFaceReady.get(fontId);
+    return ok ? `'pdftoolkit-user-${fontId}', ` : '';
+  }
   if (!cjkFontFaceReady) {
     cjkFontFaceReady = (async () => {
       try {

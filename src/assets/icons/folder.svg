@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 文件夹后板：左上角折页标签母题 -->
+  <path d="M8.5 15 A3.5 3.5 0 0 1 12 11.5 H19 L23.5 16.5 H36 A3.5 3.5 0 0 1 39.5 20 V34 A3.5 3.5 0 0 1 36 37.5 H12 A3.5 3.5 0 0 1 8.5 34 Z"/>
+  <!-- 内页横线：表达收纳的文档 -->
+  <path d="M15 24.5 H33"/>
+</svg>

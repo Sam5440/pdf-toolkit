@@ -138,6 +138,56 @@
 .tool-card.disabled { opacity: 0.55; cursor: not-allowed; }
 .tool-card.disabled:hover { transform: none; border-color: var(--border); box-shadow: none; }
 
+/* 列表视图：紧凑行（图标/名称/描述/星标），首页、更多页与首页内联展开共用 */
+.tool-list {
+  display: flex; flex-direction: column;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden;
+}
+.tool-row {
+  display: flex; align-items: center; gap: 11px; min-width: 0;
+  padding: 8px 12px; color: var(--text); text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.12s ease;
+}
+.tool-row:last-child { border-bottom: none; }
+.tool-row:hover { background: var(--accent); }
+.tool-row:active { background: var(--secondary); }
+.tool-row .tr-ico {
+  width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+  background: var(--primary-soft); color: var(--primary);
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.tool-row .tr-ico .icon-svg { width: 17px; height: 17px; }
+.tool-row .tr-name { font-weight: 600; font-size: 13px; flex-shrink: 0; white-space: nowrap; }
+.tool-row .tr-desc {
+  flex: 1; min-width: 0; font-size: 12px; color: var(--text-soft);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* 行内星标：重置全局卡片态的 absolute 定位，改为行尾常规流布局 */
+.tool-row .fav-star { position: static; margin-left: auto; flex-shrink: 0; }
+
+/* 首页「更多工具」内联展开区（与专项页共用 appendSection 渲染） */
+.home-more-open { margin-top: 14px; }
+
+/* 卡片/列表视图切换（hero/更多页头部右侧的小分段控件） */
+.view-switch { display: flex; align-items: center; margin-left: auto; flex-shrink: 0; gap: 3px; }
+
+/* ---- 右下角多巴胺配色浮钮 ----
+  桌面默认给右侧暂存区（300px 宽）让位；body.tray-collapsed 或窄屏（暂存区变抽屉）贴视口右下角。 */
+.dopa-btn {
+  position: fixed; bottom: 18px; right: 318px; z-index: 60;
+  width: 42px; height: 42px; padding: 0; border-radius: 9999px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow);
+}
+.dopa-btn .btn-label { display: none; }
+.dopa-btn .icon-svg { width: 20px; height: 20px; }
+body.tray-collapsed .dopa-btn { right: 18px; }
+@media (max-width: 1020px) {
+  .dopa-btn { right: 18px; }
+}
+
 /* 工作区布局：左内容 + 右参数 */
 .workspace { display: flex; gap: 16px; align-items: flex-start; }
 .workspace .ws-main { flex: 1; min-width: 0; }
@@ -353,6 +403,42 @@ body.tray-collapsed .tray-rail {
 .tray-card:hover .tray-card-actions, .tray-card:focus-within .tray-card-actions { display: flex; }
 
 .tray-toggle .tray-toggle-n { margin-left: 5px; }
+
+/* ---- 暂存区文件夹（类文件管理分组） ---- */
+.tray-folder-sec { margin-top: 10px; }
+.tray-folder-head {
+  display: flex; align-items: center; gap: 6px; padding: 4px 6px;
+  border: 1px dashed var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-soft); transition: border-color 0.12s, background 0.12s;
+}
+.tray-folder-head.tray-folder-over { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.tray-folder-toggle {
+  display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
+  background: none; border: 0; padding: 2px; cursor: pointer; font-family: inherit;
+  color: var(--fg); text-align: left;
+}
+.tray-folder-arrow { color: var(--muted); font-size: 10px; width: 10px; flex-shrink: 0; }
+.tray-folder-head .icon-svg, .tray-folder-name ~ .badge { flex-shrink: 0; }
+.tray-folder-name {
+  font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tray-folder-actions { display: none; gap: 3px; flex-shrink: 0; }
+.tray-folder-head:hover .tray-folder-actions, .tray-folder-head:focus-within .tray-folder-actions { display: flex; }
+.tray-folder-sec .tray-list, .tray-folder-sec .tray-grid { margin-top: 6px; padding-left: 6px; }
+.tray-folder-input { margin-bottom: 8px; }
+.tray-folder-input .input, .tray-folder-rename {
+  width: 100%; font-size: 12.5px; padding: 6px 8px;
+}
+.tray-move-sel {
+  display: none; /* 行内悬浮出现：默认收起避免挤压文件名（列表行宽有限） */
+  max-width: 96px; font-size: 11px; padding: 2px 4px; border: 1px solid var(--border);
+  border-radius: 5px; background: var(--card); color: var(--muted); flex-shrink: 0;
+}
+.tray-item:hover .tray-move-sel, .tray-item:focus-within .tray-move-sel { display: block; }
+/* 移动端无 hover：始终显示（抽屉内行宽足够） */
+@media (max-width: 1020px) { .tray-item .tray-move-sel { display: block; } }
+/* 图片预览（预览弹层内直接显示位图） */
+.pv-img { display: block; max-width: 100%; margin: 0 auto 18px; border: 1px solid var(--border); border-radius: 4px; background: #fff; box-shadow: var(--shadow-sm); }
 
 /* ---- 暂存区预览（单件 / 一键预览全部） ---- */
 .modal-box.modal-wide { width: min(1100px, 95vw); height: min(88vh, 940px); }

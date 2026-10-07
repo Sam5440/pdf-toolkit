@@ -44,6 +44,29 @@ def pdf_bytes(pages=3, text="测试文本", w=595, h=842, rotate=0):
     return buf.getvalue()
 
 
+def whiteborder_pdf():
+    """两页纯白边距 A4（页面剪裁工具用）：第 1 页边距 L60/T72/R84/B96，第 2 页 L30/T40/R50/B60。
+
+    内容矩形精确落在边距框上（无额外内缩），可视化检测应还原出这些边距值。
+    """
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=(595, 842))
+    specs = [(60, 72, 84, 96), (30, 40, 50, 60)]  # 视觉 左/上/右/下 pt
+    for (l, t, r, b) in specs:
+        x0, x1 = l, 595 - r
+        y0, y1 = b, 842 - t  # reportlab y 轴向上
+        c.setFillColorRGB(0.55, 0.65, 0.95)
+        c.rect(x0, y0, x1 - x0, y1 - y0, fill=1, stroke=0)
+        c.setFillColorRGB(0.05, 0.05, 0.1)
+        c.setFont("Helvetica", 20)
+        c.drawCentredString((x0 + x1) / 2, (y0 + y1) / 2, f"MARGIN {l}/{t}/{r}/{b}")
+        c.showPage()
+    c.save()
+    return buf.getvalue()
+
+
 def rotated_pdf():
     """页面自带 /Rotate=90 的 PDF（水印/整理用）"""
     import fitz
@@ -598,10 +621,19 @@ def fake_heic_bytes():
     return b"NOT-A-REAL-HEIC-FILE \x00\x01\x02 invalid payload for failure tests"
 
 
+def fixture_font_bytes():
+    """真实字体夹具（设置 → 外挂字体上传链路用）：复制 public/fonts 内的 Text 子集 TTF"""
+    src = Path(__file__).resolve().parent.parent / "public" / "fonts" / "text" / "NotoSansSC-Regular-Text.ttf"
+    if src.exists():
+        return src.read_bytes()
+    return b""
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     files = {
         "multi3.pdf": pdf_bytes(3, "示例文档"),
+        "whiteborder.pdf": whiteborder_pdf(),
         "multi8.pdf": pdf_bytes(8, "长文档拆分"),
         "rotated90.pdf": rotated_pdf(),
         "smask_alpha.pdf": smask_pdf(),
@@ -631,8 +663,13 @@ def main():
         "photo.webp": webp_bytes(),
         "multi2.tiff": multipage_tiff_bytes(),
         "fake.heic": fake_heic_bytes(),
+        # 设置 → 外挂字体：真实 TTF 上传链路
+        "testfont.ttf": fixture_font_bytes(),
     }
     for name, data in files.items():
+        if not data:
+            print(f"{name}: (skipped, source missing)")
+            continue
         (OUT / name).write_bytes(data)
         print(f"{name}: {len(data)} bytes")
     print(f"\n夹具输出目录: {OUT}")

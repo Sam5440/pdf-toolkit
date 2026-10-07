@@ -19,8 +19,8 @@ test.describe('收藏系统', () => {
     await expect(page.locator('[data-star="md2pdf"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-star="pdf2pptimg"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.fav-star.on')).toHaveCount(17);
-    // 底部入口链接到专项页
-    await expect(page.locator('a[href="#/more"].btn')).toContainText('更多工具页');
+    // 底部入口：内联展开切换（点击在下方展开全部扩展功能，不再跳转专项页）
+    await expect(page.locator('.home-more-link button')).toContainText('更多工具页');
   });
 
   test('#/more 专项页：扩展分类在前、核心目录在后，64 张卡', async ({ page }) => {

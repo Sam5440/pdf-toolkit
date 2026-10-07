@@ -1,51 +1,16 @@
 // Pandoc WASM 引擎包装（懒加载 + 加载进度 + 单例缓存）。
 // - core：../vendor-pandoc-core.js 的 createPandocInstance（GPL-2.0+，pandoc-wasm@1.1.0 副本）
 // - wasm：public/engines/pandoc/pandoc.wasm（pandoc 3.10，scripts/fetch-engines.mjs 重建）
-// 实例化即初始化 Haskell RTS（数秒），之后 convert 可反复调用。
+// wasm 经 asset-cache 持久化到 Cache Storage：下载一次，之后零网络（含离线）。
 import { createPandocInstance } from '../vendor-pandoc-core.js';
 import { setEngineStatus } from './wasm-registry.js';
+import { fetchEngineAsset } from './asset-cache.js';
+import { log } from './logs.js';
 
 let instancePromise = null;
 
 const WASM_URL_ERROR =
   'pandoc 引擎文件未找到：若刚重建/重启过站点请刷新页面后重试；若持续出现，请运行 node scripts/fetch-engines.mjs 生成 public/engines/pandoc/pandoc.wasm';
-
-async function fetchWithProgress(url, onProgress, retries = 2) {
-  // 404 也重试：vite build 会先清空 dist 再拷贝 public，重建的数秒窗口内静态文件短暂 404，
-  // 用户此时操作会被误报"文件缺失"；重试耗尽仍 404 才提示 fetch-engines。
-  // 网络类 TypeError（含下载中途断流）重试 1 次整体重下；其余业务错误直抛。
-  for (let attempt = 0; ; attempt++) {
-    let notFound = false;
-    try {
-      const res = await fetch(url);
-      if (res.status === 404) { notFound = true; throw new TypeError('404'); }
-      if (!res.ok) throw new Error(`pandoc.wasm 加载失败：HTTP ${res.status}`);
-      const total = Number(res.headers.get('content-length')) || 0;
-      if (!res.body || !total) return new Uint8Array(await res.arrayBuffer());
-      const reader = res.body.getReader();
-      const chunks = [];
-      let loaded = 0;
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        loaded += value.length;
-        onProgress?.(loaded, total);
-      }
-      const out = new Uint8Array(loaded);
-      let off = 0;
-      for (const c of chunks) { out.set(c, off); off += c.length; }
-      return out;
-    } catch (err) {
-      if (!(notFound || err instanceof TypeError)) throw err;
-      if (attempt >= (notFound ? retries : 1)) {
-        if (notFound) throw new Error(WASM_URL_ERROR);
-        throw new Error(`pandoc.wasm 下载失败（已重试）：${err.message}`);
-      }
-      await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
-    }
-  }
-}
 
 const mb = (n) => `${(n / 1048576).toFixed(0)}MB`;
 
@@ -55,11 +20,17 @@ export async function getPandoc({ onStage } = {}) {
     setEngineStatus('pandoc', 'loading', '准备下载…');
     instancePromise = (async () => {
       const url = new URL('engines/pandoc/pandoc.wasm', document.baseURI).href;
-      const bytes = await fetchWithProgress(url, (loaded, total) => {
-        const stage = `下载 pandoc.wasm ${mb(loaded)}${total ? ` / ${mb(total)}` : ''}（首次加载，之后走浏览器缓存）…`;
-        onStage?.(stage);
-        setEngineStatus('pandoc', 'loading', stage);
+      const bytes = await fetchEngineAsset(url, {
+        label: 'pandoc.wasm',
+        retries: 2,
+        missingError: WASM_URL_ERROR,
+        onProgress: (loaded, total) => {
+          const stage = `下载 pandoc.wasm ${mb(loaded)}${total ? ` / ${mb(total)}` : ''}（首次加载，之后持久化到本机）…`;
+          onStage?.(stage);
+          setEngineStatus('pandoc', 'loading', stage, { progress: total ? { loaded, total } : null });
+        },
       });
+      log('pandoc', `pandoc.wasm 已就绪（${mb(bytes.byteLength)}）`);
       const initStage = '初始化 pandoc 引擎（首次需数秒）…';
       onStage?.(initStage);
       setEngineStatus('pandoc', 'loading', initStage);

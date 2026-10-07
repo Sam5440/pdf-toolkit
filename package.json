@@ -1,7 +1,7 @@
 {
   "name": "pdf-toolkit",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "license": "MIT",
   "description": "PDF 万能工具箱 — 全浏览器端 WASM 处理，文件不出浏览器",

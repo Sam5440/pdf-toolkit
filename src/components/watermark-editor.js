@@ -16,6 +16,7 @@ import * as pdfLib from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { getSettings } from '../core/settings.js';
 import { BUILTIN_FONTS, FONTS, probeFonts, getFontBytes, ensureCJKFontFace, CJK_FONT_STACK, isCJKText } from '../core/fonts.js';
+import { listUserFonts } from '../core/userfonts.js';
 import { PDFJS_ASSET_OPTS } from '../core/pdfjs-assets.js';
 import * as geometry from '../core/geometry.js';
 import { sanitizeLayer, resolveLayerPages, applyTemplateVars, tileLayout, fullscreenLayout, hexToRgb01 } from '../core/watermark-model.js';
@@ -128,26 +129,33 @@ function getMeasureCtx() {
   return measureCtx;
 }
 
-function cjkFontSpec(fontSizePt, bold) {
-  return `${bold ? 700 : 400} ${fontSizePt * RASTER_SCALE}px ${CJK_FONT_STACK}`;
+/** 外挂字体（user-*）置顶注入字体栈，预览与导出渲染一致 */
+function fontStackFor(fontId) {
+  return String(fontId || '').startsWith('user-')
+    ? `'pdftoolkit-user-${fontId}', ${CJK_FONT_STACK}`
+    : CJK_FONT_STACK;
+}
+
+function cjkFontSpec(fontSizePt, bold, stack = CJK_FONT_STACK) {
+  return `${bold ? 700 : 400} ${fontSizePt * RASTER_SCALE}px ${stack}`;
 }
 
 /** 测量一行文字的 pt 宽度（与栅格渲染同字体栈，保证布局一致） */
-export function measureCJK(text, fontSizePt, bold) {
+export function measureCJK(text, fontSizePt, bold, stack = CJK_FONT_STACK) {
   const ctx = getMeasureCtx();
-  ctx.font = cjkFontSpec(fontSizePt, bold);
+  ctx.font = cjkFontSpec(fontSizePt, bold, stack);
   return ctx.measureText(text).width / RASTER_SCALE;
 }
 
 /** 单行文字 → 透明 PNG（紧致 bbox）；颜色烘入位图，透明度由 drawImage 的 opacity 承担 */
-async function rasterLinePng(text, { fontSize, bold, color01 }) {
-  const key = `${text}|${fontSize}|${bold ? 'b' : 'r'}|${color01.r},${color01.g},${color01.b}`;
+async function rasterLinePng(text, { fontSize, bold, color01, stack = CJK_FONT_STACK, fontId = '' }) {
+  const key = `${text}|${fontSize}|${bold ? 'b' : 'r'}|${color01.r},${color01.g},${color01.b}|${stack}`;
   if (rasterLineCache.has(key)) return rasterLineCache.get(key);
-  await ensureCJKFontFace();
+  await ensureCJKFontFace(fontId || undefined);
   const K = RASTER_SCALE;
   const canvas = new OffscreenCanvas(8, 8);
   const ctx = canvas.getContext('2d');
-  ctx.font = cjkFontSpec(fontSize, bold);
+  ctx.font = cjkFontSpec(fontSize, bold, stack);
   const m = ctx.measureText(text);
   const ascent = Math.ceil((m.actualBoundingBoxAscent || fontSize * K * 0.8)) + 2;
   const descent = Math.ceil((m.actualBoundingBoxDescent || fontSize * K * 0.25)) + 2;
@@ -368,7 +376,7 @@ export async function drawWatermarkLayers(doc, spec, vars = {}, scopePages = nul
     const sampleResolved = layer.type === 'text'
       ? applyTemplateVars(layer.text, { ...vars, pageNo: 1, pageCount })
       : '';
-    const useRaster = layer.type === 'text' && (layer.fontId === 'noto-sc' || isCJKText(sampleResolved));
+    const useRaster = layer.type === 'text' && (layer.fontId === 'noto-sc' || String(layer.fontId || '').startsWith('user-') || isCJKText(sampleResolved));
     const font = layer.type === 'text' && !useRaster
       ? await resolveFont(doc, layer.fontId, layer.bold, sampleResolved)
       : null;
@@ -383,8 +391,9 @@ export async function drawWatermarkLayers(doc, spec, vars = {}, scopePages = nul
       const lines = vtext.split('\n');
       let cellW, cellH;
       if (layer.type === 'text') {
+        const stack = fontStackFor(layer.fontId);
         const widthOf = useRaster
-          ? (s) => measureCJK(s, layer.fontSize, layer.bold)
+          ? (s) => measureCJK(s, layer.fontSize, layer.bold, stack)
           : (s) => { try { return font.widthOfTextAtSize(s, layer.fontSize); } catch { return s.length * layer.fontSize * 0.6; } };
         cellW = Math.max(4, Math.max(...lines.map(widthOf)));
         cellH = lines.length * layer.fontSize * 1.3;
@@ -407,7 +416,8 @@ export async function drawWatermarkLayers(doc, spec, vars = {}, scopePages = nul
             if (useRaster) {
               // 栅格逐行：行偏移与矢量路径一致（对齐/行距），颜色烘入位图、透明度走 ExtGState
               const color01 = hexToRgb01(layer.color);
-              const widthOf = (s) => measureCJK(s, layer.fontSize, layer.bold);
+              const stack = fontStackFor(layer.fontId);
+              const widthOf = (s) => measureCJK(s, layer.fontSize, layer.bold, stack);
               const maxW = Math.max(...lines.map(widthOf));
               const lh = layer.fontSize * 1.3;
               const n = lines.length;
@@ -418,7 +428,7 @@ export async function drawWatermarkLayers(doc, spec, vars = {}, scopePages = nul
                   : layer.align === 'right' ? (maxW / 2 - widthOf(line) / 2) : 0;
                 const offVy = (i - (n - 1) / 2) * lh;
                 const vec = geometry.visualVecToUser(offVx, offVy, pm.rot);
-                const entry = await rasterLinePng(line, { fontSize: layer.fontSize, bold: layer.bold, color01 });
+                const entry = await rasterLinePng(line, { fontSize: layer.fontSize, bold: layer.bold, color01, stack, fontId: layer.fontId });
                 const img = await embedRasterLine(targetDoc, entry);
                 drawRasterLineOnPage(targetPage, img, entry, {
                   cx: c.x + vec.dx, cy: c.y + vec.dy,
@@ -699,6 +709,7 @@ export function createWatermarkEditor({ doc, page = 0, onChange = null, dpi = 11
     pageCount: 0,
     visual: { w: 595, h: 842 },
     fontAvail: {},
+    userFonts: [],
     vars: { date: todayStr(), time: nowTimeStr(), docName: doc.name },
   };
 
@@ -1174,7 +1185,9 @@ export function createWatermarkEditor({ doc, page = 0, onChange = null, dpi = 11
   function updateFontHint(l) {
     if (!fontHintEl) return;
     const cjk = CJK_RE.test(l.text || '');
-    if (cjk && l.fontId !== 'auto' && l.fontId !== 'noto-sc') {
+    if (String(l.fontId || '').startsWith('user-')) {
+      fontHintEl.textContent = '外挂字体：预览与导出均使用该字体（可在设置 → 外挂字体中管理）；如文字显示为方框，说明该字体不含对应字形。';
+    } else if (cjk && l.fontId !== 'auto' && l.fontId !== 'noto-sc') {
       fontHintEl.replaceChildren(iconNode('warn'), document.createTextNode(' 文字包含中文：所选字体不含中文字形，导出会失败。建议选择「自动」或「思源黑体（中英文）」。'));
     } else if ((l.fontId === 'auto' || l.fontId === 'noto-sc') && state.fontAvail['noto-sc'] === false) {
       fontHintEl.replaceChildren(iconNode('warn'), document.createTextNode(' 中文字体文件不可用（站点缺少 public/fonts/NotoSansSC），中文水印将无法渲染，请联系部署方补充字体包。'));
@@ -1220,6 +1233,7 @@ export function createWatermarkEditor({ doc, page = 0, onChange = null, dpi = 11
           { value: 'auto', label: '自动（按内容选择）' },
           ...BUILTIN_FONTS.map((f) => ({ value: f.id, label: f.name })),
           ...FONTS.map((f) => ({ value: f.id, label: f.name })),
+          ...state.userFonts.map((f) => ({ value: f.id, label: `外挂：${f.family || f.name}` })),
         ],
         l.fontId,
       );
@@ -1522,6 +1536,12 @@ export function createWatermarkEditor({ doc, page = 0, onChange = null, dpi = 11
     const l = selected();
     if (l) updateFontHint(l);
   }).catch(() => { state.fontAvail = { 'noto-sc': false }; });
+  // 外挂字体清单（设置 → 外挂字体 上传/远程订阅）：加载后重建参数面板补进字体下拉
+  listUserFonts().then((fs) => {
+    if (!fs.length || !root.isConnected) return;
+    state.userFonts = fs;
+    buildParamPanel();
+  }).catch(() => { /* 无外挂字体即默认下拉 */ });
 
   return {
     el: root,

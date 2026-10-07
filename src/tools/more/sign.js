@@ -15,6 +15,7 @@ import {
   field, numberInput, textInput, select, button, toast,
 } from '../../components/ui.js';
 import { paramsCard, resultCard, runWithProgress } from './common.js';
+import { buildOutputName } from '../../core/naming.js';
 
 const POS9 = {
   'top-left': [0, 0], 'top-center': [0.5, 0], 'top-right': [1, 0],
@@ -261,7 +262,7 @@ registerTool({
       const outBytes = await pdf.save({ useObjectStreams: true });
       const res = {
         artifacts: [{
-          name: `${state.doc.name.replace(/\.pdf$/i, '')}_已签署.pdf`,
+          name: `${buildOutputName({ name: state.doc.name, op: '签署' })}.pdf`,
           mime: 'application/pdf',
           bytes: outBytes,
         }],

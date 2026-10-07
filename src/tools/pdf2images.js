@@ -152,6 +152,7 @@ registerTool({
           quality,
           bg: '#ffffff',
         }, {
+          trayFolder: `PDF 转图片 · ${doc.name.replace(/\.pdf$/i, '')}`,
           onProgress: (p) => pc.set(p.total ? (p.done / p.total) * 100 : 0, p.stage || '渲染中…'),
         }, new Map([[doc.id, doc]]));
         pc.done();

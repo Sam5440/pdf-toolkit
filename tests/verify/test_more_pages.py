@@ -138,6 +138,51 @@ def test_crop_margin():
         )
 
 
+def test_crop_visual_borders():
+    """可视化裁剪产物：whiteborder 全部页按第 1 页识别边距 60/72/84/96 → CropBox [60,96,511,770]。
+
+    e2e 上传 whiteborder.pdf 后自动识别第 1 页白边并直接裁剪（页码范围留空=全部页），
+    两页同一组内缩值（各自页面边缘起算）。
+    """
+    p = find_artifact("more-crop-vis.pdf")
+    from pypdf import PdfReader
+
+    r = PdfReader(str(p))
+    assert len(r.pages) == 2
+    for idx, pg in enumerate(r.pages):
+        cb = pg.cropbox
+        assert abs(float(cb.left) - 60) < 2 and abs(float(cb.bottom) - 96) < 2, (
+            f"第 {idx + 1} 页 CropBox 左/下应为 60/96（识别 60/72/84/96 误差 ≤1.5pt），实际 {cb}"
+        )
+        assert abs(float(cb.right) - 511) < 2 and abs(float(cb.top) - 770) < 2, (
+            f"第 {idx + 1} 页 CropBox 右/上应为 511/770，实际 {cb}"
+        )
+
+
+def test_crop_rotated():
+    """旋转页裁剪产物：/Rotate 90 页左右各内缩 50pt（视觉）→ CropBox [0,50,595,792]。
+
+    引擎按视觉空间（换向后 842×595）计算再映射回用户空间；
+    回归锁定 engine-more.js pages.crop 曾用未换向维度导致右/下边距落错边的缺陷。
+    """
+    p = find_artifact("more-crop-rot.pdf")
+    import fitz
+
+    d = fitz.open(str(p))
+    assert d.page_count == 1
+    pg = d[0]
+    assert pg.rotation == 90, f"/Rotate 应保持 90，实际 {pg.rotation}"
+    # 用户空间 CropBox（未换向坐标）
+    cb = pg.cropbox
+    assert abs(cb.x0 - 0) < 0.5 and abs(cb.y0 - 50) < 0.5, f"CropBox 左/下应为 0/50，实际 {cb}"
+    assert abs(cb.x1 - 595) < 0.5 and abs(cb.y1 - 792) < 0.5, f"CropBox 右/上应为 595/792，实际 {cb}"
+    # 视觉尺寸（换向后）= 842-100 宽 × 595 高
+    assert abs(pg.rect.width - 742) < 1 and abs(pg.rect.height - 595) < 1, (
+        f"视觉裁剪后尺寸应为 742×595，实际 {pg.rect.width:.1f}×{pg.rect.height:.1f}"
+    )
+    d.close()
+
+
 def test_resize_letter():
     """改尺寸产物：Letter → 每页 612×792。"""
     p = find_artifact("more-resize.pdf")
@@ -216,3 +261,94 @@ def test_viewerpref_pagemode():
         f"PageMode 应为 /UseOutlines，实际 {root.get('/PageMode')}"
     )
     assert bool(root.get("/HideToolbar")) is True, "HideToolbar 应为 true"
+
+
+# ---------------------------------------------------------------------------
+# 旋转/镜像（rotate）：产物由 e2e tests/e2e/rotate.spec.js 产出
+# ---------------------------------------------------------------------------
+
+def _render_img(path, page=0, dpi=200):
+    import fitz
+    from PIL import Image
+
+    d = fitz.open(str(path))
+    pix = d[page].get_pixmap(dpi=dpi)
+    img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+    d.close()
+    return img
+
+
+def _diff_ratio(a, b, tol=8):
+    """差异像素占比：任一通道差 > tol 的像素比例。白底夹具比 mean diff 区分度高。"""
+    from PIL import ImageChops
+
+    diff = ImageChops.difference(a, b).convert("L")
+    hist = diff.histogram()
+    return sum(hist[tol + 1:]) / (a.width * a.height)
+
+
+def test_rotate_relative_90():
+    """旋转产物：multi3 全部页相对 +90° → 3 页 /Rotate=90，渲染为原图顺时针 90°。"""
+    from pypdf import PdfReader
+    from PIL import Image
+
+    from conftest import fixture
+
+    p = find_artifact("rotate-90.pdf")
+    r = PdfReader(str(p))
+    assert len(r.pages) == 3, f"页数应不变（3），实际 {len(r.pages)}"
+    for i, pg in enumerate(r.pages):
+        assert (pg.get("/Rotate") or 0) == 90, f"第 {i + 1} 页 /Rotate 应为 90"
+    out_img = _render_img(p)          # fitz 渲染已应用 /Rotate
+    src_img = _render_img(fixture("multi3.pdf"))
+    assert out_img.size == (src_img.height, src_img.width), "旋转后渲染宽高应互换"
+    cw = src_img.transpose(Image.ROTATE_270)  # ROTATE_270 = 顺时针 90°
+    assert _diff_ratio(out_img, cw) < 0.005, "渲染应等于原图顺时针 90°"
+
+
+def test_rotate_mirror_horizontal():
+    """左右镜像产物：0°+水平翻转 → 渲染与原图左右镜像一致，/Rotate 不变，且与原图明显不同。"""
+    from pypdf import PdfReader
+    from PIL import ImageOps
+
+    from conftest import fixture
+
+    p = find_artifact("rotate-mirror-h.pdf")
+    r = PdfReader(str(p))
+    assert len(r.pages) == 3
+    assert all((pg.get("/Rotate") or 0) == 0 for pg in r.pages), "仅镜像不应改 /Rotate"
+    out_img = _render_img(p)
+    src_img = _render_img(fixture("multi3.pdf"))
+    assert out_img.size == src_img.size
+    assert _diff_ratio(out_img, ImageOps.mirror(src_img)) < 0.005, "渲染应等于原图左右镜像"
+    assert _diff_ratio(out_img, src_img) > 0.008, "负对照：与原图应有明显差异"
+
+
+def test_rotate_mirror_vertical_full():
+    """上下镜像产物：渲染与原图上下镜像一致。"""
+    from PIL import ImageOps
+
+    from conftest import fixture
+
+    p = find_artifact("rotate-mirror-v.pdf")
+    out_img = _render_img(p)
+    src_img = _render_img(fixture("multi3.pdf"))
+    assert out_img.size == src_img.size
+    assert _diff_ratio(out_img, ImageOps.flip(src_img)) < 0.005, "渲染应等于原图上下镜像"
+
+
+def test_rotate_mirror_page_range():
+    """页范围镜像产物：仅第 2 页上下翻转，第 1/3 页保持原样。"""
+    from pypdf import PdfReader
+    from PIL import ImageOps
+
+    from conftest import fixture
+
+    p = find_artifact("rotate-mirror-p2.pdf")
+    src = fixture("multi3.pdf")
+    assert len(PdfReader(str(p)).pages) == 3, "产物应为完整 3 页文档"
+    assert _diff_ratio(_render_img(p, 0), _render_img(src, 0)) < 0.005, "第 1 页不应被改动"
+    assert _diff_ratio(_render_img(p, 2), _render_img(src, 2)) < 0.005, "第 3 页不应被改动"
+    flipped = ImageOps.flip(_render_img(src, 1))
+    assert _diff_ratio(_render_img(p, 1), flipped) < 0.005, "第 2 页应上下翻转"
+    assert _diff_ratio(_render_img(p, 1), _render_img(src, 1)) > 0.008, "负对照：第 2 页应有明显差异"

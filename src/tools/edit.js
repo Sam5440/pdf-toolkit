@@ -19,6 +19,7 @@ import {
   progressCard, warningsBox, toast, field, numberInput, button, openModal,
 } from '../components/ui.js';
 import { fmtBytes, baseName } from '../core/format.js';
+import { buildOutputName } from '../core/naming.js';
 import { addHistory } from '../core/history.js';
 import { downloadArtifact } from '../core/download.js';
 
@@ -721,7 +722,7 @@ registerTool({
           pc.set(10 + (done / total) * 80, `编辑第 ${Math.round(done)} 页…`);
         });
         const art = {
-          name: `${baseName(doc.name)}_已编辑.pdf`,
+          name: `${buildOutputName({ name: doc.name, op: '编辑' })}.pdf`,
           mime: 'application/pdf',
           bytes,
         };

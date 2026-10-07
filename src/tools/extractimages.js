@@ -12,6 +12,7 @@ import {
   progressCard, warningsBox, toast, field, textInput, button,
 } from '../components/ui.js';
 import { fmtBytes } from '../core/format.js';
+import { buildOutputName, paramsToken } from '../core/naming.js';
 import { parsePageRange } from '../core/pagerange.js';
 import { addHistory } from '../core/history.js';
 import { downloadArtifact, downloadZip } from '../core/download.js';
@@ -99,6 +100,7 @@ registerTool({
           pages: pagesInp.value.trim() || 'all',
           mode,
         }, {
+          trayFolder: `提取图片 · ${doc.name.replace(/\.pdf$/i, '')}`,
           onProgress: (p) => pc.set(p.total ? (p.done / p.total) * 100 : 0, p.stage || '提取中…'),
         }, new Map([[doc.id, doc]]));
         let usedFallback = false;
@@ -424,7 +426,7 @@ async function fallbackExtract(file, { pages, mode, name }) {
         if (!img) { skipped++; continue; }
         const tag = ownerPage != null ? `p${String(ownerPage + 1).padStart(3, '0')}` : 'unk';
         artifacts.push({
-          name: `${base}_${tag}_图${String(++k).padStart(2, '0')}.${img.mime.includes('jpeg') ? 'jpg' : 'png'}`,
+          name: `${buildOutputName({ name, op: '提取图片', params: paramsToken({ mode }) })}-${tag}_图${String(++k).padStart(2, '0')}.${img.mime.includes('jpeg') ? 'jpg' : 'png'}`,
           mime: img.mime,
           bytes: img.bytes,
           meta: { page: ownerPage, width: img.width, height: img.height },

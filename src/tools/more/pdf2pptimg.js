@@ -9,6 +9,7 @@ import {
 import { paramsCard, resultCard, runWithProgress } from './common.js';
 import { parsePageRange } from '../../core/pagerange.js';
 import { buildPptxImages } from '../../core/officewriters.js';
+import { buildOutputName, paramsToken } from '../../core/naming.js';
 
 const NOTE = '图片型：每页整幅渲染为图片并铺满幻灯片，观感 1:1 还原，但文字不可编辑/选中';
 
@@ -175,7 +176,7 @@ registerTool({
         ratio ? { slideWPt: ratio.wPt, slideHPt: ratio.hPt, fit } : { fit },
       );
       const art = {
-        name: `${doc.name.replace(/\.pdf$/i, '')}.pptx`,
+        name: `${buildOutputName({ name: doc.name, op: '转图片型PPT', params: paramsToken({ slide, fit, dpi }) })}.pptx`,
         mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         bytes: built,
       };

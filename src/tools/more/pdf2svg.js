@@ -51,6 +51,7 @@ registerTool({
         pages: 'all',
         dpi: Number(dpiSel.value) || 150,
       }, {
+        trayFolder: `PDF 转 SVG · ${state.doc.name.replace(/\.pdf$/i, '')}`,
         onProgress: (p) => setP(p.total ? (p.done / p.total) * 100 : 50, p.stage),
       }, new Map([[state.doc.id, state.doc]]));
       const card2 = resultCard({

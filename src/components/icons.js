@@ -27,7 +27,9 @@ export const EMOJI = {
   'theme-moon': '🌙', 'theme-sun': '☀️',
   history: '🕘', settings: '⚙️', upload: '📄', success: '✅', winner: '🏆',
   home: '🏠',
+  dopamine: '🎨',
   doc: '📄', trash: '🗑', warn: '⚠️', image: '🖼', 'more-grid': '🧰', tray: '📥',
+  folder: '📁',
   // 「更多」分组
   rotate: '🔄', removepages: '➖', extractpages: '📤', nup: '🔲', halve: '➗',
   crop: '⬜', pagenumbers: '#️⃣', bookmarks: '🔖', docinfo: 'ℹ️', metaclean: '🧹',

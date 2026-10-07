@@ -1,0 +1,7 @@
+<!-- 多巴胺配色：单色线描调色盘——倾斜盘形 + 拇指孔，三枚实心色彩小点（currentColor 随主题） -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M27 5.6C36.6 6.9 43.2 13.6 43.2 22.2C43.2 31.4 35.4 37 27.6 37C25.9 37 24.2 36.5 23.5 35C22.8 33.5 23.3 31.8 22.4 30.3C21.4 28.7 19.7 28 17.1 28.6C12.9 29.6 8.4 30.6 6.3 27.5C4.9 25.3 4.9 21.6 6.4 17.5C9 10.2 17.4 4.3 27 5.6Z"/>
+  <circle cx="20" cy="14.5" r="2.7" fill="currentColor" stroke="none"/>
+  <circle cx="30.5" cy="13" r="2.7" fill="currentColor" stroke="none"/>
+  <circle cx="34" cy="22.5" r="2.7" fill="currentColor" stroke="none"/>
+</svg>

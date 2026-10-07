@@ -78,6 +78,7 @@ registerTool({
         quality: Math.min(100, Math.max(10, Number(qInp.value) || 90)) / 100, // 引擎端 0-1
         gray: grayCb._input.checked,
       }, {
+        trayFolder: `栅格化 PDF · ${state.doc.name.replace(/\.pdf$/i, '')}`,
         onProgress: (p) => setP(p.total ? (p.done / p.total) * 100 : 0, p.stage),
       }, new Map([[state.doc.id, state.doc]]));
       const card2 = resultCard({

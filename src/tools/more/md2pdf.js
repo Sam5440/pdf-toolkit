@@ -21,6 +21,7 @@ import { pandocToDocx } from '../../core/mdpandoc.js';
 import { markdownToPdfTypst } from '../../core/mdtypst.js';
 import { PDFJS_ASSET_OPTS } from '../../core/pdfjs-assets.js';
 import { setEngineStatus } from '../../core/wasm-registry.js';
+import { buildOutputName, paramsToken } from '../../core/naming.js';
 
 const PAPER_OPTS = [
   { value: 'a4', label: 'A4' },
@@ -340,6 +341,35 @@ registerTool({
     body.appendChild(engineHint);
     const paperSel = select(PAPER_OPTS, 'a4');
     body.appendChild(field('纸张', paperSel));
+    // Typst 引擎正文族：默认 Noto Sans SC，可选设置 → 外挂字体 里上传/订阅的字体
+    const familyField = field('正文字体（Typst 引擎）', (() => {
+      const sel = select([{ value: '', label: '默认（Noto Sans SC）' }], '');
+      sel.setAttribute('aria-label', '正文字体（Typst 引擎）');
+      return sel;
+    })(), '外挂字体来自设置 → 外挂字体（上传或远程订阅）');
+    familyField.style.display = 'none';
+    body.appendChild(familyField);
+    const familySel = familyField.querySelector('select');
+    const refreshFamilyOpts = async () => {
+      try {
+        const { listUserFonts } = await import('../../core/userfonts.js');
+        const fonts = await listUserFonts();
+        const cur = familySel.value;
+        familySel.replaceChildren();
+        const def = document.createElement('option');
+        def.value = '';
+        def.textContent = '默认（Noto Sans SC）';
+        familySel.appendChild(def);
+        for (const f of fonts) {
+          const o = document.createElement('option');
+          o.value = f.family || f.name;
+          o.textContent = `外挂：${f.family || f.name}`;
+          familySel.appendChild(o);
+        }
+        familySel.value = [...familySel.options].some((o) => o.value === cur) ? cur : '';
+      } catch { /* 无外挂字体即仅默认 */ }
+    };
+    refreshFamilyOpts();
     const sizeSel = select(FONT_OPTS, '11');
     body.appendChild(field('正文字号', sizeSel));
     const richCb = checkbox('渲染数学公式 / Mermaid 图形 / 思维导图', true);
@@ -367,6 +397,8 @@ registerTool({
       const show = engineSel.value === 'builtin';
       richCb.style.display = show ? '' : 'none';
       // WASM 引擎全特性直转，富渲染勾选仅影响内置引擎
+      familyField.style.display = formatSel.value === 'pdf' && engineSel.value === 'typst' ? '' : 'none';
+      if (formatSel.value === 'pdf' && engineSel.value === 'typst') refreshFamilyOpts();
     };
     const syncGoLabel = () => {
       goBtn.textContent = formatSel.value === 'pdf' && engineSel.value === 'print' ? '调起打印' : '开始转换';
@@ -551,9 +583,10 @@ registerTool({
         setP(10, '准备引擎…');
         const { bytes } = await markdownToPdfTypst(text, {
           paper: paperSel.value, fontSize, title: baseName,
+          fontFamily: familySel.value || undefined,
           onStage: (s) => setP(35, s),
         });
-        const art = { name: `${baseName}.pdf`, bytes, mime: 'application/pdf' };
+        const art = { name: `${buildOutputName({ name: baseName, op: 'Markdown转PDF', params: paramsToken({ engine: 'typst', paper: paperSel.value }) })}.pdf`, bytes, mime: 'application/pdf' };
         addResultArtifacts([art]); // 不走 engine.run()，入架对齐内置引擎分支
         resultBox.appendChild(resultCard({
           arts: [art],
@@ -568,7 +601,7 @@ registerTool({
       if (fmt === 'docx' && eng === 'pandoc') {
         setP(10, '准备引擎…');
         const { bytes } = await pandocToDocx(text, { onStage: (s) => setP(35, s) });
-        const art = { name: `${baseName}.docx`, bytes, mime: DOCX_MIME };
+        const art = { name: `${buildOutputName({ name: baseName, op: 'Markdown转Word', params: paramsToken({ engine: 'pandoc' }) })}.docx`, bytes, mime: DOCX_MIME };
         resultBox.appendChild(resultCard({
           arts: [art],
           summary: { 引擎: 'Pandoc 高保真', 格式: 'Word .docx' },
@@ -587,7 +620,7 @@ registerTool({
         const { bytes, warnings, richCount } = await markdownToDocx(text, {
           fontSize, paper: paperSel.value, name: baseName,
         });
-        const art = { name: `${baseName}.docx`, bytes, mime: DOCX_MIME };
+        const art = { name: `${buildOutputName({ name: baseName, op: 'Markdown转Word', params: paramsToken({ engine: 'builtin', paper: paperSel.value }) })}.docx`, bytes, mime: DOCX_MIME };
         resultBox.appendChild(resultCard({
           arts: [art],
           summary: { 引擎: '内置轻量', 图形公式: richCount, 格式: 'Word .docx' },

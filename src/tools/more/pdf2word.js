@@ -5,15 +5,17 @@ import { run, ensureDoc } from '../../core/engine.js';
 import { inputPanel } from '../../components/input.js';
 import { field, select, button } from '../../components/ui.js';
 import { paramsCard, resultCard, runWithProgress } from './common.js';
-import { buildOffice } from '../../core/officewriters.js';
+import { buildOffice, buildPptxImages } from '../../core/officewriters.js';
 import { PDFJS_ASSET_OPTS } from '../../core/pdfjs-assets.js';
 import { setEngineStatus } from '../../core/wasm-registry.js';
+import { log } from '../../core/logs.js';
+import { buildOutputName, paramsToken } from '../../core/naming.js';
 
 const NOTE = '文本级转换：保留文字与段落结构，不还原排版';
+const SCAN_NOTE = '未检测到文本层（可能是扫描件或图片型 PDF），已自动转为图片型演示文稿（文字不可编辑）。如需可编辑文字，请先使用「OCR 识别」工具。';
 
-// 引擎缺陷绕过：engine-more.js 的 pdf.exportOffice → richLinesOf 引用了未导入的
-// pdfjsOpen（ReferenceError）。引擎修复前走本地管线：主线程 pdfjs 提取富文本行
-// （与引擎 richLinesOf 同算法）→ core/officewriters.buildOffice 生成产物。
+// 引擎缺陷绕过：引擎路径失败时走本地管线兜底（失败原因进运行日志，设置面板可查）：
+// 主线程 pdfjs 提取富文本行（与引擎 richLinesOf 同算法）→ core/officewriters.buildOffice 生成产物。
 let pdfjsPromise = null;
 function getPdfjsMain() {
   if (!pdfjsPromise) {
@@ -71,8 +73,40 @@ async function richLinesLocal(file, pageIdxs, onProgress) {
   }));
 }
 
+/** 主线程逐页渲染 PNG（扫描件兜底的最后一道：引擎也不可用时仍能出图片型 PPTX） */
+async function renderPagesPngLocal(file, pageIdxs, dpi, onProgress) {
+  const pjs = await getPdfjsMain();
+  const doc = await pjs.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false, ...PDFJS_ASSET_OPTS }).promise;
+  const scale = dpi / 72;
+  const arts = [];
+  for (let i = 0; i < pageIdxs.length; i++) {
+    const page = await doc.getPage(pageIdxs[i] + 1);
+    const vp = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.floor(vp.width));
+    canvas.height = Math.max(1, Math.floor(vp.height));
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport: vp, canvas }).promise;
+    const blob = await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('页面编码失败'))), 'image/jpeg', 0.92));
+    arts.push({
+      name: `p${String(i + 1).padStart(3, '0')}.jpg`,
+      mime: 'image/jpeg',
+      bytes: new Uint8Array(await blob.arrayBuffer()),
+      w: vp.width / scale, // 视觉尺寸（pt）
+      h: vp.height / scale,
+    });
+    onProgress?.(i + 1, pageIdxs.length);
+  }
+  return arts;
+}
+
+const SCAN_WARN_OTHERS = '未检测到文本层（可能是扫描件或图片型 PDF），文本级导出结果为空。请先使用「OCR 识别」工具生成文字层后再转换。';
+
 /**
  * 导出工具工厂：上传 PDF → pdf.exportOffice（引擎不可用时本地 buildOffice）→ 产物下载。
+ * 扫描件（无文本层）：pptx 自动降级为图片型 PPT；其他格式给出 OCR 引导警告。
  * @param {{id:string, name:string, format:string, desc:string, formatOptions?:Array<{value,label}>}} p
  *   formatOptions 提供时展示输出格式选择（如 pdf2odf 的 odt/ods/odp）。
  */
@@ -116,6 +150,9 @@ export function officeExportTool(p) {
         const format = fmtSel ? fmtSel.value : p.format;
         let arts;
         let summary;
+        let warnings = [];
+        let pagesData = null;
+        let engineFailed = null;
         try {
           const res = await run('pdf.exportOffice', {
             docId: state.doc.id,
@@ -126,11 +163,14 @@ export function officeExportTool(p) {
           }, new Map([[state.doc.id, state.doc]]));
           arts = res.artifacts;
           summary = res.summary;
-        } catch {
-          // 本地管线（见文件头说明）：解析页数 → 富文本行 → buildOffice
+        } catch (err) {
+          // 引擎路径失败不再静默：原因进运行日志，再走本地兜底管线
+          engineFailed = err;
+          log('office', `${p.id} 引擎导出失败，已走本地兜底管线`, { level: 'warn', detail: `${err.code || ''} ${err.message}`.trim() });
+          // 本地管线：解析页数 → 富文本行 → buildOffice
           const info = await ensureDoc(state.doc);
           const pageIdxs = info.pages.map((_, i) => i);
-          const pagesData = await richLinesLocal(state.doc.file, pageIdxs, (done, total) => {
+          pagesData = await richLinesLocal(state.doc.file, pageIdxs, (done, total) => {
             setP((done / total) * 70, `解析第 ${done} 页`);
           });
           setP(85, '生成文档…');
@@ -138,11 +178,57 @@ export function officeExportTool(p) {
             title: state.doc.name.replace(/\.pdf$/i, ''),
           });
           arts = [{
-            name: `${state.doc.name.replace(/\.pdf$/i, '')}.${built.ext}`,
+            name: `${buildOutputName({ name: state.doc.name, op: 'PDF转Word', params: paramsToken({ format }) })}.${built.ext}`,
             mime: built.mime,
             bytes: built.bytes,
           }];
           summary = { format, pages: pageIdxs.length };
+        }
+        // 空文本检测（扫描件）：引擎路径看 summary.lines，本地路径直接数行
+        const linesTotal = pagesData
+          ? pagesData.reduce((s, pg) => s + pg.lines.length, 0)
+          : (summary.lines ?? null);
+        if (linesTotal === 0) {
+          if (format === 'pptx' || format === 'odp') {
+            log('office', `${p.id} 未检测到文本层，自动转图片型 ${format.toUpperCase()}`, { level: 'warn' });
+            setP(70, `未检测到文本层（扫描件？），转图片型 ${format.toUpperCase()}…`);
+            warnings = [SCAN_NOTE];
+            let imgs = null;
+            try {
+              const res = await run('pdf.toImages', {
+                docId: state.doc.id, pages: 'all', dpi: 150, format: 'jpeg', quality: 0.92, bg: '#ffffff',
+              }, {
+                onProgress: (pr) => setP(pr.total ? 70 + (pr.done / pr.total) * 20 : 80, pr.stage),
+              }, new Map([[state.doc.id, state.doc]]));
+              const info = await ensureDoc(state.doc);
+              imgs = res.artifacts.map((a, i) => ({
+                bytes: a.bytes, mime: a.mime,
+                w: info.pages[i]?.visualW, h: info.pages[i]?.visualH,
+              }));
+            } catch (err2) {
+              log('office', `${p.id} 引擎渲染不可用，转主线程渲染`, { level: 'warn', detail: String(err2?.message || err2) });
+              const info = await ensureDoc(state.doc);
+              const pageIdxs = info.pages.map((_, i) => i);
+              imgs = await renderPagesPngLocal(state.doc.file, pageIdxs, 150, (done, total) => {
+                setP(70 + (done / total) * 20, `渲染第 ${done} 页`);
+              });
+            }
+            setP(95, `生成 ${format.toUpperCase()}…`);
+            if (format === 'pptx') {
+              const built = buildPptxImages(imgs, { fit: 'contain' });
+              arts = [{
+                name: `${buildOutputName({ name: state.doc.name, op: 'PDF转PPT', params: paramsToken({ format }) })}.pptx`,
+                mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                bytes: built,
+              }];
+              summary = { format, pages: imgs.length };
+            } else {
+              // odp：无图片型写入器，维持文本级产物并给出引导
+              warnings = [SCAN_WARN_OTHERS];
+            }
+          } else {
+            warnings = [SCAN_WARN_OTHERS];
+          }
         }
         const card2 = resultCard({
           arts,
@@ -151,6 +237,7 @@ export function officeExportTool(p) {
           docNames: [state.doc.name],
           options: { format },
           extraNote: NOTE,
+          warnings,
         });
         resultBox.appendChild(card2);
         return { artifacts: arts, summary };

@@ -1,5 +1,6 @@
-// 右侧 PDF 暂存区 e2e：上传镜像、生成结果入架、拖拽到左侧、加入回填、
+// 右侧暂存区 e2e：上传镜像（PDF+图片全类型）、生成结果入架、拖拽到左侧、加入回填、
 // 列表/封面双视图、单件与一键预览全部、清空确认、直接在暂存区上传
+// 持久化与文件夹的专项用例见 tray-persist.spec.js
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import { ensureFixtures, openTool, upload, FIXTURES } from './helpers.js';
@@ -14,20 +15,20 @@ test.describe('PDF 暂存区', () => {
     });
   });
 
-  test('上传 PDF 自动镜像到暂存区（图片不入架），切换工具持久', async ({ page }) => {
+  test('上传 PDF 与图片都自动镜像到暂存区，切换工具持久', async ({ page }) => {
     await openTool(page, 'merge');
     await upload(page, ['multi3.pdf', 'photo_l.jpg']);
     const rail = page.locator('.tray-rail');
-    await expect(rail.locator('[data-tray-item]')).toHaveCount(1);
-    await expect(rail.locator('.ti-name')).toHaveText('multi3.pdf');
-    await expect(rail.locator('.badge', { hasText: '上传' })).toHaveCount(1);
+    await expect(rail.locator('[data-tray-item]')).toHaveCount(2);
+    await expect(rail.locator('.ti-name')).toHaveText(['multi3.pdf', 'photo_l.jpg']);
+    await expect(rail.locator('.badge', { hasText: '上传' })).toHaveCount(2);
     // 顶栏开关按钮的数量徽标
-    await expect(page.locator('[data-tray-toggle] .tray-toggle-n')).toHaveText('1');
-    // 切换工具（hash 导航不重载页面，内存态文档架保留；整页刷新则与输入文件一样清空）
+    await expect(page.locator('[data-tray-toggle] .tray-toggle-n')).toHaveText('2');
+    // 切换工具（hash 导航不重载页面，内存态文档架保留）
     await page.locator('a.side-link[href="#/tool/compress"]').click();
     await page.waitForTimeout(250);
-    await expect(page.locator('.tray-rail [data-tray-item]')).toHaveCount(1);
-    await expect(page.locator('.tray-rail .ti-name')).toHaveText('multi3.pdf');
+    await expect(page.locator('.tray-rail [data-tray-item]')).toHaveCount(2);
+    await expect(page.locator('.tray-rail .ti-name')).toHaveText(['multi3.pdf', 'photo_l.jpg']);
   });
 
   test('生成结果自动入暂存区；「加入」回填左侧编辑区', async ({ page }) => {
@@ -40,7 +41,7 @@ test.describe('PDF 暂存区', () => {
     await expect(rail.locator('[data-tray-item]')).toHaveCount(2);
     await expect(rail.locator('.badge', { hasText: '生成' })).toHaveCount(1);
     // 生成的合并结果回填左侧编辑区（同一 PDF 不在暂存区产生重复）
-    const genRow = rail.locator('[data-tray-item]').filter({ hasText: '合并.pdf' });
+    const genRow = rail.locator('[data-tray-item]').filter({ hasText: /multi3-合并-\d{8}-\d{4}\.pdf/ });
     await genRow.getByRole('button', { name: '加入' }).click();
     await expect(page.locator('.file-list .tag')).toHaveCount(2);
     await expect(rail.locator('[data-tray-item]')).toHaveCount(2);
@@ -63,7 +64,7 @@ test.describe('PDF 暂存区', () => {
     await expect(page.locator('.tray-rail [data-tray-item]')).toHaveCount(1);
   });
 
-  test('封面视图渲染首页缩略图，视图选择持久化', async ({ page }) => {
+  test('封面视图渲染首页缩略图，视图选择与暂存内容均跨刷新保留', async ({ page }) => {
     await openTool(page, 'viewer');
     await upload(page, ['multi3.pdf']);
     const rail = page.locator('.tray-rail');
@@ -72,13 +73,14 @@ test.describe('PDF 暂存区', () => {
     await expect(card).toHaveCount(1);
     // 封面为真实渲染的首页缩略图（引擎 doc.render → webp dataURL）
     await expect(card.locator('.tray-cover img')).toHaveCount(1, { timeout: 20_000 });
-    // 刷新后暂存内容清空（内存态），但视图选择保留
+    // 刷新后暂存内容经 IndexedDB 恢复（持久化），视图选择保留
     await page.reload();
+    await expect(page.locator('.tray-rail .tray-card')).toHaveCount(1, { timeout: 15_000 });
     await upload(page, ['multi8.pdf']);
-    await expect(page.locator('.tray-rail .tray-card')).toHaveCount(1);
+    await expect(page.locator('.tray-rail .tray-card')).toHaveCount(2);
     // 切回列表视图
     await page.locator('.tray-rail').getByRole('button', { name: '列表' }).click();
-    await expect(page.locator('.tray-rail .tray-item')).toHaveCount(1);
+    await expect(page.locator('.tray-rail .tray-item')).toHaveCount(2);
   });
 
   test('单件预览：点击暂存项直接打开该 PDF', async ({ page }) => {
@@ -112,6 +114,19 @@ test.describe('PDF 暂存区', () => {
     await expect(page.locator('.pv-wrap')).toHaveCount(0);
   });
 
+  test('图片暂存项可直接预览（不走 PDF 分页渲染）', async ({ page }) => {
+    await page.goto('/');
+    const rail = page.locator('.tray-rail');
+    const chooserP = page.waitForEvent('filechooser');
+    await rail.locator('[data-tray-upload]').click();
+    (await chooserP).setFiles([path.join(FIXTURES, 'photo_l.jpg')]);
+    await expect(rail.locator('[data-tray-item]')).toHaveCount(1);
+    await rail.locator('.tray-item').first().click();
+    await expect(page.locator('.pv-wrap')).toBeVisible();
+    await expect(page.locator('.pv-img')).toBeVisible();
+    await expect(page.locator('.pv-img')).toHaveAttribute('alt', 'photo_l.jpg');
+  });
+
   test('清空需确认；左侧编辑区文件不受影响；顶栏开关可收起面板', async ({ page }) => {
     await openTool(page, 'merge');
     await upload(page, ['multi3.pdf']);
@@ -127,27 +142,25 @@ test.describe('PDF 暂存区', () => {
     await expect(page.locator('.tray-rail')).toBeVisible();
   });
 
-  test('直接在暂存区上传：按钮走真实文件选择入架，非 PDF 跳过', async ({ page }) => {
-    // 无需进入工具页：首页即可直接给暂存区添加 PDF
+  test('直接在暂存区上传：按钮走真实文件选择入架，全类型接受', async ({ page }) => {
+    // 无需进入工具页：首页即可直接给暂存区添加文件
     const rail = page.locator('.tray-rail');
     await expect(rail.locator('[data-tray-upload]')).toBeEnabled();
     // 空架时预览/加入置灰
-    await expect(rail.getByRole('button', { name: '一键预览暂存区全部 PDF' })).toBeDisabled();
+    await expect(rail.getByRole('button', { name: '一键预览暂存区全部文件' })).toBeDisabled();
     const chooserP = page.waitForEvent('filechooser');
     await rail.locator('[data-tray-upload]').click();
     const chooser = await chooserP;
     await chooser.setFiles([path.join(FIXTURES, 'multi3.pdf'), path.join(FIXTURES, 'photo_l.jpg')]);
-    await expect(rail.locator('[data-tray-item]')).toHaveCount(1);
-    await expect(rail.locator('.ti-name')).toHaveText('multi3.pdf');
-    await expect(page.locator('[data-tray-toggle] .tray-toggle-n')).toHaveText('1');
-    // 非 PDF 被跳过并有提示
-    await expect(page.getByText('跳过 1 个非 PDF')).toBeVisible();
+    await expect(rail.locator('[data-tray-item]')).toHaveCount(2);
+    await expect(rail.locator('.ti-name')).toHaveText(['multi3.pdf', 'photo_l.jpg']);
+    await expect(page.locator('[data-tray-toggle] .tray-toggle-n')).toHaveText('2');
     // 入架后预览/加入恢复可用；同一文件再次加入不重复
-    await expect(rail.getByRole('button', { name: '一键预览暂存区全部 PDF' })).toBeEnabled();
+    await expect(rail.getByRole('button', { name: '一键预览暂存区全部文件' })).toBeEnabled();
     const chooserP2 = page.waitForEvent('filechooser');
     await rail.locator('[data-tray-upload]').click();
     (await chooserP2).setFiles([path.join(FIXTURES, 'multi3.pdf')]);
-    await expect(rail.locator('[data-tray-item]')).toHaveCount(1);
+    await expect(rail.locator('[data-tray-item]')).toHaveCount(2);
   });
 
   test('暂存区空态可点击上传；外部文件拖入面板直接入架', async ({ page }) => {

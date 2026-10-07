@@ -12,6 +12,7 @@ import { inputPanel } from '../../components/input.js';
 import { field, select, textInput, button, toast } from '../../components/ui.js';
 import { paramsCard, resultCard, runWithProgress } from './common.js';
 import { parseHtml, decodeText } from '../../core/importers.js';
+import { buildOutputName } from '../../core/naming.js';
 
 const PAPER_OPTS = [
   { value: 'a4', label: 'A4' },
@@ -290,7 +291,7 @@ registerTool({
       }
 
       // 产物 1：HTML 文件（源码快照，片段自动包壳保证可直接打开）
-      const htmlArt = { name: `${baseName}.html`, bytes: new TextEncoder().encode(finalHtml), mime: 'text/html' };
+      const htmlArt = { name: `${buildOutputName({ name: baseName, op: '网页保存' })}.html`, bytes: new TextEncoder().encode(finalHtml), mime: 'text/html' };
       addResultArtifacts([htmlArt]);
 
       // 引擎二：浏览器打印引擎（高保真，PDF 在对话框另存）
