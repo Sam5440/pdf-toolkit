@@ -58,8 +58,8 @@ test.describe('watermark 添加水印工具', () => {
     const dest = await saveDownload(page, '下载水印 PDF', 'watermark-out.pdf');
     expect(fs.existsSync(dest)).toBeTruthy();
     expect(fs.statSync(dest).size).toBeGreaterThan(0);
-    // UI 状态流转：结果卡出现、历史按钮出现、开始按钮恢复可用
-    await expect(page.getByRole('button', { name: '保存到历史' })).toBeVisible();
+    // UI 状态流转：结果卡出现、自动存档提示出现、开始按钮恢复可用
+    await expect(page.getByText('已自动存入历史')).toBeVisible();
     await expect(applyBtn).toBeEnabled();
   });
 

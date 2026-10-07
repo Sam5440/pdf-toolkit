@@ -6,7 +6,7 @@ import { inputPanel } from '../components/input.js';
 import { addDocument } from '../core/files.js';
 import { progressCard, warningsBox, toast, field, textInput, button } from '../components/ui.js';
 import { fmtBytes } from '../core/format.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact } from '../core/download.js';
 
 const IMG_EXT = /\.(jpe?g|png|webp)$/i;
@@ -88,18 +88,17 @@ registerTool({
           <div class="kv">${iconSvg('success')} 合并完成：<b>${res.summary.pages}</b> 页 · ${fmtBytes(art.bytes.byteLength)} · 用时 ${Math.round((Date.now() - t0) / 100) / 10}s</div>`;
         const actions = document.createElement('div');
         actions.style.cssText = 'display:flex;gap:8px;margin-top:10px';
-        const dl = button('下载合并结果', 'btn-primary', () => downloadArtifact(art));
-        const save = button('保存到历史', 'btn-outline', async () => {
-          await addHistory({
-            id: `h_${Date.now().toString(36)}`,
-            tool: 'merge', toolName: '合并 PDF',
-            docNames: docs.map((d) => d.name),
-            options: { ranges: ranges || '全部' },
-            outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
-          });
-          toast('已保存到历史');
+        actions.appendChild(button('下载合并结果', 'btn-primary', () => downloadArtifact(art)));
+        const recBtn = await recordTaskOrButton({
+          tool: 'merge', toolName: '合并 PDF',
+          docNames: docs.map((d) => d.name),
+          options: { ranges: ranges || '全部' },
+          docs,
+          outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
+          form: capturePageForm(),
         });
-        actions.append(dl, save);
+        if (recBtn) actions.append(recBtn);
+        else ib.appendChild(recordNote());
         ib.appendChild(actions);
         const w = warningsBox(res.warnings);
         if (w) ib.appendChild(w);

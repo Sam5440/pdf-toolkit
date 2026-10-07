@@ -14,7 +14,7 @@ import {
 import { fmtBytes } from '../core/format.js';
 import { buildOutputName, paramsToken } from '../core/naming.js';
 import { parsePageRange } from '../core/pagerange.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact, downloadZip } from '../core/download.js';
 
 registerTool({
@@ -197,20 +197,19 @@ registerTool({
 
       const actions = document.createElement('div');
       actions.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap';
-      actions.append(
-        button('ZIP 打包下载', 'btn-primary', () => downloadZip(arts, 'extract-out.zip')),
-        button('保存到历史', 'btn-outline', async () => {
-          await addHistory({
-            id: `h_${Date.now().toString(36)}`,
-            tool: 'extractimages', toolName: '提取图片',
-            docNames: [doc.name],
-            options: { pages: pagesInp.value.trim() || 'all', mode },
-            outputs: arts.map((a) => ({ name: a.name, mime: a.mime, size: a.bytes.byteLength, blob: new Blob([a.bytes], { type: a.mime }) })),
-          });
-          toast('已保存到历史');
-        }),
-      );
+      actions.appendChild(button('ZIP 打包下载', 'btn-primary', () => downloadZip(arts, 'extract-out.zip')));
       ib.appendChild(actions);
+      recordTaskOrButton({
+        tool: 'extractimages', toolName: '提取图片',
+        docNames: [doc.name],
+        options: { pages: pagesInp.value.trim() || 'all', mode },
+        docs: [doc],
+        outputs: arts.map((a) => ({ name: a.name, mime: a.mime, size: a.bytes.byteLength, blob: new Blob([a.bytes], { type: a.mime }) })),
+        form: capturePageForm(),
+      }).then((recBtn) => {
+        if (recBtn) actions.appendChild(recBtn);
+        else ib.appendChild(recordNote());
+      });
       card.appendChild(ib);
       resultBox.appendChild(card);
     }

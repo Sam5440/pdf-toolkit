@@ -21,6 +21,11 @@ import { DEFAULT_NAMING_TEMPLATE, getNamingTemplate } from './core/naming.js';
 import { trayRail, trayToggleButton } from './components/tray.js';
 import { hydrateTray, resetTrayStorage } from './core/tray.js';
 import { getLogs, logsToText, clearLogs, onLogChange, log } from './core/logs.js';
+import { renderWorkflowPage } from './components/workflow-page.js';
+import { renderDataPage } from './components/data-page.js';
+import { restoreFromRecord } from './core/restore.js';
+import { stepFromRecord, saveWorkflow } from './core/workflows.js';
+import { isAutoRecordEnabled } from './core/tasklog.js';
 import {
   addUserFont, listUserFonts, removeUserFont,
   getRemoteUrls, setRemoteUrls, syncRemoteFonts, FONT_ACCEPT,
@@ -173,7 +178,7 @@ function buildSidebar(sidebar, toolId) {
   // 首页入口（工具页/更多页/历史页均可见；窄屏图标栏下是唯一回首页入口之一）
   const homeNav = document.createElement('nav');
   homeNav.className = 'side-nav side-nav-home';
-  const onHome = !toolId && location.hash !== '#/more' && location.hash !== '#/history';
+  const onHome = !toolId && !['#/more', '#/history', '#/workflows', '#/data'].includes(location.hash);
   const homeLink = document.createElement('a');
   homeLink.className = 'side-link' + (onHome ? ' active' : '');
   homeLink.href = '#/';
@@ -282,8 +287,9 @@ function renderApp(toolId) {
   const searchBtn = commandPaletteButton(searchCtx);
   const ghBtn = githubButton();
   const histBtn = iconBtn('history', '历史', 'btn-ghost btn-sm', () => { location.hash = '#/history'; });
+  const wfBtn = iconBtn('workflow', '工作流', 'btn-ghost btn-sm', () => { location.hash = '#/workflows'; });
   const setBtn = iconBtn('settings', '设置', 'btn-ghost btn-sm', () => openSettings());
-  tbBtns.append(searchBtn, themeBtn, trayToggleButton(), histBtn, ghBtn, setBtn);
+  tbBtns.append(searchBtn, themeBtn, trayToggleButton(), histBtn, wfBtn, ghBtn, setBtn);
   topbar.appendChild(tbBtns);
 
   const content = document.createElement('div');
@@ -303,6 +309,10 @@ function renderApp(toolId) {
     renderHistory(content);
   } else if (location.hash === '#/more') {
     renderMorePage(content);
+  } else if (location.hash === '#/workflows') {
+    renderWorkflowPage(content);
+  } else if (location.hash === '#/data') {
+    renderDataPage(content);
   } else {
     renderHome(content);
   }
@@ -562,8 +572,14 @@ async function renderHistory(content) {
   const [items, used] = await Promise.all([listHistory({ limit: 200 }), historyUsedBytes()]);
   content.innerHTML = '';
   const head = document.createElement('div');
-  head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
-  head.innerHTML = `<b>本地历史记录</b><span class="muted-sm">占用 ${fmtBytes(used)}</span>`;
+  head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px';
+  head.innerHTML = `<b>任务历史（完整参数）</b><span class="muted-sm">占用 ${fmtBytes(used)} · 每次处理自动存档，可一键复原</span>`;
+  const headBtns = document.createElement('div');
+  headBtns.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+  const wfLink = button('工作流', 'btn-outline btn-sm', () => { location.hash = '#/workflows'; });
+  wfLink.setAttribute('aria-label', '打开工作流页');
+  const dbLink = button('本地数据库', 'btn-outline btn-sm', () => { location.hash = '#/data'; });
+  dbLink.setAttribute('aria-label', '打开本地数据库页');
   const clearBtn = button('清空全部', 'btn-danger btn-sm', async () => {
     const ok = await confirmDialog({
       title: '清空本地历史记录',
@@ -576,12 +592,13 @@ async function renderHistory(content) {
     toast('已清空');
     renderApp(null);
   });
-  head.appendChild(clearBtn);
+  headBtns.append(wfLink, dbLink, clearBtn);
+  head.appendChild(headBtns);
   content.appendChild(head);
   if (!items.length) {
     const empty = document.createElement('div');
     empty.className = 'card';
-    empty.innerHTML = '<div class="card-body"><div class="empty"><span class="empty-ico"></span>暂无历史记录<br>各工具处理完成后点击"保存到历史"即可保留结果</div></div>';
+    empty.innerHTML = '<div class="card-body"><div class="empty"><span class="empty-ico"></span>暂无任务历史<br>任何工具处理完成后都会自动存档完整参数与文件（可在设置关闭），届时可在这里一键复原</div></div>';
     empty.querySelector('.empty-ico').appendChild(iconNode('history'));
     content.appendChild(empty);
     return;
@@ -594,12 +611,17 @@ async function renderHistory(content) {
     body.className = 'card-body';
     body.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap';
     const info = document.createElement('div');
-    info.style.flex = '1';
+    info.style.cssText = 'flex:1;min-width:220px';
+    const ioBits = [];
+    if (it.inputCount) ioBits.push(`输入 ${it.inputCount} 个文件`);
+    if (it.outputs?.length) ioBits.push(`输出 ${it.outputs.length} 个文件`);
     info.innerHTML = `
-      <b>${esc(it.toolName)}</b> <span class="muted-sm">${fmtTime2(it.time)}</span>
+      <b>${esc(it.toolName)}</b> ${it.auto ? '<span class="badge badge-primary">自动存档</span>' : ''} <span class="muted-sm">${fmtTime2(it.time)}</span>
       <div class="note">${esc((it.docNames || []).join('、').slice(0, 80))}</div>
-      <div class="note">${(it.outputs || []).map((o) => `${esc(o.name)}（${fmtBytes(o.size)}）`).join(' · ')}</div>`;
-    const viewBtn = button('查看/下载', 'btn-outline btn-sm', async () => {
+      <div class="note">${ioBits.join(' · ')}${it.outputs?.length ? `：${it.outputs.map((o) => `${esc(o.name)}（${fmtBytes(o.size)}）`).join(' · ').slice(0, 90)}` : ''}</div>`;
+    const restoreBtn = button('一键复原', 'btn-outline btn-sm', () => restoreFromRecord(it.id));
+    restoreBtn.setAttribute('aria-label', `一键复原任务：${it.toolName}`);
+    const viewBtn = button('详情/下载', 'btn-ghost btn-sm', async () => {
       const rec = await getHistory(it.id);
       if (!rec) { toast('记录不存在', 'error'); return; }
       const box = document.createElement('div');
@@ -618,14 +640,44 @@ async function renderHistory(content) {
         line.appendChild(dl);
         box.appendChild(line);
       }
-      openModal(`历史记录 · ${esc(it.toolName)}`, box);
+      // 完整参数与表单快照（自动记录的可读回执）
+      const paramsTitle = document.createElement('div');
+      paramsTitle.style.cssText = 'font-weight:600;font-size:13px;margin:12px 0 4px';
+      paramsTitle.textContent = '参数';
+      const paramsPre = document.createElement('pre');
+      paramsPre.style.cssText = 'max-height:180px;overflow:auto;border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);padding:8px 10px;background:var(--secondary);font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-all;margin:0';
+      paramsPre.textContent = JSON.stringify(rec.options ?? {}, null, 2);
+      box.append(paramsTitle, paramsPre);
+      if (rec.form?.length) {
+        const formTitle = document.createElement('div');
+        formTitle.style.cssText = 'font-weight:600;font-size:13px;margin:12px 0 4px';
+        formTitle.textContent = `表单快照（${rec.form.length} 项，复原时回填）`;
+        const formList = document.createElement('div');
+        for (const f of rec.form) {
+          const fr = document.createElement('div');
+          fr.className = 'hint';
+          fr.textContent = `${f.label} = ${f.type === 'checkbox' ? (f.value ? '✓' : '✗') : String(f.value)}`;
+          formList.appendChild(fr);
+        }
+        box.append(formTitle, formList);
+      }
+      openModal(`任务详情 · ${esc(rec.toolName)}`, box);
     });
+    viewBtn.setAttribute('aria-label', `详情/下载任务：${it.toolName}`);
+    const wfSaveBtn = button('存为工作流', 'btn-ghost btn-sm', () => {
+      const step = stepFromRecord(it);
+      if (!step) { toast('该记录的功能已下线，无法加入工作流', 'error'); return; }
+      const wf = saveWorkflow({ name: `${it.toolName} · ${fmtTime2(it.time)}`, steps: [step] });
+      toast(`已创建工作流「${wf.name}」，可在「工作流」页继续拼接`);
+    });
+    wfSaveBtn.setAttribute('aria-label', `把任务存为工作流步骤：${it.toolName}`);
     const delBtn = button('删除', 'btn-ghost btn-sm', async () => {
       await deleteHistory(it.id);
       toast('已删除');
       renderApp(null);
     });
-    body.append(info, viewBtn, delBtn);
+    delBtn.setAttribute('aria-label', `删除历史记录：${it.toolName}`);
+    body.append(info, restoreBtn, viewBtn, wfSaveBtn, delBtn);
     card.appendChild(body);
     content.appendChild(card);
   }
@@ -736,6 +788,19 @@ async function openSettings() {
     };
     return i;
   })(), '令牌：{name} 原文件名 · {op} 操作 · {params} 参数（超 10 字符截断）· {time} 时间 · {i} 序号。留空恢复默认。多产物会自动追加页码/序号'));
+
+  // ---- 任务历史 ----
+  box.appendChild(secTitle('任务历史'));
+  const autoRecCb = checkbox('生成任务自动存入历史（完整参数与输入/输出文件，可在「历史」页一键复原）', isAutoRecordEnabled());
+  autoRecCb._input.onchange = () => { setSetting('taskAutoRecord', autoRecCb._input.checked); };
+  box.appendChild(autoRecCb);
+  const histRow = document.createElement('div');
+  histRow.appendChild(button('打开任务历史页', 'btn-outline btn-sm', () => {
+    box.closest('.modal-mask')?.remove();
+    location.hash = '#/history';
+  }));
+  histRow.appendChild(Object.assign(document.createElement('div'), { className: 'hint', textContent: '每条记录保存无损参数、输入/输出文件与表单快照（密码一律不保存）；关闭自动记录后各工具恢复手动「存入历史」按钮。' }));
+  box.appendChild(histRow);
 
   // ---- 最近使用 ----
   box.appendChild(secTitle('最近使用'));
@@ -1010,6 +1075,13 @@ async function openSettings() {
 
   // ---- 维护 ----
   box.appendChild(secTitle('维护'));
+  const dbRow = document.createElement('div');
+  dbRow.appendChild(button('打开本地数据库', 'btn-outline btn-sm', () => {
+    box.closest('.modal-mask')?.remove();
+    location.hash = '#/data';
+  }));
+  dbRow.appendChild(Object.assign(document.createElement('div'), { className: 'hint', textContent: '历史、暂存区、字体、设置与工作流全部集中在本机数据库，可整库导出为一个备份文件，或从备份一键恢复（换设备/清浏览器数据前先导出）。' }));
+  box.appendChild(dbRow);
   const cacheRow = document.createElement('div');
   cacheRow.appendChild(button('清理引擎缓存', 'btn-outline btn-sm', async (ev) => {
     const btn = ev.currentTarget; // await 后 currentTarget 为 null：先捕获引用

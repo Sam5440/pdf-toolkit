@@ -36,7 +36,8 @@ test.describe('overlay PDF叠加工具', () => {
     const dest = await saveDownload(page, '下载叠加 PDF', 'overlay-out.pdf');
     expect(fs.existsSync(dest)).toBeTruthy();
     expect(fs.statSync(dest).size).toBeGreaterThan(0);
-    await expect(page.getByRole('button', { name: '保存到历史' })).toBeVisible();
+    // 任务自动记录：结果卡出现「已自动存入历史」提示
+    await expect(page.getByText('已自动存入历史')).toBeVisible();
   });
 
   test('自定义配对：1:1 / 2:3 → 执行 → 下载', async ({ page }) => {

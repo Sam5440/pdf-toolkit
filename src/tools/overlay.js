@@ -9,7 +9,7 @@ import { inputPanel } from '../components/input.js';
 import { readDocInfo, applyOverlayMain } from '../components/watermark-editor.js';
 import { progressCard, toast, field, select, numberInput, button } from '../components/ui.js';
 import { fmtBytes } from '../core/format.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact } from '../core/download.js';
 
 registerTool({
@@ -325,18 +325,18 @@ registerTool({
         const actions = document.createElement('div');
         actions.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap';
         const dl = button('下载叠加 PDF', 'btn-primary', () => downloadArtifact(art));
-        const save = button('保存到历史', 'btn-outline', async () => {
-          await addHistory({
-            id: `h_${Date.now().toString(36)}`,
-            tool: 'overlay', toolName: 'PDF 叠加',
-            docNames: [bd.name, od.name],
-            options: { mode: mapping.mode, scale: options.scale, opacity: options.opacity, offsetX: options.offsetX, offsetY: options.offsetY, under: options.under, pairs: art.pairs },
-            outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
-          });
-          toast('已保存到历史');
+        const recBtn = await recordTaskOrButton({
+          tool: 'overlay', toolName: 'PDF 叠加',
+          docNames: [bd.name, od.name],
+          options: { mode: mapping.mode, scale: options.scale, opacity: options.opacity, offsetX: options.offsetX, offsetY: options.offsetY, under: options.under, pairs: art.pairs },
+          docs: [bd, od],
+          outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
+          form: capturePageForm(),
         });
-        actions.append(dl, save);
+        if (recBtn) actions.append(dl, recBtn);
+        else actions.append(dl);
         ib.append(kv, nameRow, actions);
+        if (!recBtn) ib.appendChild(recordNote());
         info.appendChild(ib);
         resultBox.appendChild(info);
       } catch (e) {

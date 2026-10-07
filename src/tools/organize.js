@@ -7,7 +7,7 @@ import { pageWorkbench } from '../components/pagethumbs.js';
 import { progressCard, warningsBox, toast, field, textInput, button } from '../components/ui.js';
 import { parsePageRange } from '../core/pagerange.js';
 import { fmtBytes } from '../core/format.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact } from '../core/download.js';
 
 registerTool({
@@ -169,20 +169,19 @@ registerTool({
       kv.appendChild(b);
       const actions = document.createElement('div');
       actions.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap';
-      actions.append(
-        button('下载整理结果', 'btn-primary', () => downloadArtifact(art)),
-        button('保存到历史', 'btn-outline', async () => {
-          await addHistory({
-            id: `h_${Date.now().toString(36)}`,
-            tool: 'organize', toolName: '页面整理',
-            docNames: [doc.name],
-            options: { pages: plan.length, blanks: plan.filter((p) => p.blank).length },
-            outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
-          });
-          toast('已保存到历史');
-        }),
-      );
+      actions.appendChild(button('下载整理结果', 'btn-primary', () => downloadArtifact(art)));
       ib.append(kv, actions);
+      recordTaskOrButton({
+        tool: 'organize', toolName: '页面整理',
+        docNames: [doc.name],
+        options: { pages: plan.length, blanks: plan.filter((p) => p.blank).length },
+        docs: [doc],
+        outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
+        form: capturePageForm(),
+      }).then((recBtn) => {
+        if (recBtn) actions.appendChild(recBtn);
+        else ib.appendChild(recordNote());
+      });
       const w = warningsBox(res.warnings);
       if (w) ib.appendChild(w);
       card.appendChild(ib);

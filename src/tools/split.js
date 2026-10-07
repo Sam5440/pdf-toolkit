@@ -8,7 +8,7 @@ import {
 } from '../components/ui.js';
 import { parsePageRange, splitGroups } from '../core/pagerange.js';
 import { fmtBytes, baseName } from '../core/format.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact, downloadZip } from '../core/download.js';
 
 /** 组页码（0基数组）→ 展示文案 */
@@ -258,21 +258,22 @@ registerTool({
       actions.style.cssText = 'display:flex;gap:8px;margin-top:12px;flex-wrap:wrap';
       actions.append(
         button('打包下载 ZIP', 'btn-primary', () => downloadZip(arts, '拆分结果.zip')),
-        button('保存到历史', 'btn-outline', async () => {
-          await addHistory({
-            id: `h_${Date.now().toString(36)}`,
-            tool: 'split', toolName: '拆分 PDF',
-            docNames: [doc.name],
-            options: { mode: res.mode?.kind, n: res.mode?.n ?? null, groups: res.mode?.groups ?? null },
-            outputs: arts.map((a) => ({
-              name: a.name, mime: a.mime || 'application/pdf',
-              size: a.bytes.byteLength, blob: new Blob([a.bytes], { type: a.mime || 'application/pdf' }),
-            })),
-          });
-          toast('已保存到历史');
-        }),
       );
       ib.appendChild(actions);
+      recordTaskOrButton({
+        tool: 'split', toolName: '拆分 PDF',
+        docNames: [doc.name],
+        options: { mode: res.mode?.kind, n: res.mode?.n ?? null, groups: res.mode?.groups ?? null },
+        docs: [doc],
+        outputs: arts.map((a) => ({
+          name: a.name, mime: a.mime || 'application/pdf',
+          size: a.bytes.byteLength, blob: new Blob([a.bytes], { type: a.mime || 'application/pdf' }),
+        })),
+        form: capturePageForm(),
+      }).then((recBtn) => {
+        if (recBtn) actions.appendChild(recBtn);
+        else ib.appendChild(recordNote());
+      });
       const w = warningsBox(res.warnings);
       if (w) ib.appendChild(w);
       card.appendChild(ib);

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 下方收纳托盘（与暂存区同母题）：复原 = 把任务重新放回工具 -->
+  <path d="M8.5 26 V33 A4.5 4.5 0 0 0 13 37.5 H35 A4.5 4.5 0 0 0 39.5 33 V26"/>
+  <!-- 落入托盘的向下箭头：一键复原 -->
+  <path d="M24 7 V20.5"/>
+  <path d="M18.5 15.5 L24 21 L29.5 15.5"/>
+</svg>

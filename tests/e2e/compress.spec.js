@@ -26,7 +26,8 @@ test.describe('compress 工具', () => {
 
     // 候选表内每行有独立下载
     await expect(page.getByRole('button', { name: '下载此版本' }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: '保存到历史' }).first()).toBeEnabled();
+    // 任务自动记录：结果卡出现「已自动存入历史」提示
+    await expect(page.getByText('已自动存入历史').first()).toBeVisible();
   });
 
   test('边界：未上传文件点开始 → toast 提示且无结果卡', async ({ page }) => {

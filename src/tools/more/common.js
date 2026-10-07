@@ -5,7 +5,7 @@ import {
   button, progressCard, warningsBox, toast,
 } from '../../components/ui.js';
 import { fmtBytes } from '../../core/format.js';
-import { addHistory } from '../../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../../core/tasklog.js';
 import { downloadArtifact, downloadZip } from '../../core/download.js';
 
 /** 参数卡片：<div class=card><div class=card-body>…</div></div>，返回 {card, body} */
@@ -63,19 +63,19 @@ export function resultCard(p) {
   if (arts.length > 1) {
     actions.appendChild(button('打包下载 ZIP', 'btn-primary', () => downloadZip(arts, `${p.toolName}.zip`)));
   }
-  actions.appendChild(button('保存到历史', 'btn-outline', async () => {
-    await addHistory({
-      id: `h_${Date.now().toString(36)}`,
-      tool: p.toolId, toolName: p.toolName,
-      docNames: p.docNames || [],
-      options: sanitizeOptions(p.options),
-      outputs: arts.map((a) => ({
-        name: a.name, mime: a.mime || 'application/octet-stream',
-        size: a.bytes.byteLength, blob: new Blob([a.bytes], { type: a.mime || 'application/octet-stream' }),
-      })),
-    });
-    toast('已保存到历史');
-  }));
+  // 任务自动记录：完整参数 + 输入/输出文件 + 表单快照（自动记录关闭时退回手动按钮）
+  recordTaskOrButton({
+    tool: p.toolId, toolName: p.toolName,
+    docNames: p.docNames || [],
+    options: p.options ?? null,
+    docs: p.inputs,
+    arts,
+    warnings: p.warnings,
+    form: capturePageForm(),
+  }).then((btn) => {
+    if (btn) actions.appendChild(btn);
+    else card.appendChild(recordNote());
+  }).catch(() => { /* 记录失败不阻塞结果展示 */ });
   ib.appendChild(actions);
   if (p.extraNote) {
     const note = document.createElement('div');
@@ -88,17 +88,6 @@ export function resultCard(p) {
   if (w) ib.appendChild(w);
   card.appendChild(ib);
   return card;
-}
-
-/** 历史记录剔除敏感键（与全局约定一致：pass/password/secret/token） */
-function sanitizeOptions(options) {
-  if (!options || typeof options !== 'object') return options ?? null;
-  const out = {};
-  for (const [k, v] of Object.entries(options)) {
-    if (/pass|secret|token/i.test(k)) continue;
-    out[k] = typeof v === 'object' && v !== null ? JSON.parse(JSON.stringify(v)) : v;
-  }
-  return out;
 }
 
 /** 执行包装：进度卡 + 错误提示（工具 run 的统一样板） */

@@ -28,6 +28,7 @@ export const EMOJI = {
   history: '🕘', settings: '⚙️', upload: '📄', success: '✅', winner: '🏆',
   home: '🏠',
   dopamine: '🎨',
+  workflow: '🧩', database: '🗃️', restore: '↩️',
   doc: '📄', trash: '🗑', warn: '⚠️', image: '🖼', 'more-grid': '🧰', tray: '📥',
   folder: '📁',
   // 「更多」分组

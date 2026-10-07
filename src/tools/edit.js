@@ -20,7 +20,7 @@ import {
 } from '../components/ui.js';
 import { fmtBytes, baseName } from '../core/format.js';
 import { buildOutputName } from '../core/naming.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact } from '../core/download.js';
 
 const DPI = 110;
@@ -755,20 +755,19 @@ registerTool({
       note.textContent = `输出：${art.name}（仅追加新内容，未改动既有文字与排版）`;
       const actions = document.createElement('div');
       actions.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap';
-      actions.append(
-        button('下载编辑结果', 'btn-primary', () => downloadArtifact(art)),
-        button('保存到历史', 'btn-outline', async () => {
-          await addHistory({
-            id: `h_${Date.now().toString(36)}`,
-            tool: 'edit', toolName: '页面编辑',
-            docNames: [doc.name],
-            options: { pages: edits.length, objects: edits.reduce((n, e) => n + e.objects.length, 0) },
-            outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
-          });
-          toast('已保存到历史');
-        }),
-      );
+      actions.appendChild(button('下载编辑结果', 'btn-primary', () => downloadArtifact(art)));
       ib.append(kv, note, actions);
+      recordTaskOrButton({
+        tool: 'edit', toolName: '页面编辑',
+        docNames: [doc.name],
+        options: { pages: edits.length, objects: edits.reduce((n, e) => n + e.objects.length, 0) },
+        docs: [doc],
+        outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
+        form: capturePageForm(),
+      }).then((recBtn) => {
+        if (recBtn) actions.appendChild(recBtn);
+        else ib.appendChild(recordNote());
+      });
       const w = warningsBox(res.warnings);
       if (w) ib.appendChild(w);
       card.appendChild(ib);

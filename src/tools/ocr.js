@@ -4,7 +4,7 @@ import { registerTool } from './core.js';
 import { run, abort } from '../core/engine.js';
 import { inputPanel } from '../components/input.js';
 import { progressCard, warningsBox, toast, field, textInput, select, checkbox, row, button } from '../components/ui.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact, downloadZip } from '../core/download.js';
 
 const LANGS = [
@@ -164,17 +164,18 @@ registerTool({
 
       const actions = document.createElement('div');
       actions.style.cssText = 'display:flex;gap:8px;margin-top:10px';
-      actions.appendChild(button('保存到历史', 'btn-outline', async () => {
-        await addHistory({
-          id: `h_${Date.now().toString(36)}`,
-          tool: 'ocr', toolName: 'OCR 文字识别',
-          docNames: [doc.name],
-          options,
-          outputs: arts.map((a) => ({ name: a.name, mime: a.mime, size: a.bytes.byteLength, blob: new Blob([a.bytes], { type: a.mime }) })),
-        });
-        toast('已保存到历史');
-      }));
       cb.appendChild(actions);
+      recordTaskOrButton({
+        tool: 'ocr', toolName: 'OCR 文字识别',
+        docNames: [doc.name],
+        options,
+        docs: [doc],
+        outputs: arts.map((a) => ({ name: a.name, mime: a.mime, size: a.bytes.byteLength, blob: new Blob([a.bytes], { type: a.mime }) })),
+        form: capturePageForm(),
+      }).then((recBtn) => {
+        if (recBtn) actions.appendChild(recBtn);
+        else cb.appendChild(recordNote());
+      });
       card.appendChild(cb);
       resultBox.appendChild(card);
     }

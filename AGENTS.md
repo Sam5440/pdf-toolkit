@@ -63,9 +63,24 @@ src/core/
   wasm-registry.js  引擎加载状态中心（纯状态；wasm-probes.js 装配探测闭包，设置面板消费）
   settings.js       localStorage `pdftoolkit.settings.v1`（主题/accent/radius/motion/iconSet/上限…）
   favorites.js      收藏（localStorage；defaultFav 标记 + MIGRATIONS 迁移键）
-  history.js        IndexedDB 历史（配额管理）
+  history.js        IndexedDB 历史（配额管理）；v2 记录含无损参数（sanitizeOptions 深存）、
+                    输入/输出文件字节与表单快照 form
+  tasklog.js        任务自动记录中枢：recordTaskOrButton（自动记录开关 taskAutoRecord）+
+                    captureFormSnapshot/capturePageForm（.field 与 label.checkbox-row 有序快照）+
+                    resolveInputs（docs 优先、docNames 按名补缺）；密码/文件输入一律不采集
+  restore.js        一键复原：hash 跳工具页 → sendToActivePanel 灌文件 → applyFormSnapshot
+                    回填参数（同名标签按 DOM 顺序消费，回填后派发 input/change 事件）
+  workflows.js      工作流（localStorage `pdftoolkit.workflows.v1`）：步骤只存参数+表单快照；
+                    执行 = 页面级重放（gotoToolPage → 灌文件 → 回填 → 点 .btn-primary 运行按钮
+                    → waitStepDone 轮询 .alert-error/.toast-error/暂存区新「生成」产物/结果行）
+  userdb.js         本地数据库整库导出/导入（ZIP，fflate zipSync/unzipSync 同步 API——
+                    异步 zip 在打包环境可能不回调）：localStorage pdftoolkit.* + 历史/暂存区/字体
+                    三个 IndexedDB 库；manifest 必须写成 manifest.json 文件（fflate fltn 对
+                    裸对象/字符串会按下标无限递归爆栈）
 src/components/     ui.js(shadcn 风格基件) shadcn.js(Select/Slider/Color 全局增强，MutationObserver)
                     search.js(⌘K 命令面板) tray.js(右侧暂存区，全局单例 DOM) input.js icons.js
+                    workflow-page.js(#/workflows) data-page.js(#/data)；路由在 main.js
+                    navigate/renderApp 分支（#/history #/more #/workflows #/data）
 src/tools/          15 核心工具 + registry.js；tools/more/ 49 扩展工具 + common.js 公共件
 ```
 
@@ -78,6 +93,10 @@ src/tools/          15 核心工具 + registry.js；tools/more/ 49 扩展工具 
   `icons.js` EMOJI 表；`check-icons.sh` 单色/彩色全绿才算完成。
 - **新 UI 控件的可达名必须全库 grep 既有 spec**：Playwright `getByRole name` 是
   **子串匹配**，极易撞车（例：「清空暂存区」会撞「清空」；顶栏按钮要避开工具页同名按钮）。
+- **工具结果卡不要手写「保存到历史」**：扩展工具走 common.js `resultCard`、核心工具直接调
+  `recordTaskOrButton`（tasklog）——自动记录开启时无按钮、只有「已自动存入历史」提示，
+  关闭时自动退回手动按钮；手动 `await` 该函数时注意外层函数必须是 async（同步上下文用
+  `.then((recBtn) => …)`，工具代码里有现成样例）。
 - **移动端隐藏按钮文字时必须保留可访问名**：顶栏按钮文字包在 `.btn-label` span 里被
   CSS 隐藏，**必须同时 `aria-label`**，否则可访问名消失、e2e 直接挂（真实踩过）。
 - **新增懒加载引擎要接状态上报**：加载点调 `setEngineStatus(id,status,detail)`（Worker 内
@@ -141,6 +160,6 @@ src/tools/          15 核心工具 + registry.js；tools/more/ 49 扩展工具 
 
 ## 测试要求（完成的定义）
 
-改动合并前三套件全绿：`npx vitest run`（168）+ `npx playwright test`（151）+
-`python3 -m pytest tests/verify tests/legacy -q`（112）。新功能随代码补测试：
+改动合并前三套件全绿：`npx vitest run`（250）+ `npx playwright test`（195）+
+`python3 -m pytest tests/verify tests/legacy -q`（118）。新功能随代码补测试：
 纯逻辑 → vitest；用户链路 → e2e；产物正确性 → pytest verify。修 bug 先写红测试再修。

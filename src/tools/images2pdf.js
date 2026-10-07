@@ -7,7 +7,7 @@ import {
   progressCard, warningsBox, toast, field, select, numberInput, textInput, row, button,
 } from '../components/ui.js';
 import { fmtBytes } from '../core/format.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact } from '../core/download.js';
 import { removeDocument } from '../core/files.js';
 
@@ -237,19 +237,18 @@ registerTool({
       kv.appendChild(document.createTextNode(` 转换完成：${items.length} 张图片 → ${res.summary?.pages ?? items.length} 页 · ${fmtBytes(art.bytes.byteLength)} · 用时 ${Math.round(ms / 100) / 10}s`));
       const actions = document.createElement('div');
       actions.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap';
-      actions.append(
-        button('下载 PDF', 'btn-primary', () => downloadArtifact(art)),
-        button('保存到历史', 'btn-outline', async () => {
-          await addHistory({
-            id: `h_${Date.now().toString(36)}`,
-            tool: 'images2pdf', toolName: '图片转 PDF',
-            docNames: items.map((i) => i.doc.name),
-            options: { paper: paperSel.value, orientation: oriSel.value, fit: fitSel.value },
-            outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
-          });
-          toast('已保存到历史');
-        }),
-      );
+      actions.appendChild(button('下载 PDF', 'btn-primary', () => downloadArtifact(art)));
+      recordTaskOrButton({
+        tool: 'images2pdf', toolName: '图片转 PDF',
+        docNames: items.map((i) => i.doc.name),
+        options: { paper: paperSel.value, orientation: oriSel.value, fit: fitSel.value },
+        docs: items.map((i) => i.doc),
+        outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
+        form: capturePageForm(),
+      }).then((recBtn) => {
+        if (recBtn) actions.appendChild(recBtn);
+        else ib.appendChild(recordNote());
+      });
       const w = warningsBox(res.warnings);
       if (w) ib.appendChild(w);
       ib.append(kv, actions);

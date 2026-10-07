@@ -6,7 +6,7 @@ import { inputPanel } from '../components/input.js';
 import { progressCard, warningsBox, toast, field, textInput, checkbox, button } from '../components/ui.js';
 import { baseName } from '../core/format.js';
 import { buildOutputName, paramsToken } from '../core/naming.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact } from '../core/download.js';
 
 registerTool({
@@ -120,17 +120,18 @@ registerTool({
         bytes: new TextEncoder().encode(full),
       };
       actions.appendChild(button('下载 TXT', 'btn-primary', () => downloadArtifact(art)));
-      actions.appendChild(button('保存到历史', 'btn-outline', async () => {
-        await addHistory({
-          id: `h_${Date.now().toString(36)}`,
-          tool: 'text', toolName: '提取文本',
-          docNames: [doc.name],
-          options: { pages, sep },
-          outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
-        });
-        toast('已保存到历史');
-      }));
       cb.appendChild(actions);
+      recordTaskOrButton({
+        tool: 'text', toolName: '提取文本',
+        docNames: [doc.name],
+        options: { pages, sep },
+        docs: [doc],
+        outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
+        form: capturePageForm(),
+      }).then((recBtn) => {
+        if (recBtn) actions.appendChild(recBtn);
+        else cb.appendChild(recordNote());
+      });
       card.appendChild(cb);
       resultBox.appendChild(card);
     }

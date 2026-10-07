@@ -1,0 +1,10 @@
+<!-- 工作流：天蓝/紫罗兰双上游节点，橙色折线汇入下游橙色节点 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <rect x="7" y="7" width="13" height="13" rx="3" stroke="#0EA5E9"/>
+    <rect x="28" y="7" width="13" height="13" rx="3" stroke="#8B5CF6"/>
+    <rect x="17.5" y="29" width="13" height="13" rx="3" stroke="#F97316"/>
+    <path d="M20 13.5 H28" stroke="#F97316"/>
+    <path d="M34.5 20 V24.5 H24 V29" stroke="#F97316"/>
+  </g>
+</svg>

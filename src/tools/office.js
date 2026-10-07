@@ -6,7 +6,7 @@ import { registerTool } from './core.js';
 import { run } from '../core/engine.js';
 import { inputPanel } from '../components/input.js';
 import { progressCard, warningsBox, toast, button } from '../components/ui.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 
 const OLD_FORMAT_RE = /\.(doc|ppt)$/i;
 
@@ -236,17 +236,18 @@ registerTool({
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 10_000);
       }));
-      actions.appendChild(button('保存到历史', 'btn-outline', async () => {
-        await addHistory({
-          id: `h_${Date.now().toString(36)}`,
-          tool: 'office', toolName: 'Word/PPT 转 PDF',
-          docNames: [doc.name],
-          options: { approximate: true, pages: nPages },
-          outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
-        });
-        toast('已保存到历史');
-      }));
       cb.append(kv, actions);
+      recordTaskOrButton({
+        tool: 'office', toolName: 'Word/PPT 转 PDF',
+        docNames: [doc.name],
+        options: { approximate: true, pages: nPages },
+        docs: [doc],
+        outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
+        form: capturePageForm(),
+      }).then((recBtn) => {
+        if (recBtn) actions.appendChild(recBtn);
+        else cb.appendChild(recordNote());
+      });
       const w = warningsBox(warnings);
       if (w) { w.style.marginTop = '10px'; cb.appendChild(w); }
       card.appendChild(cb);

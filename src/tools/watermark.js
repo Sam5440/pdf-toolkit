@@ -7,7 +7,7 @@ import { inputPanel } from '../components/input.js';
 import { createWatermarkEditor, applyWatermarkMain } from '../components/watermark-editor.js';
 import { progressCard, toast, button, field, textInput, numberInput, select } from '../components/ui.js';
 import { fmtBytes, todayStr, nowTimeStr } from '../core/format.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact } from '../core/download.js';
 
 registerTool({
@@ -171,18 +171,18 @@ registerTool({
         const actions = document.createElement('div');
         actions.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap';
         const dl = button('下载水印 PDF', 'btn-primary', () => downloadArtifact(art));
-        const save = button('保存到历史', 'btn-outline', async () => {
-          await addHistory({
-            id: `h_${Date.now().toString(36)}`,
-            tool: 'watermark', toolName: '添加水印',
-            docNames: docs.map((d) => d.name),
-            options: { layers: spec.layers.length, under: spec.layers.filter((l) => l.layerSide === 'under').length },
-            outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
-          });
-          toast('已保存到历史');
+        const recBtn = await recordTaskOrButton({
+          tool: 'watermark', toolName: '添加水印',
+          docNames: docs.map((d) => d.name),
+          options: { layers: spec.layers.length, under: spec.layers.filter((l) => l.layerSide === 'under').length },
+          docs,
+          outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
+          form: capturePageForm(),
         });
-        actions.append(dl, save);
+        if (recBtn) actions.append(dl, recBtn);
+        else actions.append(dl);
         ib.append(kv, nameRow, actions);
+        if (!recBtn) ib.appendChild(recordNote());
         info.appendChild(ib);
         resultBox.appendChild(info);
       } catch (e) {
@@ -256,18 +256,19 @@ registerTool({
       const actions = document.createElement('div');
       actions.style.cssText = 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap';
       const dl = button('下载水印 PDF', 'btn-primary', () => downloadArtifact(art));
-      const save = button('保存到历史', 'btn-outline', async () => {
-        await addHistory({
-          id: `h_${Date.now().toString(36)}`,
-          tool: 'watermark', toolName: '添加水印',
-          docNames: docs.map((d) => d.name),
-          options: historyOptions,
-          outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
-        });
-        toast('已保存到历史');
-      });
-      actions.append(dl, save);
+      actions.append(dl);
       ib.append(kv, nameRow, actions);
+      recordTaskOrButton({
+        tool: 'watermark', toolName: '添加水印',
+        docNames: docs.map((d) => d.name),
+        options: historyOptions,
+        docs,
+        outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
+        form: capturePageForm(),
+      }).then((recBtn) => {
+        if (recBtn) actions.append(recBtn);
+        else ib.appendChild(recordNote());
+      });
       info.appendChild(ib);
       resultBox.appendChild(info);
     }

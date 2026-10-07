@@ -22,6 +22,7 @@ const DEFAULTS = {
   previewDebounceMs: 350,
   namingTemplate: '{name}-{op}-{params}-{time}', // 产物命名模板（{name}{op}{params}{time}{i}）
   recentEnabled: true,            // 首页第一行「最近使用」+ 使用记录
+  taskAutoRecord: true,           // 每个生成任务自动存完整参数历史（历史页可一键复原）
   remoteFontUrls: [],             // 远程外挂字体 URL（每次启动自动下载并持久化到本机）
 };
 

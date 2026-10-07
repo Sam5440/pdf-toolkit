@@ -5,7 +5,7 @@ import { run } from '../core/engine.js';
 import { inputPanel } from '../components/input.js';
 import { progressCard, warningsBox, toast, field, passwordInput, checkbox, row, button } from '../components/ui.js';
 import { fmtBytes, esc } from '../core/format.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact } from '../core/download.js';
 
 const PERMS = [
@@ -125,17 +125,18 @@ registerTool({
       const actions = document.createElement('div');
       actions.style.cssText = 'display:flex;gap:8px;margin-top:10px';
       actions.appendChild(button('下载', 'btn-primary', () => downloadArtifact(art)));
-      actions.appendChild(button('保存到历史', 'btn-outline', async () => {
-        await addHistory({
-          id: `h_${Date.now().toString(36)}`,
-          tool: 'security', toolName: '密码保护',
-          docNames: [doc.name],
-          options, // 含 pass/password 的键会被 history.sanitizeOptions 剔除
-          outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
-        });
-        toast('已保存到历史（不会保存密码）');
-      }));
       cb.append(kv, actions);
+      recordTaskOrButton({
+        tool: 'security', toolName: '密码保护',
+        docNames: [doc.name],
+        options, // 含 pass/password 的键会被 history.sanitizeOptions 剔除
+        docs: [doc],
+        outputs: [{ name: art.name, mime: art.mime, size: art.bytes.byteLength, blob: new Blob([art.bytes], { type: art.mime }) }],
+        form: capturePageForm(),
+      }).then((recBtn) => {
+        if (recBtn) actions.appendChild(recBtn);
+        else cb.appendChild(recordNote());
+      });
       card.appendChild(cb);
       resultBox.appendChild(card);
     }

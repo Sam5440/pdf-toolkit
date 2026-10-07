@@ -8,7 +8,7 @@ import {
 } from '../components/ui.js';
 import { fmtBytes } from '../core/format.js';
 import { parsePageRange } from '../core/pagerange.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact, downloadZip } from '../core/download.js';
 
 registerTool({
@@ -209,18 +209,19 @@ registerTool({
             await new Promise((r2) => setTimeout(r2, 300));
           }
         }),
-        button('保存到历史', 'btn-outline', async () => {
-          await addHistory({
-            id: `h_${Date.now().toString(36)}`,
-            tool: 'pdf2images', toolName: 'PDF 转图片',
-            docNames: [doc.name],
-            options: { pages: pagesInp.value.trim() || 'all', dpi, format: fmtSel.value },
-            outputs: arts.map((a) => ({ name: a.name, mime: a.mime, size: a.bytes.byteLength, blob: new Blob([a.bytes], { type: a.mime }) })),
-          });
-          toast('已保存到历史');
-        }),
       );
       ib.appendChild(actions);
+      recordTaskOrButton({
+        tool: 'pdf2images', toolName: 'PDF 转图片',
+        docNames: [doc.name],
+        options: { pages: pagesInp.value.trim() || 'all', dpi, format: fmtSel.value },
+        docs: [doc],
+        outputs: arts.map((a) => ({ name: a.name, mime: a.mime, size: a.bytes.byteLength, blob: new Blob([a.bytes], { type: a.mime }) })),
+        form: capturePageForm(),
+      }).then((recBtn) => {
+        if (recBtn) actions.appendChild(recBtn);
+        else ib.appendChild(recordNote());
+      });
       card.appendChild(ib);
       resultBox.appendChild(card);
     }

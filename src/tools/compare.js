@@ -6,7 +6,7 @@ import {
   progressCard, warningsBox, toast, field, numberInput, textInput, checkbox, row, button,
 } from '../components/ui.js';
 import { createCompareView } from '../components/compare-view.js';
-import { addHistory } from '../core/history.js';
+import { recordTask, recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { buildOutputName, paramsToken } from '../core/naming.js';
 
 registerTool({
@@ -170,18 +170,28 @@ registerTool({
       actions.appendChild(button('保存到历史（差异报告）', 'btn-outline', async () => {
         const txt = view.getReportText();
         const bytes = new TextEncoder().encode(txt);
-        await addHistory({
-          id: `h_${Date.now().toString(36)}`,
+        await recordTask({
           tool: 'compare', toolName: 'PDF 比较',
           docNames: [docA.name, docB.name],
           options: { dpi, threshold, pagesA: pagesAInp.value.trim() || 'all', pagesB: pagesBInp.value.trim() || 'all' },
+          docs: [docA, docB],
           outputs: [{ name: `${buildOutputName({ name: docA.name, op: '对比', params: paramsToken({ dpi, threshold }) })}.txt`, mime: 'text/plain;charset=utf-8', size: bytes.byteLength, blob: new Blob([bytes], { type: 'text/plain;charset=utf-8' }) }],
+          form: capturePageForm(),
+          auto: false,
         });
         toast('已保存到历史');
       }));
       resultBox.appendChild(actions);
       const w = warningsBox(res.warnings);
       if (w) resultBox.appendChild(w);
+      // 自动记录比较任务本身（差异报告可再手动存档）
+      recordTask({
+        tool: 'compare', toolName: 'PDF 比较',
+        docNames: [docA.name, docB.name],
+        options: { dpi, threshold, pagesA: pagesAInp.value.trim() || 'all', pagesB: pagesBInp.value.trim() || 'all' },
+        docs: [docA, docB],
+        form: capturePageForm(),
+      });
     }
   },
 });

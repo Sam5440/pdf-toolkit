@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 上游两个节点：工作流的并行步骤 -->
+  <rect x="7" y="7" width="13" height="13" rx="3"/>
+  <rect x="28" y="7" width="13" height="13" rx="3"/>
+  <!-- 下游节点：汇聚后的下一步 -->
+  <rect x="17.5" y="29" width="13" height="13" rx="3"/>
+  <!-- 连线：1→2 与 2→3（直角折线，节点间流动） -->
+  <path d="M20 13.5 H28"/>
+  <path d="M34.5 20 V24.5 H24 V29"/>
+</svg>

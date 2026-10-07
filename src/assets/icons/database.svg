@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 数据库圆柱：顶面椭圆 + 筒身 + 中间层弧线 -->
+  <ellipse cx="24" cy="11.5" rx="15" ry="5.5"/>
+  <path d="M9 11.5 V36.5 C9 39.5 15.7 42 24 42 C32.3 42 39 39.5 39 36.5 V11.5"/>
+  <path d="M9 24 C9 27 15.7 29.5 24 29.5 C32.3 29.5 39 27 39 24"/>
+</svg>

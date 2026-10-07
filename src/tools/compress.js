@@ -5,7 +5,7 @@ import { run, abort } from '../core/engine.js';
 import { inputPanel } from '../components/input.js';
 import { progressCard, warningsBox, toast, field, numberInput, select, checkbox, row, button } from '../components/ui.js';
 import { fmtBytes, esc } from '../core/format.js';
-import { addHistory } from '../core/history.js';
+import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
 import { downloadArtifact, downloadZip } from '../core/download.js';
 
 const MODE_LABELS = { smart: '智能图像重压', raster: '栅格化重建', structural: '结构无损' };
@@ -202,16 +202,17 @@ registerTool({
         if (res.artifacts.length > 1) {
           actions.appendChild(button('打包下载全部候选 ZIP', 'btn-outline', () => downloadZip(res.artifacts, '压缩候选.zip')));
         }
-        actions.appendChild(button('保存到历史', 'btn-outline', async () => {
-          await addHistory({
-            id: `h_${Date.now().toString(36)}`,
-            tool: 'compress', toolName: 'PDF 压缩',
-            docNames: [doc.name],
-            options: { targetBytes, ssim: ssimCheck.checked, modes: Object.entries(modes).filter(([, v]) => v).map(([k]) => MODE_LABELS[k]) },
-            outputs: res.artifacts.slice(0, 3).map((a) => ({ name: a.name, mime: a.mime, size: a.bytes.byteLength, blob: new Blob([a.bytes], { type: a.mime }) })),
-          });
-          toast('已保存到历史');
-        }));
+        recordTaskOrButton({
+          tool: 'compress', toolName: 'PDF 压缩',
+          docNames: [doc.name],
+          options: { targetBytes, ssim: ssimCheck.checked, modes: Object.entries(modes).filter(([, v]) => v).map(([k]) => MODE_LABELS[k]) },
+          docs: [doc],
+          outputs: res.artifacts.slice(0, 3).map((a) => ({ name: a.name, mime: a.mime, size: a.bytes.byteLength, blob: new Blob([a.bytes], { type: a.mime }) })),
+          form: capturePageForm(),
+        }).then((recBtn) => {
+          if (recBtn) actions.appendChild(recBtn);
+          else cb.appendChild(recordNote());
+        });
         cb.appendChild(actions);
       }
 
