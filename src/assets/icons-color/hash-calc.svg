@@ -1,0 +1,11 @@
+<!-- 哈希计算：蓝色两根斜竖线 + 紫色两根横线，手绘微弯的井号 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <!-- 斜竖线 -->
+    <path stroke="#3B82F6" d="M19.1 8.2 Q17.9 24 15.2 39.8"/>
+    <path stroke="#3B82F6" d="M33.1 8.1 Q31.9 24 29.2 39.9"/>
+    <!-- 横线 -->
+    <path stroke="#8B5CF6" d="M9.1 19.1 Q24 18.2 38.9 19.1"/>
+    <path stroke="#8B5CF6" d="M9.1 29 Q24 28.2 38.9 29.2"/>
+  </g>
+</svg>

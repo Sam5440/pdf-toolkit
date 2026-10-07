@@ -1,0 +1,14 @@
+<!-- 图片文字识别：蓝色图片框 + 橙色小日 + 绿色山形 + 灰色内容行，表达"从图中读出文字" -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <!-- 图片框 -->
+    <rect x="5" y="9" width="38" height="30" rx="3" stroke="#3B82F6"/>
+    <!-- 小日 -->
+    <circle cx="14" cy="18" r="2.4" stroke="#F59E0B"/>
+    <!-- 山形 -->
+    <path stroke="#22C55E" d="M11.1 32.9 Q15.2 28 19.1 24.2 Q22 27.1 25 30.9 Q27.4 28.2 29.9 25.9 Q33.6 29.4 36.9 32.9"/>
+    <!-- 内容行 -->
+    <path stroke="#64748B" d="M30 15.9 Q34 15.8 38 16"/>
+    <path stroke="#64748B" d="M30 21.9 Q34 21.8 38 22"/>
+  </g>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 云轮廓 -->
+  <path d="M8 29.8A14 14 0 1 1 31.4 16h3.6a9 9 0 0 1 5 16.5"/>
+  <!-- 上传箭头 -->
+  <path d="M24 40V24"/>
+  <path d="M16 32l8-8 8 8"/>
+</svg>

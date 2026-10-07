@@ -8,7 +8,7 @@
 
 ## 项目是什么
 
-纯静态浏览器端 PDF 工具箱（Vite + 原生 ES modules，**无框架**）：15 核心工具 + 49 扩展
+纯静态浏览器端 PDF 工具箱（Vite + 原生 ES modules，**无框架**）：15 核心工具 + 54 扩展
 工具，全部处理在浏览器内 Web Worker + WASM（pdf-lib / pdf.js / mupdf / Tesseract.js /
 pandoc / typst）完成，**文件字节绝不发送网络**。线上 https://pdftools.isam.top/（Vercel，
 push 即自动部署，1-2 分钟生效）。
@@ -81,7 +81,7 @@ src/components/     ui.js(shadcn 风格基件) shadcn.js(Select/Slider/Color 全
                     search.js(⌘K 命令面板) tray.js(右侧暂存区，全局单例 DOM) input.js icons.js
                     workflow-page.js(#/workflows) data-page.js(#/data)；路由在 main.js
                     navigate/renderApp 分支（#/history #/more #/workflows #/data）
-src/tools/          15 核心工具 + registry.js；tools/more/ 49 扩展工具 + common.js 公共件
+src/tools/          15 核心工具 + registry.js；tools/more/ 54 扩展工具 + common.js 公共件
 ```
 
 ## 开发契约要点
@@ -102,7 +102,7 @@ src/tools/          15 核心工具 + registry.js；tools/more/ 49 扩展工具 
 - **新增懒加载引擎要接状态上报**：加载点调 `setEngineStatus(id,status,detail)`（Worker 内
   用 `notifyEngine` postMessage，engine.js 已转发）；设置面板才能展示。探测 op 走
   `engine.warm`。
-- **首页收藏计数是锁定的**：favorites.test 断言 17 默认收藏 / 49 扩展工具；动收藏逻辑
+- **首页收藏计数是锁定的**：favorites.test 断言 23 默认收藏 / 54 扩展工具；动收藏逻辑
   先看该测试与 MIGRATIONS 迁移设计（老用户偏好不能丢）。
 
 ## e2e 契约要点

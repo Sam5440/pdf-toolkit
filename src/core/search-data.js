@@ -65,6 +65,11 @@ export const SEARCH_INTROS = {
   pdf2odf: 'PDF 转 OpenDocument（ODT/ODS/ODP），接入 LibreOffice 生态。',
   pdf2tiff: 'PDF 转多页 TIFF，Pillow/预览器可直接读取，适合档案系统。',
   pdf2svg: 'PDF 每页导出为 SVG（位图封装，非矢量追踪），可嵌入网页。',
+  'qrcode-scan': '从图片中识别二维码内容：上传或拖入含二维码的截图/照片，纯本地 jsQR 解码，支持批量，识别结果一键复制。',
+  'hash-calc': '计算文本或文件的 MD5、SHA-1、SHA-256、SHA-512 哈希值：文件分块流式读取，大文件不占内存，结果与 md5sum 等命令行一致。',
+  crypt: '文本加解密与编解码：AES/DES/Triple DES/RC4 口令加密，Base64/URL 编解码，密钥只在内存中使用、绝不保存。',
+  imgocr: '图片文字识别（OCR）：JPG/PNG/WebP 等图片直接识别出文本导出 TXT，支持中英繁多语言，本地 Tesseract 引擎处理。',
+  filebed: '文件床：把图片/视频上传到文件床服务生成公开分享链接（全站唯一联网工具，可自定义服务地址；其余工具均本地处理）。',
 };
 
 export const SEARCH_KEYWORDS = {
@@ -132,4 +137,9 @@ export const SEARCH_KEYWORDS = {
   pdf2odf: ['pdf转odf', 'pdf转odt', 'open document', 'libreoffice', 'odf导出', 'odt导出', 'odp', 'openoffice'],
   pdf2tiff: ['pdf转tiff', '多页tiff导出', 'pdf to tiff', '档案格式', 'tif导出', 'tiff文件', '传真格式', '多页tif'],
   pdf2svg: ['pdf转svg', '矢量导出', 'pdf to svg', '嵌入网页', 'svg文件', 'svg导出', '网页图形', '每页svg'],
+  'qrcode-scan': ['识别二维码', '扫码', '解析二维码', '二维码识别', 'qr识别', '读二维码', 'decode qr', '扫一扫', '二维码内容', '反解二维码'],
+  'hash-calc': ['md5', '哈希', 'hash', 'sha1', 'sha256', 'sha512', '摘要', '校验值', 'checksum', '文件指纹', '散列', 'md5计算'],
+  crypt: ['加密', '解密', 'aes', 'des', '3des', 'rc4', 'base64', 'url编码', '编解码', 'encrypt', 'decrypt', '文本加密'],
+  imgocr: ['图片ocr', '图片文字识别', '图片识别', 'ocr图片', '图片转文字', '照片识字', '截图识字', 'image ocr', '识别图中文字', '提取图片文字'],
+  filebed: ['文件床', '图床', '上传图片', '分享链接', '外链', '直链', '贴图', 'hosting', '上传分享', '生成链接'],
 };

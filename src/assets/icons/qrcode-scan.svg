@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 取景框四角：表示正在扫码识别 -->
+  <path d="M8 15v-3a4 4 0 0 1 4-4h3"/>
+  <path d="M33 8h3a4 4 0 0 1 4 4v3"/>
+  <path d="M40 33v3a4 4 0 0 1-4 4h-3"/>
+  <path d="M15 40h-3a4 4 0 0 1-4-4v-3"/>
+  <!-- 中心码面：三个定位小方块 -->
+  <rect x="16" y="16" width="7" height="7"/>
+  <rect x="25" y="16" width="7" height="7"/>
+  <rect x="16" y="25" width="7" height="7"/>
+  <!-- 右下点阵 -->
+  <path d="M26 26h5v5h-5zM35 27v1M35 31v1"/>
+</svg>

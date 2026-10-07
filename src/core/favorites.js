@@ -20,6 +20,11 @@ const MIGRATIONS = [
   { key: 'pdftoolkit.favorites.mig-md2pdf', tool: 'md2pdf' },
   { key: 'pdftoolkit.favorites.mig-pdf2pptimg', tool: 'pdf2pptimg' },
   { key: 'pdftoolkit.favorites.mig-crop', tool: 'crop' },
+  { key: 'pdftoolkit.favorites.mig-util1', tool: 'qrcode-scan' },
+  { key: 'pdftoolkit.favorites.mig-util2', tool: 'hash-calc' },
+  { key: 'pdftoolkit.favorites.mig-util3', tool: 'crypt' },
+  { key: 'pdftoolkit.favorites.mig-util4', tool: 'imgocr' },
+  { key: 'pdftoolkit.favorites.mig-util5', tool: 'filebed' },
 ];
 
 function loadStoredIds() {

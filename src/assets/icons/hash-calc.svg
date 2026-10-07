@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 井号母题：两斜竖 + 两横 -->
+  <path d="M19 8L15 40"/>
+  <path d="M33 8L29 40"/>
+  <path d="M9 19h30"/>
+  <path d="M9 29h30"/>
+</svg>

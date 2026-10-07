@@ -1,0 +1,10 @@
+<!-- 文件床：天蓝色云 + 橙色上传箭头，表达"传上云端生成外链" -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <!-- 云 -->
+    <path stroke="#0EA5E9" d="M8.1 29.8 A14 14 0 1 1 31.4 16.1 Q33 15.9 35 16.1 A9 9 0 0 1 40 32.4"/>
+    <!-- 上传箭头 -->
+    <path stroke="#F97316" d="M24 39.9 Q23.9 32 24 24.2"/>
+    <path stroke="#F97316" d="M16.1 31.9 Q20 28 24 24.2 Q28 28 31.9 31.9"/>
+  </g>
+</svg>

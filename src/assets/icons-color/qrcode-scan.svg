@@ -1,0 +1,16 @@
+<!-- 识别二维码：青色取景框锁定码面，蓝/天蓝/青三个定位小块 + 灰色点阵，表达"框中读码" -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <!-- 取景框四角 -->
+    <path stroke="#14B8A6" d="M8.1 15 Q7.9 11.6 8.1 11 Q8.6 8.3 11.2 8.1 Q13 7.9 15 8.1"/>
+    <path stroke="#14B8A6" d="M33 8.1 Q35.6 7.9 36.9 8.1 Q39.7 8.5 39.9 11.1 Q40.1 13 39.9 15"/>
+    <path stroke="#14B8A6" d="M39.9 33 Q40.1 35.5 39.9 36.9 Q39.5 39.6 36.8 39.9 Q35 40.1 33 39.9"/>
+    <path stroke="#14B8A6" d="M15 39.9 Q12.4 40.1 11.1 39.9 Q8.3 39.5 8.1 36.8 Q7.9 35 8.1 33"/>
+    <!-- 码面：三个定位小块 -->
+    <rect x="16" y="16" width="7" height="7" stroke="#3B82F6"/>
+    <rect x="25" y="16" width="7" height="7" stroke="#0EA5E9"/>
+    <rect x="16" y="25" width="7" height="7" stroke="#14B8A6"/>
+    <!-- 点阵 -->
+    <path stroke="#64748B" d="M26.1 26.1 L30.9 26 L31 30.9 L26.1 31 Z M35 27.1 Q35 27.8 35 28.1 M35 30.9 Q35 31.6 35 32"/>
+  </g>
+</svg>

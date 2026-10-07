@@ -1911,6 +1911,32 @@ function collectWords(data) {
   return words;
 }
 
+// 图片直接 OCR：字节随 op 参数传入（不进 PDF 文档池），Worker 内解码为位图后走同一 Tesseract 管线
+const OCR_IMAGE_MAX_SIDE = 3600; // 超大图等比缩到该边长以内，防 Tesseract 卡死
+
+handlers['ocr.image'] = async ({ name = '图片', bytes, langs = 'chi_sim+eng' }) => {
+  if (!bytes?.byteLength) throw toolkitError('ERR_NO_INPUT', '图片内容为空');
+  const worker = await getTessWorker(langs, (pct) => progress({ done: pct, total: 100, stage: '识别文字中' }));
+  let bmp;
+  try {
+    bmp = await createImageBitmap(new Blob([bytes]));
+  } catch {
+    throw toolkitError('ERR_BAD_ARGS', '浏览器无法解码该图片格式');
+  }
+  const scale = Math.min(1, OCR_IMAGE_MAX_SIDE / Math.max(bmp.width, bmp.height));
+  const canvas = new OffscreenCanvas(Math.max(1, Math.round(bmp.width * scale)), Math.max(1, Math.round(bmp.height * scale)));
+  canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  bmp.close();
+  const blob = await canvas.convertToBlob({ type: 'image/png' });
+  const { data } = await worker.recognize(blob, {}, { text: true });
+  const text = data.text || '';
+  const base = String(name).replace(/\.[^.]+$/, '');
+  return {
+    text, chars: text.length,
+    artifacts: [{ name: `${base}_文字.txt`, mime: 'text/plain;charset=utf-8', bytes: new TextEncoder().encode(text) }],
+  };
+};
+
 // ---------------------------------------------------------------------------
 // 比较
 // ---------------------------------------------------------------------------

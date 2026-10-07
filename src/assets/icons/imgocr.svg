@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 横版图片框 -->
+  <rect x="5" y="9" width="38" height="30" rx="3"/>
+  <!-- 左上山与日：图像部分 -->
+  <circle cx="14" cy="18" r="2.5"/>
+  <path d="M11 33l8-9 6 7 4.5-5 7.5 8"/>
+  <!-- 右上文字行：识别出的文本 -->
+  <path d="M30 16h8"/>
+  <path d="M30 22h8"/>
+</svg>

@@ -1,0 +1,12 @@
+<!-- 文本加解密：金色锁体与锁环 + 红色键孔，表达口令加密 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <!-- 锁体 -->
+    <rect x="10" y="21" width="28" height="19" rx="3" stroke="#F59E0B"/>
+    <!-- 锁环 -->
+    <path stroke="#F59E0B" d="M16.1 21 Q15.8 16.5 16.1 14.2 Q17 8.3 24 8.1 Q31 8.3 31.9 14.2 Q32.2 16.5 31.9 21"/>
+    <!-- 键孔 -->
+    <circle cx="24" cy="26.6" r="1.9" fill="#EF4444" stroke="none"/>
+    <path stroke="#EF4444" d="M24 29.1 Q23.9 31.5 24 33.9"/>
+  </g>
+</svg>
