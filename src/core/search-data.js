@@ -71,6 +71,7 @@ export const SEARCH_INTROS = {
   imgocr: '图片文字识别（OCR）：JPG/PNG/WebP 等图片直接识别出文本导出 TXT，支持中英繁多语言，本地 Tesseract 引擎处理。',
   filebed: '文件床：把图片/视频/文档上传到文件床服务生成公开分享链接（可直传自动取链，yohuo 稳定直链可配中转；上传记录本地永久保存可检测失效）。',
   'image-bed': '图床：上传图片一键生成 URL/Markdown/HTML/BBCode 外链。推荐 GitHub 仓库图床（稳定直链可嵌入，token 仅存本页内存），也可用免费直传服务；上传记录本地永久保存，支持失效检测与一键重传。',
+  textbed: '文本床：把文本/代码/日志一键生成公开分享链接，6 个免费服务可选（rentry 永久可编辑 / dpaste / paste.gg / GitHub Gist / 文件床文本快传），编辑码保存本机；上传记录永久保存可检测失效与重传。',
 };
 
 export const SEARCH_KEYWORDS = {
@@ -144,4 +145,5 @@ export const SEARCH_KEYWORDS = {
   imgocr: ['图片ocr', '图片文字识别', '图片识别', 'ocr图片', '图片转文字', '照片识字', '截图识字', 'image ocr', '识别图中文字', '提取图片文字'],
   filebed: ['文件床', '图床', '上传图片', '分享链接', '外链', '直链', '贴图', 'hosting', '上传分享', '生成链接', '上传记录'],
   'image-bed': ['图床', '图片外链', 'Markdown 图片', '贴图床', 'GitHub 图床', '外链图片', 'image hosting', '生成链接', 'BBCode', '失效检测'],
+  textbed: ['文本床', '文字分享', '分享文本', 'pastebin', '粘贴代码', '代码分享', '文本分享', '日志分享', 'rentry', 'gist', 'dpaste', 'paste.gg', '片段分享', '贴文本'],
 };

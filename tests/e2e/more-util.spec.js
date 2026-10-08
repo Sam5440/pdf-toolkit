@@ -275,3 +275,65 @@ test.describe('上传记录页', () => {
     await expect(page.getByRole('button', { name: '检测全部上传链接' })).toBeVisible();
   });
 });
+
+test.describe('文本床', () => {
+  test('rentry：粘贴文本 → mock 分享 → 链接 + 编辑码入登记册', async ({ page }) => {
+    await openTool(page, 'textbed');
+    await expect(page.getByLabel('文本床服务')).toHaveValue('rentry');
+    await page.route('**/rentry.co/api/new', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: '200', content: 'OK', url: 'https://rentry.co/e2etext1', edit_code: 'e2edit42' }),
+    }));
+    await page.getByLabel('分享文本内容').fill('# 会议纪要\n- 一行中文内容\n- secret 值不进表单快照');
+    await page.getByRole('button', { name: '生成分享链接' }).click();
+    await expect(page.getByText('https://rentry.co/e2etext1')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/编辑码已保存在「上传记录」/)).toBeVisible();
+    await page.goto('/#/uploads');
+    await expect(page.getByText('notes.txt').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/编辑码 e2edit42/)).toBeVisible();
+  });
+
+  test('dpaste.com：mock 纯文本响应 → 链接与 raw 直链', async ({ page }) => {
+    await openTool(page, 'textbed');
+    await page.getByLabel('文本床服务').selectOption('dpaste');
+    await page.route('**/dpaste.com/api/v2/', (route) => route.fulfill({
+      status: 201, contentType: 'text/plain', body: 'https://dpaste.com/E2ETXT99',
+    }));
+    await page.getByLabel('分享文本内容').fill('plain text body');
+    await page.getByRole('button', { name: '生成分享链接' }).click();
+    await expect(page.getByText('https://dpaste.com/E2ETXT99').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/raw 直链：https:\/\/dpaste\.com\/E2ETXT99\.txt/)).toBeVisible();
+  });
+
+  test('Gist：mock API → html_url + raw 直链（复用内存 token）', async ({ page }) => {
+    await openTool(page, 'textbed');
+    await page.getByLabel('文本床服务').selectOption('gist');
+    await page.route('**/api.github.com/gists', (route) => route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        html_url: 'https://gist.github.com/e2e-user/abc123',
+        files: { 'notes.txt': { raw_url: 'https://gist.githubusercontent.com/e2e-user/abc123/raw/notes.txt' } },
+      }),
+    }));
+    await page.getByLabel('GitHub 访问令牌（文本床）').fill('e2e-token-ghp');
+    await page.getByLabel('分享文本内容').fill('gist body');
+    await page.getByRole('button', { name: '生成分享链接' }).click();
+    await expect(page.getByText('https://gist.github.com/e2e-user/abc123')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/raw 直链：https:\/\/gist\.githubusercontent\.com/)).toBeVisible();
+  });
+
+  test('边界：空文本禁用；超出服务上限报错', async ({ page }) => {
+    await openTool(page, 'textbed');
+    await expect(page.getByRole('button', { name: '生成分享链接' })).toBeDisabled();
+    // dpaste 上限 250KB：填充超过上限的文本 → 点击时报错而不发请求
+    await page.getByLabel('文本床服务').selectOption('dpaste');
+    let called = 0;
+    await page.route('**/dpaste.com/**', (route) => { called += 1; return route.fulfill({ status: 201, body: 'https://dpaste.com/TOOBIG001' }); });
+    await page.getByLabel('分享文本内容').fill('x'.repeat(251 * 1024));
+    await page.getByRole('button', { name: '生成分享链接' }).click();
+    await expect(page.locator('.toast-error')).toHaveText(/超出 dpaste\.com 的 250KB 上限/, { timeout: 5_000 });
+    expect(called).toBe(0);
+  });
+});

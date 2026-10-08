@@ -15,9 +15,9 @@ describe('favorites', () => {
 
   it('默认收藏 = 核心工具 + defaultFav 标记工具（15 核心 + 8 个常用扩展工具）', () => {
     const def = defaultFavoriteIds();
-    expect(def).toHaveLength(24);
+    expect(def).toHaveLength(25);
     for (const id of def) expect(isFavorite(id)).toBe(true);
-    expect(getFavorites().size).toBe(24);
+    expect(getFavorites().size).toBe(25);
     expect(isFavorite('crop')).toBe(true); // 裁剪 PDF 默认收藏
     expect(isFavorite('md2pdf')).toBe(true); // Markdown 转 PDF 默认收藏
     expect(isFavorite('pdf2pptimg')).toBe(true); // PDF 转图片型 PPT 默认收藏
@@ -28,13 +28,13 @@ describe('favorites', () => {
 
   it('「更多」工具除 defaultFav 外默认全部不收藏', () => {
     const moreTools = TOOLS.filter((t) => isMoreGroup(t.group));
-    expect(moreTools.length).toBe(55);
+    expect(moreTools.length).toBe(56);
     for (const t of moreTools) {
       if (t.defaultFav) continue;
       expect(isFavorite(t.id)).toBe(false);
     }
     expect(moreTools.filter((t) => t.defaultFav).map((t) => t.id)).toEqual(
-      ['crop', 'md2pdf', 'qrcode-scan', 'hash-calc', 'crypt', 'imgocr', 'filebed', 'image-bed', 'pdf2pptimg'],
+      ['crop', 'md2pdf', 'qrcode-scan', 'hash-calc', 'crypt', 'imgocr', 'filebed', 'image-bed', 'textbed', 'pdf2pptimg'],
     );
   });
 
@@ -49,13 +49,13 @@ describe('favorites', () => {
   it('核心工具可取消收藏（首页不再显示的语义）', () => {
     toggleFavorite('compress');
     expect(isFavorite('compress')).toBe(false);
-    expect(getFavorites().size).toBe(23);
+    expect(getFavorites().size).toBe(24);
   });
 
   it('defaultFav 工具也可取消收藏', () => {
     toggleFavorite('md2pdf');
     expect(isFavorite('md2pdf')).toBe(false);
-    expect(getFavorites().size).toBe(23);
+    expect(getFavorites().size).toBe(24);
   });
 
   it('resetFavorites 恢复默认（含全部 defaultFav 工具）', () => {
@@ -71,7 +71,7 @@ describe('favorites', () => {
       expect(isFavorite(id)).toBe(true);
     }
     expect(isFavorite('qrcode')).toBe(false);
-    expect(getFavorites().size).toBe(24);
+    expect(getFavorites().size).toBe(25);
   });
 
   it('isMoreGroup 只认 hiddenOnHome 分组', () => {

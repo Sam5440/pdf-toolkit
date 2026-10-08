@@ -40,9 +40,10 @@ function req2p(req) {
 }
 
 /**
- * 登记一次上传。rec: {name,size,type,service,host,url,apiUrl?,bytes?}
+ * 登记一次上传。rec: {name,size,type,service,host,url,apiUrl?,meta?,bytes?}
  * bytes（Blob/Uint8Array）可选保存，链接失效后支撑一键重传；
- * apiUrl 为实际上传端点（匿名可直传的服务才有重传能力）。
+ * apiUrl 为实际上传端点（匿名可直传的服务才有重传能力）；
+ * meta 存服务附加信息（rentry 编辑码、paste.gg 删除码、raw 直链等）。
  */
 export async function addUpload(rec) {
   const db = await openDB();
@@ -56,6 +57,7 @@ export async function addUpload(rec) {
     host: rec.host || '',
     url: rec.url || '',
     apiUrl: rec.apiUrl || '',
+    meta: rec.meta && typeof rec.meta === 'object' ? rec.meta : null,
     bytes: rec.bytes == null ? null : (rec.bytes instanceof Blob ? rec.bytes : new Blob([rec.bytes], { type: rec.type || 'application/octet-stream' })),
     lastCheck: null, // {ts, status:'ok'|'dead'|'unknown', note}
   };
@@ -71,6 +73,7 @@ export async function listUploads() {
   return all.map((r) => ({
     id: r.id, ts: r.ts, name: r.name, size: r.size, type: r.type,
     service: r.service, host: r.host, url: r.url, apiUrl: r.apiUrl || '',
+    meta: r.meta || null,
     hasBytes: !!r.bytes, lastCheck: r.lastCheck || null,
   }));
 }

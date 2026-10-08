@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 便签纸（右上角折角） -->
+  <path d="M10 6 h20 l8 8 v28 H10 z"/>
+  <path d="M30 6 v8 h8"/>
+  <!-- 文本行（首行长、次行中等、尾行短） -->
+  <path d="M16 22 h16 M16 28 h16 M16 34 h9"/>
+  <!-- 右下分享角标 -->
+  <path d="M34 34 v8 M30.5 37.5 L34 34 L37.5 37.5"/>
+</svg>

@@ -1,6 +1,6 @@
 # PDF 万能工具箱（纯浏览器端 PDF 工具）
 
-一个**纯前端**的 PDF 万能工具箱：15 个核心工具 + 55 个「更多」工具，所有文件处理都在你的浏览器内通过 WebAssembly/JS 完成，
+一个**纯前端**的 PDF 万能工具箱：15 个核心工具 + 56 个「更多」工具，所有文件处理都在你的浏览器内通过 WebAssembly/JS 完成，
 **文件字节绝不发送到任何服务器**。部署方只需提供静态资源服务，服务器上不留任何用户文件。
 
 > 🌐 **在线使用：<https://pdftools.isam.top/>** —— 已上线（Vercel 静态托管，`push` main 自动部署，1-2 分钟生效）
@@ -53,11 +53,11 @@
 
 ![水印工具页](docs/screenshots/tool-watermark-light.png)
 
-## 更多工具（55 个，对齐 PDF24）
+## 更多工具（56 个，对齐 PDF24）
 
 在 15 个核心工具之外，另有一组「更多」工具，集中在**「更多工具页」**（侧边栏「更多 → 更多工具页」，
 或首页底部入口）。**收藏系统**：首页只显示已收藏的工具（默认 = 15 个核心工具 +
-Markdown 转 PDF、PDF 转图片型 PPT、裁剪 PDF 和识别二维码等 9 个常用扩展工具，共 24 个），每张卡片右上角
+Markdown 转 PDF、PDF 转图片型 PPT、裁剪 PDF 和识别二维码等 10 个常用扩展工具，共 25 个），每张卡片右上角
 有 ★ 星标——白色为未收藏、黄色为已收藏，点击即收藏/取消并保存在本机浏览器；「更多工具页」按
 9 个功能分类展示全部扩展工具（核心工具也列在页尾目录，方便随时调整收藏），首页与专项页均按
 分类分区显示。设置里可一键恢复默认收藏。与 PDF24（tools.pdf24.org/zh）的完整功能对照见
@@ -71,7 +71,7 @@ Markdown 转 PDF、PDF 转图片型 PPT、裁剪 PDF 和识别二维码等 9 个
 | 查看与检查 | PDF 查看器 · PDF 搜索 |
 | 创建与转换 | 生成 PDF · 文本/Markdown/RTF/EPUB/ODF/Excel/SVG/TIFF/HEIC 转 PDF · 网页转 PDF · 扫描件转 PDF · 发票生成 |
 | 图像与导出 | WebP/HEIC 转 JPG/PNG · 生成二维码 · PDF 转 Word/PPT/PPT（图片型）/Excel/HTML/Markdown/RTF/EPUB/ODF/TIFF/SVG |
-| 实用工具 | 识别二维码（本地解码）· 哈希计算（MD5/SHA-1/SHA-256/SHA-512）· 文本加解密（AES/DES/3DES/RC4/Base64/URL）· 图片文字识别（OCR）· 文件床（上传生成分享链接：内置可直传自动取链的 onlyfiles/tmpfiles，yohuo 稳定直链需按 docs/filebed-proxy.md 自部署 Worker 中转，支持自定义端点）· 图床（上传图片一键生成 URL/Markdown/HTML/BBCode 外链：GitHub 仓库稳定直链可嵌入，token 仅存本页内存；上传记录本地永久保存，支持失效检测与一键重传） |
+| 实用工具 | 识别二维码（本地解码）· 哈希计算（MD5/SHA-1/SHA-256/SHA-512）· 文本加解密（AES/DES/3DES/RC4/Base64/URL）· 图片文字识别（OCR）· 文件床（上传生成分享链接：内置可直传自动取链的 onlyfiles/tmpfiles，yohuo 稳定直链需按 docs/filebed-proxy.md 自部署 Worker 中转，支持自定义端点）· 图床（上传图片一键生成 URL/Markdown/HTML/BBCode 外链：GitHub 仓库稳定直链可嵌入，token 仅存本页内存；上传记录本地永久保存，支持失效检测与一键重传）· 文本床（文本/代码一键生成分享链接，6 个免费服务：rentry 永久可编辑 / dpaste / paste.gg / GitHub Gist / 文件床文本快传；编辑码存本机，记录永久保存可检测失效与重传） |
 
 > **Markdown 转 PDF/Word（双栏工作台 + 多引擎，默认收藏）**：左编辑器 + 右双模式
 > 预览（「即时」HTML 排版预览 /「PDF 版式」页面画布，滚动同步、全屏、加载示例），
@@ -122,7 +122,7 @@ viewBox 48、2.5 线宽、currentColor 随主题）。设置页提供「图标�
 - **首页收藏制**：首页只显示已收藏的工具（默认 17 个），卡片右上角 ★ 收藏/取消；
   左上角「PDF」品牌与侧边栏「首页」随时回到首页。
 - **⌘K 全局搜索**：任意页面按 `⌘K` / `Ctrl+K`（或点顶栏「搜索工具…」）唤起命令面板，
-  覆盖全部 70 个工具的名称/介绍/关键词，含主题切换、历史、设置等快捷操作；
+  覆盖全部 71 个工具的名称/介绍/关键词，含主题切换、历史、设置等快捷操作；
   多关键词 AND 匹配、命中高亮、↑↓/Enter 键盘导航。
 - **右侧 PDF 暂存区**：可直接在暂存区上传 PDF（「上传」按钮 / 空态点击 / 把文件
   拖到面板上），工具页上传与处理生成的 PDF 也会自动入架（跨工具持久，内存态）；
@@ -221,7 +221,7 @@ Caddy 更简单：静态文件服务默认带正确 MIME，直接 `pdftool.examp
     components/                ui.js（shadcn 风格基件）/ shadcn.js（控件自动增强）/ search.js（⌘K）/
                                tray.js（暂存区）/ input.js / icons.js（三套图标装载器）等
     tools/                     15 个核心工具控制器 + registry 注册表
-    tools/more/                55 个扩展工具 + common.js 公共件
+    tools/more/                56 个扩展工具 + common.js 公共件
     assets/icons/              78 个手绘单色 SVG（构建期内联；icons-color/ 为多彩版）
   public/engines/              重型 WASM 引擎（不进 git，fetch-engines.mjs 重建）
   public/fonts/                中文字体子集（水印/编辑/Typst 用）

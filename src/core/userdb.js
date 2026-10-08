@@ -128,6 +128,7 @@ export async function collectAll() {
     return {
       id: r.id, ts: r.ts, name: r.name, size: r.size, type: r.type,
       service: r.service, host: r.host, url: r.url, apiUrl: r.apiUrl || '',
+      meta: r.meta || null,
       lastCheck: r.lastCheck || null, __file,
     };
   });
@@ -249,6 +250,7 @@ export async function importAll(file) {
   const uploadRecs = uploads.map((r) => ({
     id: r.id, ts: r.ts || 0, name: r.name, size: r.size || 0, type: r.type || '',
     service: r.service || '', host: r.host || '', url: r.url || '', apiUrl: r.apiUrl || '',
+    meta: r.meta || null,
     lastCheck: r.lastCheck || null,
     bytes: r.__file && entries[r.__file] ? new Blob([entries[r.__file]], { type: r.type || 'application/octet-stream' }) : null,
   }));

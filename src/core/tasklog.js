@@ -14,7 +14,8 @@ export function isAutoRecordEnabled() {
 
 /**
  * 采集工具页表单快照：扫 root 下 .field（label[for]→控件）与 label.checkbox-row，
- * 产出有序 [{label,type,value}]。密码/文件输入一律跳过（不落盘红线）。
+ * 产出有序 [{label,type,value}]。密码/文件输入一律跳过（不落盘红线）；
+ * 带 data-no-snapshot 的控件跳过（大文本等已由其它通道存档、避免历史膨胀）。
  * 匹配复原按「同名标签按 DOM 顺序逐一消费」进行，两侧顺序一致即可靠。
  */
 export function captureFormSnapshot(root) {
@@ -22,7 +23,7 @@ export function captureFormSnapshot(root) {
   const out = [];
   for (const w of root.querySelectorAll('.field')) {
     const label = w.querySelector(':scope > label');
-    const el = w.querySelector('input:not([type=file]):not([type=password]), select, textarea');
+    const el = w.querySelector('input:not([type=file]):not([type=password]):not([data-no-snapshot]), select:not([data-no-snapshot]), textarea:not([data-no-snapshot])');
     if (!label || !el) continue;
     out.push({ label: label.textContent.trim(), type: el.tagName === 'SELECT' ? 'select' : (el.type || 'text'), value: el.type === 'checkbox' ? el.checked : String(el.value ?? '') });
   }

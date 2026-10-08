@@ -10,6 +10,7 @@ import {
   uploadsUsedBytes, probeUpload, probeAll, formatLinks, probeStrategy,
 } from '../core/uploads.js';
 import { uploadOne } from '../tools/more/filebed.js';
+import { TEXT_SERVICES, textUpload } from '../tools/more/textbed.js';
 
 // 缩略图 objectURL 缓存（页面级复用；字节本体持久在 IndexedDB，URL 生命周期随页面）
 const thumbUrls = new Map();
@@ -141,13 +142,16 @@ export async function renderUploadsPage(content) {
     nm.textContent = it.name;
     const badge = statusBadge(it.lastCheck);
     hostLine.append(nm, badge);
+    const metaBits = [];
+    if (it.meta?.editCode) metaBits.push(`编辑码 ${it.meta.editCode}`);
+    if (it.meta?.deletionKey) metaBits.push(`删除码 ${it.meta.deletionKey}`);
     const meta = document.createElement('div');
     meta.className = 'note';
-    meta.textContent = `${it.host || it.service || '未知服务'} · ${fmtBytes(it.size)} · ${fmtTime2(it.ts)}`;
+    meta.textContent = `${it.host || it.service || '未知服务'} · ${fmtBytes(it.size)} · ${fmtTime2(it.ts)}${metaBits.length ? ` · ${metaBits.join(' · ')}` : ''}`;
     const linkLine = document.createElement('div');
     linkLine.className = 'note';
     linkLine.style.wordBreak = 'break-all';
-    linkLine.textContent = it.url;
+    linkLine.textContent = it.meta?.rawUrl && it.meta.rawUrl !== it.url ? `${it.url}（raw：${it.meta.rawUrl}）` : it.url;
     if (it.lastCheck?.note && it.lastCheck.status !== 'ok') {
       const noteEl = document.createElement('div');
       noteEl.className = 'hint';
@@ -179,13 +183,28 @@ export async function renderUploadsPage(content) {
     checkBtn.setAttribute('aria-label', `检测链接：${it.name}`);
     const openBtn = button('打开', 'btn-outline btn-sm', () => window.open(it.url, '_blank', 'noopener'));
     const reBtn = button('重新上传', 'btn-outline btn-sm', async () => {
-      if (!it.apiUrl || !it.hasBytes) return;
+      if (!it.hasBytes) return;
       reBtn.disabled = true;
       reBtn.textContent = '上传中…';
       try {
         const full = await getUpload(it.id);
-        const { url } = await uploadOne(it.apiUrl, full.bytes);
-        await updateUpload(it.id, { url, lastCheck: null });
+        let url;
+        let patch = { lastCheck: null };
+        if (TEXT_SERVICES[it.service]?.reuploadable) {
+          // 文本床：按服务 API 重新上传并更新链接（编辑码/删除码随新贴更新）
+          const text = await full.bytes.text();
+          const r = await textUpload(it.service, text, it.name);
+          url = r.url;
+          patch = { url, lastCheck: null, meta: r.meta || null };
+        } else if (it.apiUrl) {
+          ({ url } = await uploadOne(it.apiUrl, full.bytes));
+          patch = { url, lastCheck: null };
+        } else {
+          reBtn.disabled = false;
+          reBtn.textContent = '重新上传';
+          return;
+        }
+        await updateUpload(it.id, patch);
         toast('已重新上传，链接已更新');
         renderUploadsPage(content);
       } catch (e) {
@@ -195,9 +214,10 @@ export async function renderUploadsPage(content) {
       }
     });
     reBtn.setAttribute('aria-label', `重新上传：${it.name}`);
-    if (!it.apiUrl || !it.hasBytes) {
+    const canRe = it.hasBytes && (it.apiUrl || TEXT_SERVICES[it.service]?.reuploadable);
+    if (!canRe) {
       reBtn.disabled = true;
-      reBtn.title = it.apiUrl ? '本地未保留原件，无法重传' : '该服务需凭证或中转，请到对应工具页重新上传';
+      reBtn.title = it.hasBytes ? '该服务需凭证或中转，请到对应工具页重新上传' : '本地未保留原件，无法重传';
     }
     const delBtn = button('删除', 'btn-danger btn-sm', async () => {
       const ok2 = await confirmDialog({

@@ -9,36 +9,36 @@ test.describe('外观：内联展开 / 列表视图 / 多巴胺配色', () => {
     await expect(page.locator('.home-more-open')).toHaveCount(0);
     await page.locator('.home-more-link button').click();
     // 49 扩展 + 15 核心目录 = 64；核心目录分隔线在列
-    await expect(page.locator('.home-more-open .tool-card')).toHaveCount(70);
+    await expect(page.locator('.home-more-open .tool-card')).toHaveCount(71);
     await expect(page.locator('.home-more-open .home-sec-divider')).toContainText('核心工具');
     await expect(page.locator('.home-more-open h2:text-is("转换为 PDF")')).toHaveCount(1);
     // 收起
     await page.locator('.home-more-link button').click();
     await expect(page.locator('.home-more-open')).toHaveCount(0);
-    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(24);
+    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(25);
   });
 
   test('首页 hero 右侧切换列表视图：10 个分区 23 行，刷新持久，可切回卡片', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('button', { name: '列表视图' }).click();
     await expect(page.locator('.tool-list')).toHaveCount(10);
-    await expect(page.locator('.tool-list .tool-row')).toHaveCount(24);
+    await expect(page.locator('.tool-list .tool-row')).toHaveCount(25);
     await expect(page.locator('.tool-grid')).toHaveCount(0);
     // 列表行真实可达：首行为 PDF 压缩
     await expect(page.locator('.tool-list .tool-row[href="#/tool/compress"] .tr-name')).toHaveText('PDF 压缩');
     await page.reload();
-    await expect(page.locator('.tool-list .tool-row')).toHaveCount(24);
+    await expect(page.locator('.tool-list .tool-row')).toHaveCount(25);
     await page.getByRole('button', { name: '卡片视图' }).click();
-    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(24);
+    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(25);
   });
 
   test('更多页同样支持卡片/列表双向切换（64 条）', async ({ page }) => {
     await page.goto('/#/more');
     await page.getByRole('button', { name: '列表视图' }).click();
-    await expect(page.locator('.tool-list .tool-row')).toHaveCount(70);
+    await expect(page.locator('.tool-list .tool-row')).toHaveCount(71);
     await expect(page.locator('.home-sec-divider')).toContainText('核心工具');
     await page.getByRole('button', { name: '卡片视图' }).click();
-    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(70);
+    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(71);
   });
 
   test('多巴胺浮钮：单击换随机配色（避开当前）+ 刷新持久，双击恢复默认', async ({ page }) => {

@@ -32,8 +32,9 @@ export const IMAGE_SERVICES = {
   custom: { ...FILEBED_SERVICES.custom },
 };
 
-/** GitHub token 仅存本页内存：刷新即清，绝不写 localStorage/IndexedDB/历史/URL */
+/** GitHub token 仅存本页内存：刷新即清，绝不写 localStorage/IndexedDB/历史/URL（导出供文本床 Gist 复用） */
 let ghTokenMem = '';
+export function getGhToken() { return ghTokenMem; }
 
 function loadGhCfg() {
   try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch { return {}; }

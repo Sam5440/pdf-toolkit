@@ -7,6 +7,9 @@ import {
 import {
   IMAGE_SERVICES, GH_MAX_MB, IMAGE_EXTS, buildGhPath, ghErrMsg, extOf,
 } from '../../src/tools/more/image-bed.js';
+import {
+  TEXT_SERVICES, parseRentry, parseDpaste, parsePasteGG, parseGist, gistFileName,
+} from '../../src/tools/more/textbed.js';
 
 describe('上传登记册：链接格式与探测策略', () => {
   it('formatLinks 四种格式', () => {
@@ -77,5 +80,63 @@ describe('图床：GitHub 上传辅助与服务预设', () => {
   it('extOf 与文件床一致：大小写不敏感', () => {
     expect(extOf('PIC.WebP')).toBe('webp');
     expect(extOf('noext')).toBe('');
+  });
+});
+
+describe('文本床：服务预设与响应解析', () => {
+  it('服务预设 ≥5 个且结构完整（实测均带 CORS）', () => {
+    const ids = Object.keys(TEXT_SERVICES);
+    expect(ids.length).toBeGreaterThanOrEqual(5);
+    for (const id of ids) {
+      const s = TEXT_SERVICES[id];
+      expect(s.host, `${id} 缺 host`).toBeTruthy();
+      expect(s.maxKB, `${id} 缺上限`).toBeGreaterThan(0);
+      expect(typeof s.shareNote).toBe('string');
+    }
+    // Gist 需 token 不可匿名重传；其余文本服务均可一键重传
+    expect(TEXT_SERVICES.gist.reuploadable).toBe(false);
+    for (const id of ['rentry', 'dpaste', 'pastegg']) {
+      expect(TEXT_SERVICES[id].reuploadable, `${id} 应可重传`).toBe(true);
+    }
+  });
+
+  it('parseRentry：合法响应与错误', () => {
+    expect(parseRentry({ status: '200', url: 'https://rentry.co/abc123', edit_code: 'ec1' }))
+      .toEqual({ url: 'https://rentry.co/abc123', editCode: 'ec1' });
+    expect(() => parseRentry({ status: '400', error: 'too big' })).toThrow(/too big/);
+    expect(() => parseRentry(null)).toThrow(/无法识别/);
+  });
+
+  it('parseDpaste：纯文本 URL + raw 规则', () => {
+    expect(parseDpaste('https://dpaste.com/98BDYXH53\n'))
+      .toEqual({ url: 'https://dpaste.com/98BDYXH53', rawUrl: 'https://dpaste.com/98BDYXH53.txt' });
+    expect(parseDpaste('https://dpaste.com/ABC.txt').rawUrl).toBe('https://dpaste.com/ABC.txt');
+    expect(() => parseDpaste('sorry')).toThrow(/无法识别/);
+  });
+
+  it('parsePasteGG：分享页 URL 规则 + 删除码', () => {
+    const r = parsePasteGG({ status: 'success', result: { id: 'abc123', deletion_key: 'dk9' } });
+    expect(r.url).toBe('https://paste.gg/p/anonymous/abc123');
+    expect(r.deletionKey).toBe('dk9');
+    expect(() => parsePasteGG({ status: 'error', errors: 'too large' })).toThrow(/too large/);
+    expect(() => parsePasteGG({})).toThrow(/无法识别/);
+  });
+
+  it('parseGist：html_url + raw 直链', () => {
+    const body = {
+      html_url: 'https://gist.github.com/u/abc',
+      files: { 'notes.txt': { raw_url: 'https://gist.githubusercontent.com/u/abc/raw/notes.txt' } },
+    };
+    expect(parseGist(body, 'notes.txt'))
+      .toEqual({ url: 'https://gist.github.com/u/abc', rawUrl: 'https://gist.githubusercontent.com/u/abc/raw/notes.txt' });
+    expect(() => parseGist({ message: 'Bad credentials' }, 'notes.txt')).toThrow(/Bad credentials/);
+    expect(() => parseGist({}, 'notes.txt')).toThrow(/无法识别/);
+  });
+
+  it('gistFileName：安全化并确保 .txt 后缀', () => {
+    expect(gistFileName('笔记.txt')).toBe('笔记.txt');
+    expect(gistFileName('code.js')).toBe('code.js.txt');
+    expect(gistFileName('a/b\\c')).toBe('a_b_c.txt');
+    expect(gistFileName('')).toBe('notes.txt');
   });
 });
