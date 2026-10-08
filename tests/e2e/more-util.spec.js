@@ -127,37 +127,46 @@ test.describe('图片文字识别', () => {
 });
 
 test.describe('文件床', () => {
-  test('上传 → mock 服务返回链接 → 展示与复制入口', async ({ page }) => {
+  test('默认 onlyfiles 上传 → mock 直传服务返回链接（无嵌入按钮，有分享页说明）', async ({ page }) => {
     await openTool(page, 'filebed');
     await page.route('**/upload', (route) => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ data: 'https://src.yohuo.eu.org/e2e-mock-alpha.png' }),
+      body: JSON.stringify({
+        status: true,
+        data: { file: { url: { full: 'https://onlyfiles.com/e2emock01/alpha.png', short: 'https://onlyfiles.com/e2emock01' } } },
+      }),
     }));
+    await expect(page.getByLabel('上传服务')).toHaveValue('onlyfiles');
     await upload(page, ['alpha.png']);
     await page.getByRole('button', { name: '上传到文件床' }).click();
-    await expect(page.getByText('https://src.yohuo.eu.org/e2e-mock-alpha.png')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('https://onlyfiles.com/e2emock01/alpha.png')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: '复制链接' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Markdown' })).toBeVisible();
+    // onlyfiles 分享链接为预览页（直链站方动态签名），不提供 Markdown/HTML 嵌入入口
+    await expect(page.getByRole('button', { name: 'Markdown' })).toHaveCount(0);
+    await expect(page.getByText(/永久托管/).first()).toBeVisible();
     await expect(page.getByText('成功 1/1')).toBeVisible();
   });
 
-  test('网络中断 → CORS/网络帮助指引出现', async ({ page }) => {
+  test('yohuo 直连网络中断 → CORS 指引含 onlyfiles 建议与 Worker 代码', async ({ page }) => {
     await openTool(page, 'filebed');
+    await page.getByLabel('上传服务').selectOption('yohuo');
     await page.route('**/upload', (route) => route.abort('failed'));
     await upload(page, ['alpha.png']);
     await page.getByRole('button', { name: '上传到文件床' }).click();
     await expect(page.getByText(/跨域 CORS 限制/)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/自部署 telegraph 实例/)).toBeVisible();
+    await expect(page.getByText(/onlyfiles\.com 或 tmpfiles\.org/)).toBeVisible();
+    await expect(page.getByRole('button', { name: '复制 Worker 代码' })).toBeVisible();
   });
 
-  test('边界：不支持的扩展名 → 面板拒收且不发起上传', async ({ page }) => {
+  test('边界：yohuo 白名单外扩展名 → 点上传时 toast 拒收且不发起请求', async ({ page }) => {
     await openTool(page, 'filebed');
+    await page.getByLabel('上传服务').selectOption('yohuo');
     let called = 0;
     await page.route('**/upload', (route) => { called += 1; return route.fulfill({ status: 200, body: '{}' }); });
-    await upload(page, ['sample.txt']);
+    await upload(page, ['sample.txt']); // 宽松 acceptTest 下 txt 可进面板，白名单在执行时校验
+    await page.getByRole('button', { name: '上传到文件床' }).click();
     await expect(page.locator('.toast-error')).toHaveText(/不支持的文件类型/, { timeout: 5_000 });
-    await expect(page.getByRole('button', { name: '上传到文件床' })).toBeDisabled();
     expect(called).toBe(0);
   });
 });

@@ -71,7 +71,7 @@ Markdown 转 PDF、PDF 转图片型 PPT、裁剪 PDF 和识别二维码等 8 个
 | 查看与检查 | PDF 查看器 · PDF 搜索 |
 | 创建与转换 | 生成 PDF · 文本/Markdown/RTF/EPUB/ODF/Excel/SVG/TIFF/HEIC 转 PDF · 网页转 PDF · 扫描件转 PDF · 发票生成 |
 | 图像与导出 | WebP/HEIC 转 JPG/PNG · 生成二维码 · PDF 转 Word/PPT/PPT（图片型）/Excel/HTML/Markdown/RTF/EPUB/ODF/TIFF/SVG |
-| 实用工具 | 识别二维码（本地解码）· 哈希计算（MD5/SHA-1/SHA-256/SHA-512）· 文本加解密（AES/DES/3DES/RC4/Base64/URL）· 图片文字识别（OCR）· 文件床（上传生成分享链接，可自定义服务地址） |
+| 实用工具 | 识别二维码（本地解码）· 哈希计算（MD5/SHA-1/SHA-256/SHA-512）· 文本加解密（AES/DES/3DES/RC4/Base64/URL）· 图片文字识别（OCR）· 文件床（上传生成分享链接：内置可直传自动取链的 onlyfiles/tmpfiles，yohuo 稳定直链需按 docs/filebed-proxy.md 自部署 Worker 中转，支持自定义端点） |
 
 > **Markdown 转 PDF/Word（双栏工作台 + 多引擎，默认收藏）**：左编辑器 + 右双模式
 > 预览（「即时」HTML 排版预览 /「PDF 版式」页面画布，滚动同步、全屏、加载示例），

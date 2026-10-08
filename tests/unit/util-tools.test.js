@@ -6,7 +6,10 @@ import {
   cipherEncrypt, cipherDecrypt, b64Encode, b64Decode,
 } from '../../src/tools/more/crypt.js';
 import { hashBytes, hashFile } from '../../src/tools/more/hash-calc.js';
-import { extOf, ALLOWED, DEFAULT_ENDPOINT, MAX_MB } from '../../src/tools/more/filebed.js';
+import {
+  extOf, ALLOWED, DEFAULT_ENDPOINT, YOHUO_MB, PROXY_MB,
+  SERVICES, parseUploadResponse, resolveService, uploadUrlOf,
+} from '../../src/tools/more/filebed.js';
 
 // ---- 哈希计算 ----
 describe('哈希计算（hash-wasm）', () => {
@@ -82,7 +85,7 @@ describe('文本加解密（crypto-js）', () => {
 });
 
 // ---- 文件床 ----
-describe('文件床（yohuo/telegraph 接口约束）', () => {
+describe('文件床（多服务约束与响应解析）', () => {
   it('扩展名解析大小写不敏感', () => {
     expect(extOf('photo.PNG')).toBe('png');
     expect(extOf('clip.MOV')).toBe('mov');
@@ -90,14 +93,56 @@ describe('文件床（yohuo/telegraph 接口约束）', () => {
     expect(extOf('.hidden')).toBe('');
   });
 
-  it('默认服务地址与上限', () => {
+  it('服务预设：默认站与各服务上限', () => {
     expect(DEFAULT_ENDPOINT).toBe('https://img.yohuo.eu.org');
-    expect(MAX_MB).toBe(30);
+    expect(YOHUO_MB).toBe(30);   // telegraph 服务端 MAX_SIZE_MB
+    expect(PROXY_MB).toBe(100);  // onlyfiles / tmpfiles
+    expect(SERVICES.onlyfiles.api).toBe('https://onlyfiles.com/api/v1/upload');
+    expect(SERVICES.tmpfiles.api).toBe('https://tmpfiles.org/api/v1/upload');
+    expect(SERVICES.yohuo.api).toBe('https://img.yohuo.eu.org/upload');
+    // 可直传服务不限类型（无 telegraph 白名单），yohuo/自定义保留白名单
+    expect(SERVICES.onlyfiles.telegraphWhitelist).toBe(false);
+    expect(SERVICES.tmpfiles.telegraphWhitelist).toBe(false);
+    expect(SERVICES.yohuo.telegraphWhitelist).toBe(true);
   });
 
   it('白名单与该部署 telegraph 的 ALLOWED_EXTENSIONS 一致', () => {
     expect([...ALLOWED].sort()).toEqual(
       ['avi', 'bmp', 'gif', 'jpeg', 'jpg', 'mov', 'mp4', 'png', 'svg', 'webm', 'webp'],
     );
+  });
+
+  it('响应解析：onlyfiles / tmpfiles / yohuo / telegraph 四种格式', () => {
+    expect(parseUploadResponse({
+      status: true, data: { file: { url: { full: 'https://onlyfiles.com/abc/x.png', short: 'https://onlyfiles.com/abc' } } },
+    })).toBe('https://onlyfiles.com/abc/x.png');
+    expect(parseUploadResponse({ status: 'success', data: { url: 'https://tmpfiles.org/abc/x.png' } }))
+      .toBe('https://tmpfiles.org/abc/x.png');
+    expect(parseUploadResponse({ data: 'https://src.yohuo.eu.org/1-abc.png' }))
+      .toBe('https://src.yohuo.eu.org/1-abc.png');
+    expect(parseUploadResponse([{ src: '/file/abc.png' }])).toBe('https://telegra.ph/file/abc.png');
+    expect(parseUploadResponse([{ src: 'https://else.where/f.png' }])).toBe('https://else.where/f.png');
+  });
+
+  it('响应解析：服务端错误优先抛出；未知格式报错', () => {
+    expect(() => parseUploadResponse({ error: 'File too large' })).toThrow(/File too large/);
+    expect(() => parseUploadResponse({ hello: 'world' })).toThrow(/无法识别/);
+    expect(() => parseUploadResponse(null)).toThrow(/无法识别/);
+    expect(() => parseUploadResponse([{}])).toThrow(/无法识别/);
+  });
+
+  it('resolveService：老用户按旧 endpoint 归位，新用户默认 onlyfiles', () => {
+    expect(resolveService('tmpfiles', null)).toBe('tmpfiles');
+    expect(resolveService(null, DEFAULT_ENDPOINT)).toBe('yohuo');       // 老用户保持默认站
+    expect(resolveService(null, 'https://my-worker.dev')).toBe('custom'); // 改过端点 → 自定义
+    expect(resolveService(null, null)).toBe('onlyfiles');               // 新用户用可直传推荐服务
+    expect(resolveService('bogus', null)).toBe('onlyfiles');            // 脏值兜底
+  });
+
+  it('uploadUrlOf：/upload 结尾原样，否则自动拼接', () => {
+    expect(uploadUrlOf('https://w.dev')).toBe('https://w.dev/upload');
+    expect(uploadUrlOf('https://w.dev/')).toBe('https://w.dev/upload');
+    expect(uploadUrlOf('https://w.dev/upload')).toBe('https://w.dev/upload');
+    expect(uploadUrlOf('https://onlyfiles.com/api/v1/upload')).toBe('https://onlyfiles.com/api/v1/upload');
   });
 });
