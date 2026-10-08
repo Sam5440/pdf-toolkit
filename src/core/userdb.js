@@ -9,6 +9,7 @@ import { listHistory, historyUsedBytes } from './history.js';
 import { trayItems, trayBytes } from './tray.js';
 import { listUserFonts } from './userfonts.js';
 import { listWorkflows } from './workflows.js';
+import { listUploads, uploadsUsedBytes, ensureUploadStore } from './uploads.js';
 
 const SCHEMA = 1;
 
@@ -116,6 +117,20 @@ export async function collectAll() {
     files.set(p, f.bytes);
     return { id: f.id, name: f.name, family: f.family || '', size: f.size, source: f.source, addedAt: f.addedAt, __file: p };
   });
+  // 上传登记册（图床/文件床；bytes 拆出为文件）
+  const uploadsRaw = await idbGetAll('pdftoolkit-uploads', 'files').catch(() => []);
+  const uploads = uploadsRaw.map((r) => {
+    let __file = null;
+    if (r.bytes) {
+      __file = `uploads/${seg(r.id)}__${seg(r.name)}`;
+      files.set(__file, r.bytes);
+    }
+    return {
+      id: r.id, ts: r.ts, name: r.name, size: r.size, type: r.type,
+      service: r.service, host: r.host, url: r.url, apiUrl: r.apiUrl || '',
+      lastCheck: r.lastCheck || null, __file,
+    };
+  });
   return {
     manifest: {
       app: 'pdf-toolkit',
@@ -126,6 +141,7 @@ export async function collectAll() {
         history: history.length,
         trayItems: trayItemsMeta.length,
         fonts: fonts.length,
+        uploads: uploads.length,
         settingsKeys: Object.keys(readLocalStorage()).length,
       },
     },
@@ -133,6 +149,7 @@ export async function collectAll() {
     history,
     tray: { items: trayItemsMeta, folders: trayStore.folders },
     fonts,
+    uploads,
     files,
   };
 }
@@ -146,6 +163,7 @@ export function exportAll() {
       'history.json': strToU8(JSON.stringify(all.history)),
       'tray.json': strToU8(JSON.stringify(all.tray)),
       'fonts.json': strToU8(JSON.stringify(all.fonts)),
+      'uploads.json': strToU8(JSON.stringify(all.uploads)),
     };
     for (const [p, blob] of all.files) data[p] = await blobU8(blob);
     // 已是压缩字节（PDF/字体），level 0 仅打包不再压缩；同步打包与 downloadZip 同路径
@@ -184,6 +202,7 @@ export async function importAll(file) {
   const history = entries['history.json'] ? JSON.parse(strFromU8(entries['history.json'])) : [];
   const tray = entries['tray.json'] ? JSON.parse(strFromU8(entries['tray.json'])) : { items: [], folders: [] };
   const fonts = entries['fonts.json'] ? JSON.parse(strFromU8(entries['fonts.json'])) : [];
+  const uploads = entries['uploads.json'] ? JSON.parse(strFromU8(entries['uploads.json'])) : [];
   const fileRec = (meta) => {
     if (!meta?.__file) return null;
     const u = entries[meta.__file];
@@ -225,6 +244,16 @@ export async function importAll(file) {
   const fontRecs = fonts.map((f) => ({ ...f, bytes: entries[f.__file] })).filter((f) => f.bytes);
   if (fontRecs.length) await idbRewrite('pdftoolkit-fonts', 'fonts', fontRecs);
 
+  // 5) 上传登记册（无备份文件时清空，保持与其它区一致的覆盖语义）
+  await ensureUploadStore(); // 库不存在时先建 store，idbRewrite 无 upgrade 回调
+  const uploadRecs = uploads.map((r) => ({
+    id: r.id, ts: r.ts || 0, name: r.name, size: r.size || 0, type: r.type || '',
+    service: r.service || '', host: r.host || '', url: r.url || '', apiUrl: r.apiUrl || '',
+    lastCheck: r.lastCheck || null,
+    bytes: r.__file && entries[r.__file] ? new Blob([entries[r.__file]], { type: r.type || 'application/octet-stream' }) : null,
+  }));
+  await idbRewrite('pdftoolkit-uploads', 'files', uploadRecs);
+
   return {
     manifest,
     restored: {
@@ -232,6 +261,7 @@ export async function importAll(file) {
       history: historyRecs.length,
       tray: trayRecs.length,
       fonts: fontRecs.length,
+      uploads: uploadRecs.length,
     },
   };
 }
@@ -240,10 +270,12 @@ export async function importAll(file) {
 
 /** 各存储区概览（数据页展示用） */
 export async function storageSummary() {
-  const [history, histBytes, fonts] = await Promise.all([
+  const [history, histBytes, fonts, upItems, upBytes] = await Promise.all([
     listHistory({ limit: 100000 }),
     historyUsedBytes(),
     listUserFonts(),
+    listUploads().catch(() => []),
+    uploadsUsedBytes().catch(() => 0),
   ]);
   let lsKeys = 0;
   try {
@@ -255,6 +287,7 @@ export async function storageSummary() {
     history: { count: history.length, bytes: histBytes },
     tray: { count: trayItems().length, bytes: trayBytes() },
     fonts: { count: fonts.length, bytes: fonts.reduce((s, f) => s + (f.size || 0), 0) },
+    uploads: { count: upItems.length, bytes: upBytes },
     workflows: { count: listWorkflows().length },
     localStorageKeys: lsKeys,
   };

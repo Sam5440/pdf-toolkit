@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 相框（图床主母题：大画框 + 山形 + 太阳） -->
+  <rect x="7" y="8" width="34" height="26" rx="3.5"/>
+  <!-- 太阳 -->
+  <circle cx="31.5" cy="16.5" r="2.8"/>
+  <!-- 山形 -->
+  <path d="M10 30 L18.5 21 L24.5 27 L28.5 23 L38 30"/>
+  <!-- 右下角上传角标（与普通图片图标区分：图床 = 图片 + 上传外链） -->
+  <path d="M30 36 v7 M26.5 39.5 L30 36 L33.5 39.5"/>
+</svg>

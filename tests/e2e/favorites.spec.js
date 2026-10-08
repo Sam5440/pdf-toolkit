@@ -2,13 +2,13 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('收藏系统', () => {
-  test('首页默认显示 23 个工具（15 核心 + 8 个常用扩展工具），按分类分区', async ({ page }) => {
+  test('首页默认显示 24 个工具（15 核心 + 9 个常用扩展工具），按分类分区', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.home-sec h2')).toHaveCount(10, { timeout: 15_000 });
     await expect(page.locator('.home-sec h2')).toHaveText(['优化', '页面', '内容', '转换', '安全', '检查', '页面处理', '转换为 PDF', 'PDF 转格式', '实用工具']);
     const cards = page.locator('.tool-grid .tool-card');
-    await expect(cards).toHaveCount(23);
-    // crop / md2pdf / pdf2pptimg 及实用工具 5 件（defaultFav）默认在首页各自分区
+    await expect(cards).toHaveCount(24);
+    // crop / md2pdf / pdf2pptimg 及实用工具 6 件（defaultFav）默认在首页各自分区
     await expect(page.locator('.home-sec:has(h2:text-is("页面处理")) + .tool-grid a.tool-card[href="#/tool/crop"]')).toHaveCount(1);
     await expect(page.locator('.home-sec:has(h2:text-is("转换为 PDF")) + .tool-grid a.tool-card[href="#/tool/md2pdf"]')).toHaveCount(1);
     await expect(page.locator('.home-sec:has(h2:text-is("PDF 转格式")) + .tool-grid a.tool-card[href="#/tool/pdf2pptimg"]')).toHaveCount(1);
@@ -23,12 +23,12 @@ test.describe('收藏系统', () => {
     await expect(page.locator('[data-star="crop"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-star="md2pdf"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-star="pdf2pptimg"]')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.fav-star.on')).toHaveCount(23);
+    await expect(page.locator('.fav-star.on')).toHaveCount(24);
     // 底部入口：内联展开切换（点击在下方展开全部扩展功能，不再跳转专项页）
     await expect(page.locator('.home-more-link button')).toContainText('更多工具页');
   });
 
-  test('#/more 专项页：扩展分类在前、核心目录在后，69 张卡', async ({ page }) => {
+  test('#/more 专项页：扩展分类在前、核心目录在后，70 张卡', async ({ page }) => {
     await page.goto('/#/more');
     await expect(page.locator('.tb-title')).toContainText('更多工具');
     const heads = page.locator('.home-sec h2');
@@ -36,8 +36,8 @@ test.describe('收藏系统', () => {
     await expect(heads.filter({ hasText: '转换为 PDF' })).toHaveCount(1);
     await expect(page.locator('.home-sec h2:text-is("优化")')).toHaveCount(1);
     await expect(page.locator('.home-sec-divider')).toHaveCount(1);
-    // 54 扩展 + 15 核心 = 69 张卡
-    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(69);
+    // 55 扩展 + 15 核心 = 70 张卡
+    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(70);
     await expect(page.locator('[data-star="crop"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-star="md2pdf"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-star="pdf2pptimg"]')).toHaveAttribute('aria-pressed', 'true');
@@ -72,18 +72,18 @@ test.describe('收藏系统', () => {
     await star.click();
     // 首页即时重渲染：卡片消失
     await expect(page.locator('a.tool-card[href="#/tool/compress"]')).toHaveCount(0);
-    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(22);
+    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(23);
     // 刷新持久化
     await page.reload();
     await expect(page.locator('a.tool-card[href="#/tool/compress"]')).toHaveCount(0);
-    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(22);
+    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(23);
     // 恢复：去专项页重新收藏（首页已无该卡片可点）
     await page.goto('/#/more');
     await page.locator('[data-star="compress"]').click();
     await expect(page.locator('[data-star="compress"]')).toHaveAttribute('aria-pressed', 'true');
     await page.goto('/');
     await expect(page.locator('a.tool-card[href="#/tool/compress"]')).toHaveCount(1);
-    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(23);
+    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(24);
   });
 
   test('全部取消收藏 → 空状态引导；恢复默认收藏按钮', async ({ page }) => {
@@ -98,6 +98,6 @@ test.describe('收藏系统', () => {
     // 设置 → 恢复默认收藏
     await page.getByRole('button', { name: '设置' }).click();
     await page.getByRole('button', { name: '恢复默认收藏' }).click();
-    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(23);
+    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(24);
   });
 });

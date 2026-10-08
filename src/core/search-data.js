@@ -69,7 +69,8 @@ export const SEARCH_INTROS = {
   'hash-calc': '计算文本或文件的 MD5、SHA-1、SHA-256、SHA-512 哈希值：文件分块流式读取，大文件不占内存，结果与 md5sum 等命令行一致。',
   crypt: '文本加解密与编解码：AES/DES/Triple DES/RC4 口令加密，Base64/URL 编解码，密钥只在内存中使用、绝不保存。',
   imgocr: '图片文字识别（OCR）：JPG/PNG/WebP 等图片直接识别出文本导出 TXT，支持中英繁多语言，本地 Tesseract 引擎处理。',
-  filebed: '文件床：把图片/视频上传到文件床服务生成公开分享链接（全站唯一联网工具，可自定义服务地址；其余工具均本地处理）。',
+  filebed: '文件床：把图片/视频/文档上传到文件床服务生成公开分享链接（可直传自动取链，yohuo 稳定直链可配中转；上传记录本地永久保存可检测失效）。',
+  'image-bed': '图床：上传图片一键生成 URL/Markdown/HTML/BBCode 外链。推荐 GitHub 仓库图床（稳定直链可嵌入，token 仅存本页内存），也可用免费直传服务；上传记录本地永久保存，支持失效检测与一键重传。',
 };
 
 export const SEARCH_KEYWORDS = {
@@ -141,5 +142,6 @@ export const SEARCH_KEYWORDS = {
   'hash-calc': ['md5', '哈希', 'hash', 'sha1', 'sha256', 'sha512', '摘要', '校验值', 'checksum', '文件指纹', '散列', 'md5计算'],
   crypt: ['加密', '解密', 'aes', 'des', '3des', 'rc4', 'base64', 'url编码', '编解码', 'encrypt', 'decrypt', '文本加密'],
   imgocr: ['图片ocr', '图片文字识别', '图片识别', 'ocr图片', '图片转文字', '照片识字', '截图识字', 'image ocr', '识别图中文字', '提取图片文字'],
-  filebed: ['文件床', '图床', '上传图片', '分享链接', '外链', '直链', '贴图', 'hosting', '上传分享', '生成链接'],
+  filebed: ['文件床', '图床', '上传图片', '分享链接', '外链', '直链', '贴图', 'hosting', '上传分享', '生成链接', '上传记录'],
+  'image-bed': ['图床', '图片外链', 'Markdown 图片', '贴图床', 'GitHub 图床', '外链图片', 'image hosting', '生成链接', 'BBCode', '失效检测'],
 };

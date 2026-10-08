@@ -24,6 +24,7 @@ import { hydrateTray, resetTrayStorage } from './core/tray.js';
 import { getLogs, logsToText, clearLogs, onLogChange, log } from './core/logs.js';
 import { renderWorkflowPage } from './components/workflow-page.js';
 import { renderDataPage } from './components/data-page.js';
+import { renderUploadsPage } from './components/uploads-page.js';
 import { restoreFromRecord } from './core/restore.js';
 import { stepFromRecord, saveWorkflow } from './core/workflows.js';
 import { isAutoRecordEnabled } from './core/tasklog.js';
@@ -182,7 +183,7 @@ function buildSidebar(sidebar, toolId) {
   // 首页入口（工具页/更多页/历史页均可见；窄屏图标栏下是唯一回首页入口之一）
   const homeNav = document.createElement('nav');
   homeNav.className = 'side-nav side-nav-home';
-  const onHome = !toolId && !['#/more', '#/history', '#/workflows', '#/data'].includes(location.hash);
+  const onHome = !toolId && !['#/more', '#/history', '#/workflows', '#/data', '#/uploads'].includes(location.hash);
   const homeLink = document.createElement('a');
   homeLink.className = 'side-link' + (onHome ? ' active' : '');
   homeLink.href = '#/';
@@ -228,6 +229,13 @@ function buildSidebar(sidebar, toolId) {
     moreLink.innerHTML = `<span class="ico"></span><span class="link-text">更多工具页</span>`;
     moreLink.querySelector('.ico').appendChild(iconNode('more-grid'));
     nav.appendChild(moreLink);
+    // 专项页：上传记录（图床/文件床管理中心）
+    const upLink = document.createElement('a');
+    upLink.className = 'side-link' + (location.hash === '#/uploads' ? ' active' : '');
+    upLink.href = '#/uploads';
+    upLink.innerHTML = `<span class="ico"></span><span class="link-text">上传记录</span>`;
+    upLink.querySelector('.ico').appendChild(iconNode('uploads'));
+    nav.appendChild(upLink);
     for (const t of moreItems) {
       const a = document.createElement('a');
       a.className = 'side-link' + (t.id === toolId ? ' active' : '');
@@ -270,7 +278,7 @@ function renderApp(toolId) {
   const topbar = document.createElement('div');
   topbar.className = 'topbar';
   topbar.innerHTML = `
-    <div class="tb-title">${tool ? `<span class="tb-ico"></span>${esc(tool.name)}<span class="tb-sub">${esc(tool.desc)}</span>` : (location.hash === '#/more' ? '更多工具' : 'PDF 万能工具箱')} </div>`;
+    <div class="tb-title">${tool ? `<span class="tb-ico"></span>${esc(tool.name)}<span class="tb-sub">${esc(tool.desc)}</span>` : (location.hash === '#/more' ? '更多工具' : location.hash === '#/uploads' ? '上传记录' : 'PDF 万能工具箱')} </div>`;
   if (tool) topbar.querySelector('.tb-ico').appendChild(iconNode(tool.id));
   const tbBtns = document.createElement('div');
   tbBtns.className = 'tb-actions';
@@ -317,6 +325,8 @@ function renderApp(toolId) {
     renderWorkflowPage(content);
   } else if (location.hash === '#/data') {
     renderDataPage(content);
+  } else if (location.hash === '#/uploads') {
+    renderUploadsPage(content);
   } else {
     renderHome(content);
   }
@@ -584,6 +594,8 @@ async function renderHistory(content) {
   wfLink.setAttribute('aria-label', '打开工作流页');
   const dbLink = button('本地数据库', 'btn-outline btn-sm', () => { location.hash = '#/data'; });
   dbLink.setAttribute('aria-label', '打开本地数据库页');
+  const upLink2 = button('上传记录', 'btn-outline btn-sm', () => { location.hash = '#/uploads'; });
+  upLink2.setAttribute('aria-label', '打开上传记录页');
   const clearBtn = button('清空全部', 'btn-danger btn-sm', async () => {
     const ok = await confirmDialog({
       title: '清空本地历史记录',
@@ -596,7 +608,7 @@ async function renderHistory(content) {
     toast('已清空');
     renderApp(null);
   });
-  headBtns.append(wfLink, dbLink, clearBtn);
+  headBtns.append(wfLink, dbLink, upLink2, clearBtn);
   head.appendChild(headBtns);
   content.appendChild(head);
   if (!items.length) {

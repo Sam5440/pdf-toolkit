@@ -36,6 +36,7 @@ export function renderDataPage(content) {
     const rows = [
       ['历史任务（含输入/输出文件）', `${s.history.count} 条 · ${fmtBytes(s.history.bytes)}`],
       ['暂存区（含文件夹）', `${s.tray.count} 个 · ${fmtBytes(s.tray.bytes)}`],
+      ['上传记录（图床/文件床）', `${s.uploads.count} 条 · ${fmtBytes(s.uploads.bytes)}`],
       ['外挂字体', `${s.fonts.count} 个 · ${fmtBytes(s.fonts.bytes)}`],
       ['工作流', `${s.workflows.count} 条`],
       ['设置与偏好键', `${s.localStorageKeys} 项`],
@@ -80,7 +81,7 @@ export function renderDataPage(content) {
     if (!files.length) return;
     const ok = await confirmDialog({
       title: '导入备份包',
-      message: '导入将覆盖本机现有全部数据（历史、暂存区、字体、设置、工作流），完成后自动刷新页面。确定继续？',
+      message: '导入将覆盖本机现有全部数据（历史、暂存区、上传记录、字体、设置、工作流），完成后自动刷新页面。确定继续？',
       confirmText: '覆盖并导入',
       destructive: true,
     });
@@ -90,7 +91,7 @@ export function renderDataPage(content) {
       const box = document.createElement('div');
       box.innerHTML = `
         <p style="margin:0 0 10px;font-size:13.5px">导入完成（备份时间 ${esc(new Date(manifest.exportedAt).toLocaleString())}）：</p>
-        <div class="hint">历史 ${restored.history} 条 · 暂存区 ${restored.tray} 个 · 字体 ${restored.fonts} 个 · 设置 ${restored.settings} 项</div>`;
+        <div class="hint">历史 ${restored.history} 条 · 暂存区 ${restored.tray} 个 · 上传记录 ${restored.uploads} 条 · 字体 ${restored.fonts} 个 · 设置 ${restored.settings} 项</div>`;
       openModal('导入成功', box);
       setTimeout(() => location.reload(), 1600);
     } catch (e) {

@@ -170,3 +170,108 @@ test.describe('文件床', () => {
     expect(called).toBe(0);
   });
 });
+
+test.describe('图床（GitHub）', () => {
+  const RAW_URL = 'https://raw.githubusercontent.com/e2e-owner/e2e-repo/main/pdftoolkit/alpha.png';
+
+  async function mockGithub(page) {
+    await page.route('**/api.github.com/repos/e2e-owner/e2e-repo/contents/**', (route) => route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({ content: { download_url: RAW_URL } }),
+    }));
+  }
+
+  test('GitHub 图床：填仓库与 token → 上传 → 多格式链接 + 写入上传记录', async ({ page }) => {
+    await openTool(page, 'image-bed');
+    await mockGithub(page);
+    await expect(page.getByLabel('图床服务')).toHaveValue('github');
+    await page.getByLabel('GitHub 用户 / 组织').fill('e2e-owner');
+    await page.getByLabel('仓库名').fill('e2e-repo');
+    await page.getByLabel('访问令牌（token）').fill('e2e-token-ghp');
+    await upload(page, ['alpha.png']);
+    await page.getByRole('button', { name: '上传到图床' }).click();
+    await expect(page.getByText(RAW_URL)).toBeVisible({ timeout: 15_000 });
+    // 多格式复制入口：链接 / Markdown / HTML / BBCode
+    await expect(page.getByRole('button', { name: 'Markdown', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'HTML', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'BBCode', exact: true })).toBeVisible();
+    await expect(page.getByText('成功 1/1')).toBeVisible();
+    // 上传记录页能查到该条（含 GitHub host）
+    await page.goto('/#/uploads');
+    await expect(page.getByText('alpha.png').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(RAW_URL).first()).toBeVisible();
+  });
+
+  test('边界：GitHub 未填 token/仓库 → 明确报错不上传', async ({ page }) => {
+    await openTool(page, 'image-bed');
+    await mockGithub(page);
+    let called = 0;
+    await page.route('**/api.github.com/**', (route) => { called += 1; return route.fulfill({ status: 201, body: '{}' }); });
+    await upload(page, ['alpha.png']);
+    await page.getByRole('button', { name: '上传到图床' }).click();
+    await expect(page.locator('.toast-error')).toHaveText(/请先填写 GitHub 用户名与仓库名/, { timeout: 5_000 });
+    expect(called).toBe(0);
+  });
+
+  test('边界：非图片扩展名拒收', async ({ page }) => {
+    await openTool(page, 'image-bed');
+    await upload(page, ['sample.txt']); // 面板 acceptTest 白名单静默拒收 txt
+    await expect(page.getByRole('button', { name: '上传到图床' })).toBeDisabled();
+  });
+});
+
+test.describe('上传记录页', () => {
+  async function uploadViaFilebed(page) {
+    const URL_UP = 'https://onlyfiles.com/e2emock01/beta.png';
+    await openTool(page, 'filebed');
+    await page.route('**/upload', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: true,
+        data: { file: { url: { full: URL_UP, short: 'https://onlyfiles.com/e2emock01' } } },
+      }),
+    }));
+    await upload(page, ['alpha.png']);
+    await page.getByRole('button', { name: '上传到文件床' }).click();
+    await expect(page.getByText(URL_UP)).toBeVisible({ timeout: 15_000 });
+    return URL_UP;
+  }
+
+  test('列表/多格式复制/检测：有效与失效两态', async ({ page }) => {
+    const upUrl = await uploadViaFilebed(page);
+    await page.goto('/');
+    await page.locator('a.side-link[href="#/uploads"]').click(); // hash 点击非整页跳转
+    await expect(page.getByText('beta.png')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: 'Markdown', exact: true }).first()).toBeVisible();
+    // 探测走 Image 元素加载：route mock GET 200 → 有效
+    await page.route('**/onlyfiles.com/e2emock01/beta.png*', (route) => route.fulfill({
+      status: 200, contentType: 'image/png', body: fs.readFileSync('tests/fixtures/out/alpha.png'),
+    }));
+    await page.getByRole('button', { name: '检测全部上传链接' }).click();
+    await expect(page.getByText('有效', { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('检测完成：1 有效 · 0 失效 · 0 无法判定')).toBeVisible();
+  });
+
+  test('失效检测：404 → 已失效徽标；删除记录需确认', async ({ page }) => {
+    await uploadViaFilebed(page);
+    await page.goto('/');
+    await page.locator('a.side-link[href="#/uploads"]').click();
+    await expect(page.getByText('beta.png')).toBeVisible({ timeout: 10_000 });
+    await page.route('**/onlyfiles.com/e2emock01/beta.png*', (route) => route.fulfill({ status: 404, body: 'gone' }));
+    await page.getByRole('button', { name: '检测全部上传链接' }).click();
+    await expect(page.getByText('已失效', { exact: true })).toBeVisible({ timeout: 20_000 });
+    // 删除：确认后列表清空
+    await page.getByRole('button', { name: '删除记录：alpha.png' }).click();
+    await page.getByRole('button', { name: '删除', exact: true }).last().click();
+    await expect(page.getByText(/暂无上传记录/)).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('空态引导 + 侧边栏入口可见', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('a.side-link[href="#/uploads"]').click();
+    await expect(page.getByText(/暂无上传记录/)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: '检测全部上传链接' })).toBeVisible();
+  });
+});

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 底部收件托盘 -->
+  <path d="M7 28 v8 a3 3 0 0 0 3 3 h28 a3 3 0 0 0 3 -3 v-8"/>
+  <!-- 托盘沿 -->
+  <path d="M7 28 h8 l3 4 h12 l3 -4 h8"/>
+  <!-- 升起的上传箭头（记录每次上传） -->
+  <path d="M24 24 V8 M17.5 14.5 L24 8 L30.5 14.5"/>
+</svg>

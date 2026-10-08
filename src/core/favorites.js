@@ -25,6 +25,7 @@ const MIGRATIONS = [
   { key: 'pdftoolkit.favorites.mig-util3', tool: 'crypt' },
   { key: 'pdftoolkit.favorites.mig-util4', tool: 'imgocr' },
   { key: 'pdftoolkit.favorites.mig-util5', tool: 'filebed' },
+  { key: 'pdftoolkit.favorites.mig-imgbed', tool: 'image-bed' },
 ];
 
 function loadStoredIds() {

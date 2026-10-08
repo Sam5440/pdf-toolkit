@@ -1,0 +1,9 @@
+<!-- 图床：天蓝相框 + 橙色山与太阳，右下角上传箭头角标，表达"图片上传生成外链" -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <rect x="7" y="8" width="34" height="26" rx="3.5" stroke="#0EA5E9"/>
+    <circle cx="31.5" cy="16.5" r="2.8" stroke="#F97316"/>
+    <path d="M10 30 L18.5 21 L24.5 27 L28.5 23 L38 30" stroke="#F97316"/>
+    <path d="M30 36 v7 M26.5 39.5 L30 36 L33.5 39.5" stroke="#0EA5E9"/>
+  </g>
+</svg>

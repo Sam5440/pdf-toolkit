@@ -13,6 +13,7 @@ import { field, textInput, button, toast, select } from '../../components/ui.js'
 import { paramsCard } from './common.js';
 import { fmtBytes } from '../../core/format.js';
 import { recordTaskOrButton, recordNote, capturePageForm } from '../../core/tasklog.js';
+import { addUpload } from '../../core/uploads.js';
 
 const SERVICE_KEY = 'pdftoolkit.filebed.service';
 const ENDPOINT_KEY = 'pdftoolkit.filebed.endpoint';
@@ -131,8 +132,8 @@ export function uploadUrlOf(endpoint) {
   return /\/upload$/i.test(root) ? root : `${root}/upload`;
 }
 
-/** 上传单个文件：XHR（可读上传进度）。resolve({url}) 或 reject(Error) */
-function uploadOne(apiUrl, file, onProgress) {
+/** 上传单个文件：XHR（可读上传进度）。resolve({url}) 或 reject(Error)（导出供图床工具复用） */
+export function uploadOne(apiUrl, file, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', apiUrl);
@@ -360,6 +361,12 @@ registerTool({
             });
             results.push({ name: doc.name, url });
             list.appendChild(linkRow(url, s.embed, s.shareNote || ''));
+            // 写入上传登记册（永久保存原件字节，外链失效后可重传）
+            addUpload({
+              name: doc.name, size: doc.size, type: doc.file.type || '',
+              service, host: s.host || (() => { try { return new URL(apiUrl).host; } catch { return apiUrl; } })(),
+              url, apiUrl, bytes: doc.file,
+            }).catch(() => { /* 登记失败不阻塞上传结果 */ });
           } catch (e) {
             if (e.message === 'CORS_OR_NETWORK') {
               hadCorsError = true;
@@ -380,7 +387,7 @@ registerTool({
         const done = document.createElement('div');
         done.className = 'hint';
         done.style.marginTop = '10px';
-        done.textContent = `成功 ${results.length}/${docs.length} 个；${s.embed ? '链接为公开直链，任何人都可访问' : '链接为公开分享页，任何人都可访问'}`;
+        done.textContent = `成功 ${results.length}/${docs.length} 个；${s.embed ? '链接为公开直链，任何人都可访问' : '链接为公开分享页，任何人都可访问'}；已存入「上传记录」可管理或失效重传`;
         list.appendChild(done);
       }
       recordTaskOrButton({

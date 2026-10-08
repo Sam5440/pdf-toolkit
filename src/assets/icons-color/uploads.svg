@@ -1,0 +1,8 @@
+<!-- 上传记录：天蓝收件托盘 + 橙色上箭头，表达"上传存档集中管理" -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <path d="M7 28 v8 a3 3 0 0 0 3 3 h28 a3 3 0 0 0 3 -3 v-8" stroke="#0EA5E9"/>
+    <path d="M7 28 h8 l3 4 h12 l3 -4 h8" stroke="#0EA5E9"/>
+    <path d="M24 24 V8 M17.5 14.5 L24 8 L30.5 14.5" stroke="#F97316"/>
+  </g>
+</svg>
