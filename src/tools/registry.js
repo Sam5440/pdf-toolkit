@@ -47,6 +47,7 @@ import './more/imgocr.js';
 import './more/filebed.js';
 import './more/image-bed.js';
 import './more/textbed.js';
+import './more/clipboard-files.js';
 import './more/passgen.js';
 import './more/invoice.js';
 import './more/webpconvert.js';

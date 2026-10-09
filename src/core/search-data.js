@@ -72,6 +72,7 @@ export const SEARCH_INTROS = {
   filebed: '文件床：把图片/视频/文档上传到文件床服务生成公开分享链接（可直传自动取链，yohuo 稳定直链可配中转；上传记录本地永久保存可检测失效）。',
   'image-bed': '图床：上传图片一键生成 URL/Markdown/HTML/BBCode 外链。推荐 GitHub 仓库图床（稳定直链可嵌入，token 仅存本页内存），也可用免费直传服务；上传记录本地永久保存，支持失效检测与一键重传。',
   textbed: '文本床：把文本/代码/日志一键生成公开分享链接，6 个免费服务可选（rentry 永久可编辑 / dpaste / paste.gg / GitHub Gist / 文件床文本快传），编辑码保存本机；上传记录永久保存可检测失效与重传。',
+  'clipboard-files': '文件剪贴板：把任意文件一键复制到系统剪贴板——图片转 PNG 全平台通用，其它文件走 Chromium「Web 自定义格式」可在浏览器窗口间互贴；也支持从剪贴板粘贴/读取文件进列表再下载，全程本地不经网络。',
 };
 
 export const SEARCH_KEYWORDS = {
@@ -146,4 +147,5 @@ export const SEARCH_KEYWORDS = {
   filebed: ['文件床', '图床', '上传图片', '分享链接', '外链', '直链', '贴图', 'hosting', '上传分享', '生成链接', '上传记录'],
   'image-bed': ['图床', '图片外链', 'Markdown 图片', '贴图床', 'GitHub 图床', '外链图片', 'image hosting', '生成链接', 'BBCode', '失效检测'],
   textbed: ['文本床', '文字分享', '分享文本', 'pastebin', '粘贴代码', '代码分享', '文本分享', '日志分享', 'rentry', 'gist', 'dpaste', 'paste.gg', '片段分享', '贴文本'],
+  'clipboard-files': ['剪贴板', '复制文件', '粘贴文件', '复制到剪贴板', '从剪贴板粘贴', '系统剪贴板', 'clipboard', 'copy file', 'paste file', '文件复制', '拷贝文件', '跨浏览器传文件', '剪贴板传文件'],
 };

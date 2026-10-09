@@ -1,0 +1,11 @@
+<!-- 文件剪贴板：蓝板橙文件，绿/橙双向箭头表达「复制进 / 粘贴出」 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="rotate(-2 24 24)" stroke-width="2.5">
+    <rect x="11" y="7" width="26" height="35" rx="3" stroke="#3B82F6"/>
+    <rect x="19" y="3.5" width="10" height="7" rx="2" stroke="#64748B"/>
+    <path d="M17 16 h8 l5 5 v9 h-13 z" stroke="#F59E0B"/>
+    <path d="M25 16 v5 h5" stroke="#F59E0B"/>
+    <path d="M16 34 h9 M22 31 l3 3 -3 3" stroke="#22C55E"/>
+    <path d="M32 39 h-9 M26 36 l-3 3 3 3" stroke="#F97316"/>
+  </g>
+</svg>

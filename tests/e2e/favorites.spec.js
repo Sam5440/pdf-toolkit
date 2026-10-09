@@ -37,7 +37,7 @@ test.describe('收藏系统', () => {
     await expect(page.locator('.home-sec h2:text-is("优化")')).toHaveCount(1);
     await expect(page.locator('.home-sec-divider')).toHaveCount(1);
     // 56 扩展 + 15 核心 = 71 张卡
-    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(71);
+    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(72);
     await expect(page.locator('[data-star="crop"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-star="md2pdf"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-star="pdf2pptimg"]')).toHaveAttribute('aria-pressed', 'true');

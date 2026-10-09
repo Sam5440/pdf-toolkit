@@ -28,7 +28,7 @@ describe('favorites', () => {
 
   it('「更多」工具除 defaultFav 外默认全部不收藏', () => {
     const moreTools = TOOLS.filter((t) => isMoreGroup(t.group));
-    expect(moreTools.length).toBe(56);
+    expect(moreTools.length).toBe(57);
     for (const t of moreTools) {
       if (t.defaultFav) continue;
       expect(isFavorite(t.id)).toBe(false);

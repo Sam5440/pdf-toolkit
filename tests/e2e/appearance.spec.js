@@ -4,12 +4,12 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('外观：内联展开 / 列表视图 / 多巴胺配色', () => {
-  test('首页底部入口内联展开 64 个功能（扩展分组+核心目录），可收起且收藏区不受影响', async ({ page }) => {
+  test('首页底部入口内联展开 65 个功能（扩展分组+核心目录），可收起且收藏区不受影响', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.home-more-open')).toHaveCount(0);
     await page.locator('.home-more-link button').click();
     // 49 扩展 + 15 核心目录 = 64；核心目录分隔线在列
-    await expect(page.locator('.home-more-open .tool-card')).toHaveCount(71);
+    await expect(page.locator('.home-more-open .tool-card')).toHaveCount(72);
     await expect(page.locator('.home-more-open .home-sec-divider')).toContainText('核心工具');
     await expect(page.locator('.home-more-open h2:text-is("转换为 PDF")')).toHaveCount(1);
     // 收起
@@ -32,13 +32,13 @@ test.describe('外观：内联展开 / 列表视图 / 多巴胺配色', () => {
     await expect(page.locator('.tool-grid .tool-card')).toHaveCount(25);
   });
 
-  test('更多页同样支持卡片/列表双向切换（64 条）', async ({ page }) => {
+  test('更多页同样支持卡片/列表双向切换（65 条）', async ({ page }) => {
     await page.goto('/#/more');
     await page.getByRole('button', { name: '列表视图' }).click();
-    await expect(page.locator('.tool-list .tool-row')).toHaveCount(71);
+    await expect(page.locator('.tool-list .tool-row')).toHaveCount(72);
     await expect(page.locator('.home-sec-divider')).toContainText('核心工具');
     await page.getByRole('button', { name: '卡片视图' }).click();
-    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(71);
+    await expect(page.locator('.tool-grid .tool-card')).toHaveCount(72);
   });
 
   test('多巴胺浮钮：单击换随机配色（避开当前）+ 刷新持久，双击恢复默认', async ({ page }) => {

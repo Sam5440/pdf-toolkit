@@ -43,7 +43,7 @@ export const EMOJI = {
   pdf2md: '📉', pdf2rtf: '📃', pdf2epub: '📚', pdf2odf: '🌏', pdf2tiff: '🗞',
   pdf2svg: '🖋', webpconvert: '🔀', heicconvert: '🔀',
   'qrcode-scan': '📲', 'hash-calc': '🧮', crypt: '🗝️', imgocr: '🔠', filebed: '☁️',
-  'image-bed': '🖼️', uploads: '🗂️', textbed: '🗒️',
+  'image-bed': '🖼️', uploads: '🗂️', textbed: '🗒️', 'clipboard-files': '📋',
 };
 
 // 图标别名：某工具无专属 SVG 时复用语义最近的图标
