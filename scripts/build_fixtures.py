@@ -253,6 +253,61 @@ def pptx_bytes():
     return buf.getvalue()
 
 
+def _pptx_set_cjk_font(run, name):
+    """显式设置 run 的中西文字体（python-pptx 只写 a:latin，中文需补 a:ea/a:cs）"""
+    from pptx.oxml.ns import qn
+
+    run.font.name = name
+    rPr = run._r.get_or_add_rPr()
+    for tag in ("a:ea", "a:cs"):
+        el = rPr.find(qn(tag))
+        if el is None:
+            el = rPr.makeelement(qn(tag), {})
+            rPr.append(el)
+        el.set("typeface", name)
+
+
+def pptx_cjk_bytes():
+    """两页 PPTX：显式指定常见中文字体（微软雅黑/宋体/楷体）——office 转换字体内嵌测试。
+    SVG-as-image 栅格化在系统缺这些字体时缺字，依赖内置中文字体的 @font-face 注入。"""
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+
+    prs = Presentation()
+    s1 = prs.slides.add_slide(prs.slide_layouts[5])
+    s1.shapes.title.text = "中文字体渲染测试"
+    _pptx_set_cjk_font(s1.shapes.title.text_frame.paragraphs[0].runs[0], "微软雅黑")
+    box = s1.shapes.add_textbox(Inches(0.8), Inches(2.2), Inches(8), Inches(4))
+    tf = box.text_frame
+    tf.word_wrap = True
+    lines = [
+        ("宋体：永国书安窗双阅衣表", "SimSun"),
+        ("楷体：春风又绿江南岸明月何时照我还", "楷体"),
+        ("仿宋：计算机程序与电子政务文件格式规范", "仿宋"),
+        ("黑体：信息安全等级保护基本要求", "黑体"),
+    ]
+    first = True
+    for text, font in lines:
+        p = tf.paragraphs[0] if first else tf.add_paragraph()
+        first = False
+        run = p.add_run()
+        run.text = text
+        run.font.size = Pt(28)
+        _pptx_set_cjk_font(run, font)
+    buf = io.BytesIO()
+    prs.save(buf)
+    return buf.getvalue()
+
+
+def simsun_nonembedded_pdf():
+    """声明 SimSun 但未嵌入字体的中文 PDF（Windows 侧常见）；
+    reportlab 用 STSong-Light 生成后把 BaseFont 改名为 SimSun。"""
+    data = pdf_bytes(pages=1, text="内置中文字体回退：未嵌入宋体渲染测试")
+    replaced = data.replace(b"STSong-Light", b"SimSun")
+    assert replaced != data, "reportlab 未引用 STSong-Light，改名失败"
+    return replaced
+
+
 def truncated_pdf():
     """截断损坏的 PDF（错误处理用）"""
     return pdf_bytes(2)[: 4096 // 2] + b"%%EOF"
@@ -646,6 +701,8 @@ def main():
         "alpha.png": alpha_png_bytes(),
         "doc.docx": docx_bytes(),
         "slides.pptx": pptx_bytes(),
+        "slides-cjk.pptx": pptx_cjk_bytes(),
+        "cjk-simsun.pdf": simsun_nonembedded_pdf(),
         "corrupted.pdf": truncated_pdf(),
         # 「更多 / 创建 PDF」簇
         "sample.txt": text_file_bytes(),

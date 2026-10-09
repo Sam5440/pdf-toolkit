@@ -20,6 +20,7 @@ import { markdownToDocx } from '../../core/mddocx.js';
 import { pandocToDocx } from '../../core/mdpandoc.js';
 import { markdownToPdfTypst } from '../../core/mdtypst.js';
 import { PDFJS_ASSET_OPTS } from '../../core/pdfjs-assets.js';
+import { ensureCNFontFaces } from '../../core/cnfonts.js';
 import { setEngineStatus } from '../../core/wasm-registry.js';
 import { buildOutputName, paramsToken } from '../../core/naming.js';
 
@@ -133,6 +134,7 @@ async function getPdfjs() {
 /** PDF 字节 → 逐页 canvas 预览（主线程 pdf.js）。返回页数 */
 async function renderPreviewBytes(bytes, pagesBox) {
   const pdfjs = await getPdfjs();
+  ensureCNFontFaces(); // 未嵌入中文 PDF 的字体名回退（后台注册，不阻塞预览）
   const doc = await pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, ...PDFJS_ASSET_OPTS }).promise;
   pagesBox.replaceChildren();
   for (let i = 1; i <= doc.numPages; i++) {

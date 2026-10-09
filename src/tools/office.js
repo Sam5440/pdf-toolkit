@@ -7,6 +7,8 @@ import { run } from '../core/engine.js';
 import { inputPanel } from '../components/input.js';
 import { progressCard, warningsBox, toast, button } from '../components/ui.js';
 import { recordTaskOrButton, recordNote, capturePageForm } from '../core/tasklog.js';
+import { isCJKText } from '../core/fonts.js';
+import { parseFontFamilyList, getCNFontFaceRules } from '../core/cnfonts.js';
 
 const OLD_FORMAT_RE = /\.(doc|ppt)$/i;
 
@@ -44,6 +46,25 @@ async function inlineImages(root) {
   await Promise.all(jobs);
 }
 
+/**
+ * 收集节点内联样式引用的中文字体名，生成 @font-face 规则（内置中文字体 data-URI）。
+ * SVG-as-image 不读取 document 网页字体，系统缺字体时中文会整体糊掉；
+ * 把规则注入 SVG 内部的 <style> 才能在栅格化时生效（docx/pptx 预览库均为内联样式）。
+ */
+async function collectCNFontCss(node) {
+  const names = new Set(parseFontFamilyList(node.getAttribute && node.getAttribute('style')));
+  for (const el of node.querySelectorAll('[style]')) {
+    for (const n of parseFontFamilyList(el.getAttribute('style'))) names.add(n);
+  }
+  let css = await getCNFontFaceRules([...names]).catch(() => '');
+  // 字体名未命中内置别名但内容含中文（如方正/汉仪等商业字体）：兜底注入黑体，
+  // 避免栅格化时逐字缺字。样式层面给外层容器追加兜底字体族。
+  if (!css && isCJKText(node.textContent)) {
+    css = await getCNFontFaceRules(['Microsoft YaHei']).catch(() => '');
+  }
+  return css;
+}
+
 /** DOM 节点 → JPEG bytes（SVG foreignObject 栅格化，白底，2x 采样） */
 async function nodeToJpeg(node, scale = 2) {
   const rect = node.getBoundingClientRect();
@@ -53,11 +74,13 @@ async function nodeToJpeg(node, scale = 2) {
   clone.style.margin = '0';
   clone.style.boxShadow = 'none';
   await inlineImages(clone);
+  const fontCss = await collectCNFontCss(clone).catch(() => '');
 
   const xhtml = new XMLSerializer().serializeToString(clone);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">`
     + `<foreignObject width="100%" height="100%">`
-    + `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;height:${h}px;overflow:hidden">${xhtml}</div>`
+    + `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;height:${h}px;overflow:hidden${fontCss ? `;font-family:'Microsoft YaHei','SimHei',sans-serif` : ''}">`
+    + `${fontCss ? `<style>${fontCss}</style>` : ''}${xhtml}</div>`
     + `</foreignObject></svg>`;
   const img = new Image();
   await new Promise((resolve, reject) => {

@@ -30,6 +30,9 @@ tests/e2e/.tmp/
 # 重型 WASM 引擎二进制（scripts/fetch-engines.mjs 可重建 public/engines/）
 public/engines/
 
+# 中文字体构建源文件（scripts/build_cn_fonts.py 可重新下载，52MB）
+scripts/.cn-fonts-src/
+
 # 用户本地问题文档（真实数据，不入公开仓库）
 问题 Markdown/
 问题文件/

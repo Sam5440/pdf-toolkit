@@ -16,6 +16,7 @@ import { pageTextDiffs } from './textdiff.js';
 import { planCandidates, refineCandidates, candidateId, pickBest } from './compress-planner.js';
 import { toolkitError, ERR } from './errors.js';
 import { fmtMB } from './format.js';
+import { ensureCNFontFaces } from './cnfonts.js';
 import { handlers as moreHandlers } from './engine-more.js';
 
 const BASE = import.meta.env.BASE_URL || '/';
@@ -46,6 +47,9 @@ async function getPdfjs() {
       notifyEngine('pdfjs', 'error', err?.message || String(err));
       throw err;
     }
+    // 后台注册内置中文字体（宋体/黑体/楷体/仿宋等常见字体名的 FontFace 别名），
+    // 供 pdf.js 渲染未嵌入中文字体的 PDF 时命中；不阻塞首次渲染。
+    ensureCNFontFaces();
     notifyEngine('pdfjs', 'ready', `v${pdfjs.version || '?'}`);
   }
   return pdfjs;
@@ -229,6 +233,11 @@ export async function pdfjsOpen(entry) {
     data: entry.bytes.slice(),
     isEvalSupported: false,
     useSystemFonts: true,
+    // worker 内无 document：把 FontFaceSet 伪装成 ownerDocument，pdf.js 的
+    // FontLoader 才能走 Font Loading API 注册字体，否则嵌入字体的 FontFace
+    // 注册路径静默崩溃（insertRule 触碰 undefined.defaultView）→ 全部文字
+    // 退化成系统通用字体渲染（宋体/符号字形错乱）。
+    ownerDocument: self.fonts ? { fonts: self.fonts } : undefined,
     // 资源由 pdf.worker 侧自行 fetch：API 侧的 DOMBinaryDataFactory 走
     // fetchData(url, document.baseURI)，worker 内无 document 会 ReferenceError，
     // 中文 CID 字体的 CMap 因此加载失败 → 文字被整体丢弃（预览中文空白）。
@@ -252,6 +261,9 @@ export async function pdfjsOpen(entry) {
 
 export async function renderPageBitmap(entry, pageNo, { dpi = 110, gray = false, bg = null, maxPixels = 4096 * 4096 } = {}) {
   const pjs = await getPdfjs();
+  // 渲染前等内置中文字体就位（限时 3s：冷启动慢网络也不明显阻塞；超时后字体
+  // 仍会在后台注册完成，只影响本次渲染的未嵌入中文字体命中）
+  await Promise.race([ensureCNFontFaces(), new Promise((r) => setTimeout(r, 3000))]);
   const doc = await pdfjsOpen(entry);
   const page = await doc.getPage(pageNo + 1);
   let scale = dpi / 72;
